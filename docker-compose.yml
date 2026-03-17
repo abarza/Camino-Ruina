@@ -1,0 +1,16 @@
+services:
+  camino:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    env_file:
+      - .env
+    volumes:
+      - ./mundo:/gonzalo/mundo
+      - ./saves:/df/data/save
+      # Opcional: monta tu instalación de DF/DFHack dentro del contenedor.
+      - ./df:/opt/df
+    working_dir: /gonzalo
+    tty: true
+    stdin_open: true
+
