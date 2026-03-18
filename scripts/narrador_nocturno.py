@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import datetime as dt
+import json
 import os
+import re
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from scripts.llm import completar
 
@@ -28,9 +31,45 @@ def append(path: Path, contenido: str) -> None:
         f.write(contenido)
 
 
+def tz_obj() -> ZoneInfo:
+    tz_name = os.getenv("APP_TZ", "America/Santiago")
+    try:
+        return ZoneInfo(tz_name)
+    except Exception:
+        return ZoneInfo("UTC")
+
+
+def hoy_iso() -> str:
+    return dt.datetime.now(tz_obj()).date().isoformat()
+
+
 def log_de_hoy(mundo: Path) -> Path:
-    today = dt.date.today().isoformat()
+    today = hoy_iso()
     return mundo / "logs" / f"{today}.md"
+
+
+def log_mas_reciente(mundo: Path) -> Path | None:
+    logs_dir = mundo / "logs"
+    if not logs_dir.exists():
+        return None
+    candidates = sorted(logs_dir.glob("????-??-??.md"), reverse=True)
+    return candidates[0] if candidates else None
+
+
+def log_para_procesar(mundo: Path) -> Path:
+    # Override útil para pruebas.
+    forced = os.getenv("NARRADOR_LOG_DATE", "").strip()
+    if forced:
+        return mundo / "logs" / f"{forced}.md"
+
+    today = log_de_hoy(mundo)
+    if today.exists():
+        return today
+
+    latest = log_mas_reciente(mundo)
+    if latest is not None:
+        return latest
+    return today
 
 
 def system_prompt_gonzalo() -> str:
@@ -56,6 +95,8 @@ def user_prompt_cron(*, logs: str, maleta: str, biblia: str, diario: str) -> str
         "MALETA_UPDATE (solo si hubo algo que valió guardar; puede estar vacío)\n"
         "DIARIO_UPDATE (máximo 3 líneas)\n"
         "BIBLIA_UPDATE (cambios en personajes)\n\n"
+        "IMPORTANTE: responde SOLO con JSON válido (sin markdown, sin ```), con esta forma exacta:\n"
+        '{"episodio":"...","maleta_update":"...","diario_update":"...","biblia_update":"..."}\n\n'
         f"---\nLOGS DEL DÍA:\n{logs}\n\n"
         f"---\nMALETA ACTIVA:\n{maleta}\n\n"
         f"---\nBIBLIA DE PERSONAJES:\n{biblia}\n\n"
@@ -63,14 +104,53 @@ def user_prompt_cron(*, logs: str, maleta: str, biblia: str, diario: str) -> str
     )
 
 
-def extraer_bloques(respuesta: str) -> tuple[str, str, str, str]:
-    """
-    Espera una respuesta con:
-    - Episodio (texto libre)
-    - MALETA_UPDATE:
-    - DIARIO_UPDATE:
-    - BIBLIA_UPDATE:
-    """
+def _limpiar_bloque(text: str) -> str:
+    s = text.strip()
+    if s.startswith("```") and s.endswith("```"):
+        s = "\n".join(s.splitlines()[1:-1]).strip()
+    # Si llega envuelto en ** ... **, quitamos wrapper.
+    if s.startswith("**") and s.endswith("**") and len(s) >= 4:
+        s = s[2:-2].strip()
+
+    # Limpia líneas sueltas de markdown residual (***, **, __, etc.)
+    cleaned_lines: list[str] = []
+    for line in s.splitlines():
+        l = line.strip()
+        if not l:
+            cleaned_lines.append("")
+            continue
+        if re.fullmatch(r"[*_`#\-\s]+", l):
+            continue
+        if l.startswith("** "):
+            l = l[3:].strip()
+        cleaned_lines.append(l)
+
+    s = "\n".join(cleaned_lines).strip()
+    return s
+
+
+def _extraer_json(respuesta: str) -> dict[str, str] | None:
+    s = respuesta.strip()
+    try:
+        data = json.loads(s)
+        if isinstance(data, dict):
+            return {k: str(v) for k, v in data.items()}
+    except Exception:
+        pass
+
+    m = re.search(r"```json\s*(\{.*?\})\s*```", s, flags=re.DOTALL | re.IGNORECASE)
+    if m:
+        try:
+            data = json.loads(m.group(1))
+            if isinstance(data, dict):
+                return {k: str(v) for k, v in data.items()}
+        except Exception:
+            pass
+
+    return None
+
+
+def _extraer_bloques_legacy(respuesta: str) -> tuple[str, str, str, str]:
     episodio = respuesta.strip()
     maleta_u = ""
     diario_u = ""
@@ -97,9 +177,27 @@ def extraer_bloques(respuesta: str) -> tuple[str, str, str, str]:
     return episodio, maleta_u, diario_u, biblia_u
 
 
+def extraer_bloques(respuesta: str) -> tuple[str, str, str, str]:
+    data = _extraer_json(respuesta)
+    if data is not None:
+        episodio = _limpiar_bloque(data.get("episodio", ""))
+        maleta_u = _limpiar_bloque(data.get("maleta_update", ""))
+        diario_u = _limpiar_bloque(data.get("diario_update", ""))
+        biblia_u = _limpiar_bloque(data.get("biblia_update", ""))
+        return episodio, maleta_u, diario_u, biblia_u
+
+    episodio, maleta_u, diario_u, biblia_u = _extraer_bloques_legacy(respuesta)
+    return (
+        _limpiar_bloque(episodio),
+        _limpiar_bloque(maleta_u),
+        _limpiar_bloque(diario_u),
+        _limpiar_bloque(biblia_u),
+    )
+
+
 def main() -> int:
     mundo = mundo_dir()
-    logs_path = log_de_hoy(mundo)
+    logs_path = log_para_procesar(mundo)
     maleta_path = mundo / "maletas" / "maleta_001.md"
     biblia_path = mundo / "biblia" / "personajes.md"
     diario_path = mundo / "diario.md"
@@ -152,4 +250,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

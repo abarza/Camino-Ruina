@@ -6,7 +6,7 @@ Fuentes: [`docs/gonzalo_biblia_v3.md`](gonzalo_biblia_v3.md), [`docs/arquitectur
 
 ## Estado actual (auditoría con evidencia)
 
-Fecha de auditoría: 2026-03-17.
+Fecha de auditoría: 2026-03-18.
 
 ### Inventario (evidencia)
 
@@ -27,7 +27,7 @@ Fecha de auditoría: 2026-03-17.
   - `scripts/decisor_llm.py`
 - `mundo/` (bus persistente):
   - `mundo/diario.md`
-  - `mundo/logs/2026-03-17.md` (hay snapshots de ejecución)
+  - `mundo/logs/2026-03-17.md` (hay snapshots/turnos de ejecución)
   - `mundo/maletas/maleta_001.md`
   - `mundo/biblia/personajes.md`, `mundo/biblia/fortaleza_actual.md`
   - `mundo/legends/mundo.md`
@@ -89,13 +89,17 @@ Fecha de auditoría: 2026-03-17.
 
 - **Criterios**
   - ✅ Ejecutable manualmente (script existe y opera sobre `mundo/`).
-  - ⏳ Cron corre 1 vez por noche sin errores en operación continua (pendiente de corrida nocturna completa).
+  - ✅ Manual robusto frente a zona horaria/log faltante (usa `APP_TZ`, fallback a log más reciente y override `NARRADOR_LOG_DATE`).
+  - ⏳ Cron corre 1 vez por noche sin errores en operación continua (pendiente de corrida automática real en horario programado).
 - **Evidencia**
   - `scripts/narrador_nocturno.py`:
-    - Lee `mundo/logs/YYYY-MM-DD.md` y actualiza `mundo/maletas/maleta_001.md`.
+    - Elige log vía `APP_TZ` + fallback a último log disponible.
+    - Lee `mundo/logs/YYYY-MM-DD.md` (o fallback) y actualiza `mundo/maletas/maleta_001.md`.
     - Si no hay logs, deja marca en la maleta y sale sin tocar biblia/diario.
     - Integra LLM vía `scripts/llm.py` (OpenAI/Anthropic) y tiene fallback “stub”.
+    - Parsea respuesta preferentemente como JSON y mantiene fallback legacy.
   - Cron configurado en `docker/cron_narrador`.
+  - Validación manual: `python3 -m scripts.narrador_nocturno` ejecuta `EXIT:0` y escribe en maleta/diario/biblia.
 
 #### Fase 4 — Intenciones LLM + ejecución mecánica
 
