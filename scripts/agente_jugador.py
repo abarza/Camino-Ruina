@@ -78,12 +78,12 @@ def parse_teclas_env() -> list[str]:
 def main() -> int:
     target = TmuxTarget.from_env()
     mundo = mundo_dir()
-    log_path = log_path_for_today(mundo)
 
     intervalo = float(os.getenv("AGENT_TICK_SECONDS", "10"))
     teclas = parse_teclas_env()
 
     while True:
+        log_path = log_path_for_today(mundo)
         antes = capture_pane(target, lines=250)
         contexto = detectar_contexto(antes)
         decision = "Ejecutar secuencia mecánica v0"
@@ -96,8 +96,9 @@ def main() -> int:
                 intencion = decidir_intencion(EstadoMinimo(pantalla=antes, contexto=contexto))
                 decision = f"Intención LLM: {intencion.nombre}"
                 teclas_a_enviar = intencion.teclas
-            except Exception:
-                # Silencioso: si no hay key o falla el parse, seguimos en modo mecánico.
+            except Exception as exc:
+                import sys
+                print(f"[agente] decisor LLM falló: {exc}", file=sys.stderr)
                 teclas_a_enviar = teclas
 
         send_raw_keys(target, teclas_a_enviar)

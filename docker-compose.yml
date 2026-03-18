@@ -11,6 +11,7 @@ services:
       # Opcional: monta tu instalación de DF/DFHack dentro del contenedor.
       - ./df:/opt/df
     working_dir: /gonzalo
+    restart: unless-stopped
     tty: true
     stdin_open: true
 

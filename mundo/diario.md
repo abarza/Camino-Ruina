@@ -3,12 +3,11 @@
 Maleta actual: 001
 Día del mundo: 1
 Día de esta vida: 1
-Última ubicación: /opt/df (entorno de arranque)
-Estado de Gonzalo: Insiste, pero sigue atascado en la puerta.
+Última ubicación: (sin definir)
+Estado de Gonzalo: Recién llegado. Todo es nuevo.
 
 Lo que todavía le pesa:
-- El juego no termina de abrirse de forma confiable.
-- El ruido técnico le tapa lo importante.
+- Nada todavía. O todo. Es difícil saber cuándo recién llegas.
 
 Su respuesta provisional a la pregunta central:
-Todavía no hay respuesta. Solo fricción.
+Todavía no hay respuesta. Todavía no hay pregunta formulada en voz alta.
