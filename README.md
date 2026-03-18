@@ -37,10 +37,16 @@ docker compose up --build
 python3 -m scripts.captura_pantalla
 ```
 
-- **Agente jugador v0 (loop)**:
+- **Agente jugador v0 (loop mecánico)**:
 
 ```bash
 python3 -m scripts.agente_jugador
+```
+
+- **Agente jugador con LLM (16 intenciones)**:
+
+```bash
+USE_LLM_INTENTIONS=1 python3 -m scripts.agente_jugador
 ```
 
 - **Narrador nocturno (manual)**:

@@ -7,20 +7,22 @@ El loop NO es un timer fijo. El agente es reactivo con delays variables según c
 ## Dos niveles de decisión
 
 ### Nivel 1 — LLM (decisiones estratégicas)
-El LLM recibe el estado del mundo vía DFHack y decide una **intención**:
-- "Ir a la ciudad al norte"
-- "Hablar con el NPC que está cerca"
-- "Huir al sur"
-- "Explorar esta cueva"
-- "Descansar"
+El LLM recibe la pantalla capturada y el contexto detectado, y elige una **intención** del vocabulario disponible (16 intenciones en `scripts/intenciones.py`):
+- Movimiento: `explorar_norte`, `explorar_sur`, `explorar_este`, `explorar_oeste`
+- Interacción: `hablar_npc`, `mirar_alrededor`, `recoger_objeto`
+- Navegación: `entrar_lugar`, `subir_nivel`, `viajar`
+- Supervivencia: `comer`, `descansar`, `inventario`
+- Combate: `atacar`, `huir`
+- Pasivo: `esperar`
 
-Esto se consulta solo cuando hay una decisión real que tomar. No cada tick.
+Prioridades del decisor: hablar con NPCs > observar > explorar > huir > atacar.
+Se consulta solo cuando hay una decisión real que tomar. No cada tick.
 
 ### Nivel 2 — Script (ejecución mecánica)
-El script traduce la intención en secuencias de teclas y las ejecuta sin volver a consultar al LLM:
-- "Ir al norte" = 30 pasos de movimiento automáticos
-- "Abrir inventario y comer" = secuencia fija de teclas
-- "Dormir" = una tecla y esperar
+El script traduce la intención en secuencias de teclas predefinidas y las ejecuta sin volver a consultar al LLM:
+- `explorar_norte` = 3 pasos al norte (KP_8 × 3)
+- `comer` = una tecla (`e`) que abre el menú
+- `descansar` = una tecla (`Z`) para acampar
 
 ## Delays por contexto
 

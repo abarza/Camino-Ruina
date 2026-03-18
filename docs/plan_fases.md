@@ -94,6 +94,8 @@ Fecha de auditoría: 2026-03-18.
 - **Evidencia**
   - `scripts/agente_jugador.py` escribe bloques `## Turno HH:MM` con `Pantalla/Contexto/Decisión/Teclas/Resultado`.
   - `scripts/tmux_io.py` implementa `capture_pane()` y `send_raw_keys()` (IO con tmux).
+  - Log path se recalcula en cada iteración (rollover correcto a medianoche).
+  - Errores del decisor LLM se loguean a stderr (no se tragan silenciosamente).
 
 #### Fase 3 — Narrador nocturno v0 (cron + crónica diaria mínima)
 
@@ -108,17 +110,21 @@ Fecha de auditoría: 2026-03-18.
     - Si no hay logs, deja marca en la maleta y sale sin tocar biblia/diario.
     - Integra LLM vía `scripts/llm.py` (OpenAI/Anthropic) y tiene fallback “stub”.
     - Parsea respuesta preferentemente como JSON y mantiene fallback legacy.
-  - Cron configurado en `docker/cron_narrador`.
+    - System prompt completo basado en biblia §7 + reglas de tono §11 (incluye pregunta central, voz, entrevistas, diálogos, ejemplos de tono).
+    - Estado narrativo dinámico: `parsear_estado_diario()` extrae maleta/día/ubicación del `diario.md` (sin hardcodear).
+    - `max_tokens=2000` para dar espacio a episodio + updates JSON.
+  - Cron configurado en `docker/cron_narrador` (con trailing newline asegurado).
   - Validación manual: `python3 -m scripts.narrador_nocturno` ejecuta `EXIT:0` y escribe en maleta/diario/biblia.
 
 #### Fase 4 — Intenciones LLM + ejecución mecánica
 
 - **Criterios**
   - ✅ Existe módulo de intenciones y decisor LLM.
+  - ✅ Vocabulario de 16 intenciones cubriendo movimiento, interacción, navegación, supervivencia, combate y pasivo.
   - ⏳ Métrica 20–30 llamadas/hora (pendiente de instrumentación/medición real).
 - **Evidencia**
-  - `scripts/intenciones.py` define `INTENCIONES_V0`.
-  - `scripts/decisor_llm.py` pide JSON `{\"intencion\":\"nombre\"}` al LLM y mapea a teclas.
+  - `scripts/intenciones.py` define 16 intenciones: `explorar_norte/sur/este/oeste`, `hablar_npc`, `mirar_alrededor`, `recoger_objeto`, `entrar_lugar`, `subir_nivel`, `viajar`, `comer`, `descansar`, `inventario`, `atacar`, `huir`, `esperar`.
+  - `scripts/decisor_llm.py` pide JSON `{\"intencion\":\"nombre\"}` al LLM con prompt enriquecido (prioridades de Gonzalo: hablar > observar > explorar > huir > atacar).
   - `scripts/agente_jugador.py` soporta `USE_LLM_INTENTIONS=1` y loguea `Decisión: Intención LLM: ...` si aplica.
 
 #### Fase 5 — Operación + ganchos futuro
@@ -130,6 +136,7 @@ Fecha de auditoría: 2026-03-18.
 - **Evidencia**
   - `README.md` incluye comandos `python3 -m scripts.*` y `docker compose up --build`.
   - `mundo/inbox/README.md` define propuesta de bandeja de entrada.
+  - `docker-compose.yml` tiene `restart: unless-stopped` (recuperación automática ante crash).
 
 ## Principios no negociables
 
