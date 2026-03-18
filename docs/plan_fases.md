@@ -40,6 +40,16 @@ Fecha de auditoría: 2026-03-18.
 
 > Nota operativa actualizada: en este entorno **sí** hay Docker/Compose y se pudo ejecutar `docker compose config` y `docker compose run` para validar montaje de volúmenes y arranque base del contenedor.
 
+### Checklist rápido (18-03-2026)
+
+- [x] Fase 0 cerrada.
+- [x] Fase 1 cerrada (Docker + DF + DFHack compat + logs limpios).
+- [x] Fase 2 v0 cerrada (agente en loop y logging estructurado).
+- [x] Fase 3 validada manualmente (`narrador_nocturno` ejecuta y escribe).
+- [ ] Fase 3 automática pendiente (1 corrida cron real en horario programado sin intervención manual).
+- [ ] Fase 4 pendiente de medición real (20–30 llamadas/hora y calidad de intención en runtime).
+- [ ] Fase 5 pendiente de estabilidad (corrida prolongada de varias horas sin intervención frecuente).
+
 #### Fase 0 — Arranque del repo y estructura
 
 - **Criterios**
