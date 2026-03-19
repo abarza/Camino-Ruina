@@ -20,11 +20,16 @@ fi
 
 if ! pgrep -x Xvfb >/dev/null 2>&1; then
   Xvfb "${DISPLAY}" -screen 0 1280x720x24 >/var/log/xvfb.log 2>&1 &
+  sleep 1
+fi
+
+# Window manager (SDL2 necesita WM para recibir input via VNC).
+if ! pgrep -x openbox >/dev/null 2>&1; then
+  openbox >/dev/null 2>&1 &
 fi
 
 # VNC para setup inicial / debug visual.
 if ! pgrep -x x11vnc >/dev/null 2>&1; then
-  sleep 1
   x11vnc -display "${DISPLAY}" -forever -nopw -listen 0.0.0.0 -rfbport 5900 \
     >/var/log/x11vnc.log 2>&1 &
 fi
