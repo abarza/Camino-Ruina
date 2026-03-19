@@ -3,11 +3,8 @@
 local _ENV = mkmodule('argparse')
 
 local getopt = require('3rdparty.alt_getopt')
+local guidm = require('gui.dwarfmode')
 
----@nodiscard
----@param args string[] Most commonly `{ ... }`
----@param validArgs table<string, integer> Use `utils.invert`
----@return table<string, string|string[]>
 function processArgs(args, validArgs)
     local result = {}
     local argName
@@ -62,24 +59,18 @@ function processArgs(args, validArgs)
     return result
 end
 
----@class argparse.OptionAction
----@field [1] string|nil Short option (eg. "q")
----@field [2] string|nil Long option (eg. "quiet")
----@field handler fun(optarg?: string)
----@field hasArg boolean|nil
-
 -- See online docs for full usage info.
 --
 -- Quick example:
 --
---     local args = {...}
---     local open_readonly, filename = false, nil     -- set defaults
+-- local args = {...}
+-- local open_readonly, filename = false, nil     -- set defaults
 --
---     local positionals = argparse.processArgsGetopt(args, {
---       {'r', handler=function() open_readonly = true end},
---       {'f', 'filename', hasArg=true,
---       handler=function(optarg) filename = optarg end}
---     })
+-- local positionals = argparse.processArgsGetopt(args, {
+--   {'r', handler=function() open_readonly = true end},
+--   {'f', 'filename', hasArg=true,
+--    handler=function(optarg) filename = optarg end}
+--   })
 --
 -- In this example, if args is {'first', '-rf', 'fname', 'second'} or,
 -- equivalently, {'first', '-r', '--filename', 'myfile.txt', 'second'} (note the
@@ -87,9 +78,6 @@ end
 --   open_readonly == true
 --   filename == 'myfile.txt'
 --   positionals == {'first', 'second'}.
----@param args string[] Most commonly `{ ... }`
----@param optionActions argparse.OptionAction[]
----@return string[] positionals # Positional arguments
 function processArgsGetopt(args, optionActions)
     local sh_opts, long_opts = '', {}
     local handlers = {}
@@ -133,9 +121,6 @@ function processArgsGetopt(args, optionActions)
     return nonoptions
 end
 
----@param arg_name? string
----@param fmt string
----@param ... any
 local function arg_error(arg_name, fmt, ...)
     local prefix = ''
     if arg_name and #arg_name > 0 then
@@ -144,14 +129,9 @@ local function arg_error(arg_name, fmt, ...)
     qerror(('%s'..fmt):format(prefix, ...))
 end
 
----@nodiscard
----@param arg string
----@param arg_name? string
----@param list_length? integer
----@return string[]
 function stringList(arg, arg_name, list_length)
     if not list_length then list_length = 0 end
-    local list = arg and (arg):split(',') or {}
+    local list = arg:split(',')
     if list_length > 0 and #list ~= list_length then
         arg_error(arg_name,
                   'expected %d elements; found %d', list_length, #list)
@@ -162,29 +142,18 @@ function stringList(arg, arg_name, list_length)
     return list
 end
 
----@nodiscard
----@param arg string
----@param arg_name? string
----@param list_length? integer
----@return integer[]
 function numberList(arg, arg_name, list_length)
     local strings = stringList(arg, arg_name, list_length)
-    ---@type integer[]
-    local numbers = {}
     for i,str in ipairs(strings) do
         local num = tonumber(str)
         if not num then
             arg_error(arg_name, 'invalid number: "%s"', str)
         end
-        numbers[i] = num
+        strings[i] = num
     end
-    return numbers
+    return strings
 end
 
----@nodiscard
----@param arg string|integer
----@param arg_name? string
----@return integer
 function positiveInt(arg, arg_name)
     local val = tonumber(arg)
     if not val or val <= 0 or val ~= math.floor(val) then
@@ -194,10 +163,6 @@ function positiveInt(arg, arg_name)
     return val
 end
 
----@nodiscard
----@param arg string|integer
----@param arg_name? string
----@return integer
 function nonnegativeInt(arg, arg_name)
     local val = tonumber(arg)
     if not val or val < 0 or val ~= math.floor(val) then
@@ -207,14 +172,8 @@ function nonnegativeInt(arg, arg_name)
     return val
 end
 
----@nodiscard
----@param arg string|'here'
----@param arg_name? string
----@param skip_validation? boolean
----@return df.coord
 function coords(arg, arg_name, skip_validation)
     if arg == 'here' then
-        local guidm = require('gui.dwarfmode')  -- globals may not be available yet
         local cursor = guidm.getCursorPos()
         if not cursor then
             arg_error(arg_name,
@@ -235,25 +194,6 @@ function coords(arg, arg_name, skip_validation)
                   'specified coordinates not on current map: "%s"', arg)
     end
     return pos
-end
-
-local toBool={["true"]=true,["yes"]=true,["y"]=true,["on"]=true,["1"]=true,["enable"]=true,["enabled"]=true,
-              ["false"]=false,["no"]=false,["n"]=false,["off"]=false,["0"]=false,["disable"]=false,["disabled"]=false}
----@nodiscard
----@param arg string
----@param arg_name? string
----@return boolean
-function boolean(arg, arg_name)
-    if arg == nil then
-        arg_error(arg_name, 'missing value; expected "true", "yes", "false", or "no"')
-    end
-    local arg_lower = string.lower(arg)
-    if toBool[arg_lower] == nil then
-        arg_error(arg_name,
-            'unknown value: "%s"; expected "true", "yes", "false", or "no"', arg)
-    end
-
-    return toBool[arg_lower]
 end
 
 return _ENV

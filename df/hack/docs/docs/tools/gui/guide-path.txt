@@ -1,11 +1,13 @@
 gui/guide-path
 ==============
 
-Tags: unavailable
+Tags: fort | inspection | map
 
 Command: "gui/guide-path"
 
   Visualize minecart guide paths.
+
+Keybinding: [Alt][P] in "dwarfmode/Hauling/DefineStop/Cond/Guide"
 
 This tool displays the cached path that will be used by the minecart guide order. The game computes this path when the order is executed for the first time, so you have to wait for a dwarf to have started pushing the minecart at least once before you can visualize the path.
 

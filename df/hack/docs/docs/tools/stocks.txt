@@ -1,11 +1,13 @@
 stocks
 ======
 
-Tags: unavailable
+Tags: fort | productivity | items
 
 Command: "stocks"
 
   Enhanced fortress stock management interface.
+
+Keybinding: [Ctrl][Shift][Z] -> ""stocks show"" in "dwarfmode/Default"
 
 When the plugin is enabled, two new hotkeys become available:
 

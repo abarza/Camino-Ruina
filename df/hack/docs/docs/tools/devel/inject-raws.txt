@@ -1,7 +1,7 @@
 devel/inject-raws
 =================
 
-Tags: unavailable
+Tags: dev
 
 Command: "devel/inject-raws"
 

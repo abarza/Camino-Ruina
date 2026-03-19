@@ -1,7 +1,7 @@
 steam-engine
 ============
 
-Tags: unavailable
+Tags: fort | gameplay | buildings
 
   Allow modded steam engine buildings to function.
 

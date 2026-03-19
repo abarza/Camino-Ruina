@@ -1,3 +1,15 @@
+-- Use with a unit selected to make them focused and unstressed.
+--[====[
+
+fillneeds
+=========
+Use with a unit selected to make them focused and unstressed.
+
+Alternatively, a unit can be specified by passing ``-unit UNIT_ID``
+
+Use ``-all`` to apply to all units on the map.
+
+]====]
 local utils = require('utils')
 local validArgs = utils.invert({'all', 'unit'})
 local args = utils.processArgs({...}, validArgs)
@@ -10,11 +22,11 @@ function satisfyNeeds(unit)
     for k,v in ipairs(mind) do
         mind[k].focus_level = 400
     end
-    unit.status.current_soul.personality.stress = -1000000
+    unit.status.current_soul.personality.stress_level = -1000000
 end
 
 if args.all then
-    for _, unit in ipairs(dfhack.units.getCitizens()) do
+    for _, unit in ipairs(df.global.world.units.all) do
         satisfyNeeds(unit)
     end
 else

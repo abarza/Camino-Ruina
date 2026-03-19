@@ -1,7 +1,7 @@
 manipulator
 ===========
 
-Tags: unavailable
+Tags: fort | productivity | labors
 
   An in-game labor management interface.
 

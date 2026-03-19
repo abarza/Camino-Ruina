@@ -1,7 +1,7 @@
 assign-profile
 ==============
 
-Tags: unavailable
+Tags: fort | armok | units
 
 Command: "assign-profile"
 

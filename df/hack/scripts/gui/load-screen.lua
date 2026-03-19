@@ -1,10 +1,38 @@
 -- A replacement for the "load game" screen
 --@ enable = true
+--[====[
+
+gui/load-screen
+===============
+A replacement for the "continue game" screen.
+
+Usage: ``gui/load-screen enable|disable``
+
+The primary view is a list of saved games, much like the default list provided
+by DF. Several filter options are available:
+
+- :kbd:`s`: search for folder names containing specific text
+- :kbd:`t`: filter by active game type (e.g. fortress, adventurer)
+- :kbd:`b`: toggle display of backup folders, as created by DF's ``AUTOBACKUP``
+  option (see data/init/init.txt for a detailed explanation). This defaults to
+  hiding backup folders, since they can take up significant space in the list.
+
+When selecting a game with :kbd:`Enter`, a dialog will give options to load the
+selected game (:kbd:`Enter` again), cancel (:kbd:`Esc`), or rename the game's
+folder (:kbd:`r`). See the ``title-start-rename`` `tweak` to rename folders in
+the "start playing" menu.
+
+]====]
 
 VERSION = '0.8.5'
 
 function usage()
-    print(dfhack.script_help())
+    print([[Usage:
+    load-screen enable:    Enable load-screen
+    load-screen disable:   Disable load-screen
+    load-screen version:   Show version information
+    load-screen [help]:    Show this help
+]])
 end
 
 local gui = require 'gui'
@@ -407,8 +435,8 @@ function load_screen_options:validate_folders(old_folder, new_folder)
         showError('Invalid path!')
         return false
     end
-    local old_path = 'save/' .. old_folder
-    local new_path = 'save/' .. new_folder
+    local old_path = 'data/save/' .. old_folder
+    local new_path = 'data/save/' .. new_folder
     if not dfhack.filesystem.isdir(old_path) then
         showError('Folder missing', 'Cannot find ' .. old_path)
         return false
@@ -443,7 +471,7 @@ function load_screen_options:display(parent, save)
     self.parent = parent
     self.save = save
 
-    local world_sav_path = 'save/' .. save.folder_name .. '/world.sav'
+    local world_sav_path = 'data/save/' .. save.folder_name .. '/world.sav'
     self.save_mtime = os.date('%c', dfhack.filesystem.mtime(world_sav_path))
     self.last_saved_message = 'Last saved: ' .. self.save_mtime
     local f = io.open(world_sav_path, 'rb')

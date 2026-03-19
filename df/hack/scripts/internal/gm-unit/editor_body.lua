@@ -5,15 +5,17 @@ local dialog = require 'gui.dialogs'
 local widgets = require 'gui.widgets'
 local base_editor = reqscript("internal/gm-unit/base_editor")
 
-rng = rng or dfhack.random.new(nil, 10)
-
 -- TODO: Trigger recalculation of body sizes after size is edited
 
-Editor_Body_Modifier=defclass(Editor_Body_Modifier, widgets.Window)
-Editor_Body_Modifier.ATTRS{
-    frame={w=50, h=20},
-    resizable=true,
-}
+Editor_Body_Modifier=defclass(Editor_Body_Modifier, base_editor.Editor)
+
+function showModifierScreen(target_unit, partChoice)
+  Editor_Body_Modifier{
+    frame_title = "Select a modifier",
+    target_unit = target_unit,
+    partChoice = partChoice
+  }:show()
+end
 
 function Editor_Body_Modifier:beautifyString(text)
   local out = text
@@ -28,29 +30,17 @@ function Editor_Body_Modifier:setPartModifier(indexList, value)
   for _, index in ipairs(indexList) do
     self.target_unit.appearance.bp_modifiers[index] = tonumber(value)
   end
-
-  -- Update the unit's portrait
-  self.target_unit.flags4.portrait_must_be_refreshed = true
-  -- Update the world texture
-  self.target_unit.flags4.any_texture_must_be_refreshed = true
-
   self:updateChoices()
 end
 
 function Editor_Body_Modifier:setBodyModifier(modifierIndex, value)
   self.target_unit.appearance.body_modifiers[modifierIndex] = tonumber(value)
-
-  -- Update the unit's portrait
-  self.target_unit.flags4.portrait_must_be_refreshed = true
-  -- Update the world texture
-  self.target_unit.flags4.any_texture_must_be_refreshed = true
-
   self:updateChoices()
 end
 
 function Editor_Body_Modifier:selected(index, selected)
   dialog.showInputPrompt(
-    self:beautifyString(df.appearance_modifier_type[selected.modifier.entry.modifier.type]),
+    self:beautifyString(df.appearance_modifier_type[selected.modifier.entry.type]),
     "Enter new value:",
     nil,
     tostring(selected.value),
@@ -76,8 +66,8 @@ function Editor_Body_Modifier:random()
   local startIndex = rng:random(6) -- Will give a number between 0-5 which, when accounting for the fact that the range table starts at 0, gives us the index of which of the first 6 to use
 
   -- Set the ranges
-  local min = selected.modifier.entry.modifier.ranges[startIndex]
-  local max = selected.modifier.entry.modifier.ranges[startIndex+1]
+  local min = selected.modifier.entry.ranges[startIndex]
+  local max = selected.modifier.entry.ranges[startIndex+1]
 
   -- Get the difference between the two
   local difference = math.abs(min - max)
@@ -99,7 +89,7 @@ function Editor_Body_Modifier:step(amount)
 
   -- Build a table of description ranges
   local ranges = {}
-  for index, value in ipairs(selected.modifier.entry.modifier.desc_range) do
+  for index, value in ipairs(selected.modifier.entry.desc_range) do
     -- Only add a new entry if: There are none, or the value is higher than the previous range
     if #ranges == 0 or value > ranges[#ranges] then
       table.insert(ranges, value)
@@ -142,7 +132,7 @@ function Editor_Body_Modifier:updateChoices()
     else -- Body
       currentValue = self.target_unit.appearance.body_modifiers[modifier.index]
     end
-    table.insert(choices, {text = self:beautifyString(df.appearance_modifier_type[modifier.entry.modifier.type]) .. ": " .. currentValue, value = currentValue, modifier = modifier})
+    table.insert(choices, {text = self:beautifyString(df.appearance_modifier_type[modifier.entry.type]) .. ": " .. currentValue, value = currentValue, modifier = modifier})
   end
 
   self.subviews.modifiers:setChoices(choices)
@@ -150,43 +140,32 @@ end
 
 function Editor_Body_Modifier:init(args)
   self.target_unit = args.target_unit
+  self.partChoice = args.partChoice
 
   self:addviews{
     widgets.List{
-      frame = {t=0, b=2,l=1},
+      frame = {t=0, b=1,l=1},
       view_id = "modifiers",
       on_submit = self:callback("selected"),
     },
     widgets.Label{
-      frame = {b=1, l=1},
-      text = {
-        {text = ": back ", key = "LEAVESCREEN"},
-        {text = ": edit modifier ", key = "SELECT"},
-        {text = ": raise ", key = "KEYBOARD_CURSOR_RIGHT", on_activate = self:callback("step", 1)},
-      },
-    },
-    widgets.Label{
       frame = {b=0, l=1},
       text = {
-        {text = ": reduce ", key = "KEYBOARD_CURSOR_LEFT", on_activate = self:callback("step", -1)},
+        {text = ": back ", key = "LEAVESCREEN", on_activate = self:callback("dismiss")},
+        {text = ": edit modifier ", key = "SELECT"},
+        {text = ": raise ", key = "CURSOR_RIGHT", on_activate = self:callback("step", 1)},
+        {text = ": reduce ", key = "CURSOR_LEFT", on_activate = self:callback("step", -1)},
         {text = ": randomise selected", key = "CUSTOM_R", on_activate = self:callback("random")},
       },
     }
   }
-end
 
-function Editor_Body_Modifier:onInput(keys)
-    if keys.LEAVESCREEN or keys._MOUSE_R then
-        self:setFocus(false)
-        self.visible = false
-    else
-        Editor_Body_Modifier.super.onInput(self, keys)
-    end
-    return true -- we're modal
+  self.frame_title = self.partChoice.text .. " - Select a modifier"
+  self:updateChoices()
 end
 
 Editor_Body=defclass(Editor_Body, base_editor.Editor)
-Editor_Body.ATTRS{
+Editor_Body.ATTRS={
     frame_title = "Body appearance editor"
 }
 
@@ -196,8 +175,8 @@ function makePartList(caste)
 
   for index, modifier in ipairs(caste.bp_appearance.modifiers) do
     local name
-    if modifier.modifier.noun ~= "" then
-      name = modifier.modifier.noun
+    if modifier.noun ~= "" then
+      name = modifier.noun
     else
       name = caste.body_info.body_parts[modifier.body_parts[0]].name_singular[0].value -- Use the name of the first body part modified
     end
@@ -246,12 +225,7 @@ function Editor_Body:updateChoices()
 end
 
 function Editor_Body:partSelected(index, choice)
-  local modifier = self.subviews.modifier
-  modifier.visible = true
-  modifier:setFocus(true)
-  modifier.partChoice = choice
-  modifier:updateChoices()
-  modifier.frame_title = choice.text .. " - Select a modifier"
+  showModifierScreen(self.target_unit, choice)
 end
 
 function Editor_Body:init(args)
@@ -261,21 +235,17 @@ function Editor_Body:init(args)
 
   self:addviews{
     widgets.List{
-      frame = {t=0, b=2,l=0},
+      frame = {t=0, b=1,l=1},
       view_id = "featureSelect",
       on_submit = self:callback("partSelected"),
     },
     widgets.Label{
-      frame = {b=0, l=0},
+      frame = {b=0, l=1},
       text = {
+        {text = ": exit editor ", key = "LEAVESCREEN", on_activate = self:callback("dismiss")},
         {text = ": select feature ", key = "SELECT"},
       },
-    },
-    Editor_Body_Modifier{
-      view_id = 'modifier',
-      visible = false,
-      target_unit = self.target_unit,
-    },
+    }
   }
 
   self:updateChoices()

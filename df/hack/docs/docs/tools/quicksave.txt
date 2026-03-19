@@ -1,15 +1,15 @@
 quicksave
 =========
 
-Tags: dfhack | fort
+Tags: fort
 
 Command: "quicksave"
 
-  Immediately autosave the game.
+  Immediately save the game.
 
-Keybinding: [Ctrl][Alt][S] in "dwarfmode"
+Keybinding: [Ctrl][Alt][S] in "dwarfmode/Default"
 
-When this tool is called with a fort loaded, DF will immediately do an autosave. Note that the game only keeps the last 3 autosaves.
+When called in dwarf mode, this tool makes DF immediately save the game by setting a flag normally used for the seasonal auto-save.
 
 
 Usage

@@ -1,5 +1,17 @@
 -- Adds more z-status subpages
 --@ enable = true
+--[====[
+
+gui/extended-status
+===================
+Adds more subpages to the ``z`` status screen.
+
+Usage::
+
+    gui/extended-status enable|disable|help|subpage_names
+    enable|disable gui/extended-status
+
+]====]
 
 gui = require 'gui'
 dialogs = require 'gui.dialogs'
@@ -36,7 +48,7 @@ function defsubpage(name)
 end
 
 function has_manager()
-    return #df.historical_entity.find(df.global.plotinfo.group_id).assignments_by_type.MANAGE_PRODUCTION > 0
+    return #df.historical_entity.find(df.global.ui.group_id).assignments_by_type.MANAGE_PRODUCTION > 0
 end
 
 function queue_beds(amount)
@@ -47,14 +59,13 @@ function queue_beds(amount)
     end
 
     order = df.manager_order:new()
-    order.id = df.global.world.manager_orders.manager_order_next_id
-    df.global.world.manager_orders.manager_order_next_id = df.global.world.manager_orders.manager_order_next_id + 1
-    order.frequency = df.workquota_frequency_type.OneTime
+    order.id = df.global.world.manager_order_next_id
+    df.global.world.manager_order_next_id = df.global.world.manager_order_next_id + 1
     order.job_type = df.job_type.ConstructBed
     order.material_category.wood = true
     order.amount_left = amount
     order.amount_total = amount
-    df.global.world.manager_orders.all:insert('#', order)
+    df.global.world.manager_orders:insert('#', order)
 end
 
 status_overlay = defclass(status_overlay, gui.Screen)
@@ -148,18 +159,20 @@ function bedroom_list:refresh()
             end
         end
     end
-    for _, u in pairs(dfhack.units.getCitizens(true)) do
-        add('units', u)
-        local has_bed = false
-        for _, b in pairs(u.owned_buildings) do
-            if df.building_bedst:is_instance(b) then
-                has_bed = true
+    for _, u in pairs(world.units.active) do
+        if dfhack.units.isCitizen(u) then
+            add('units', u)
+            local has_bed = false
+            for _, b in pairs(u.owned_buildings) do
+                if df.building_bedst:is_instance(b) then
+                    has_bed = true
+                end
             end
-        end
-        if has_bed then
-            add('uwith', u)
-        else
-            add('uwithout', u)
+            if has_bed then
+                add('uwith', u)
+            else
+                add('uwithout', u)
+            end
         end
     end
     for _, bed in pairs(world.items.other.BED) do
@@ -173,7 +186,7 @@ function bedroom_list:refresh()
         end
     end
     self.queued_beds = 0
-    for _, order in pairs(df.global.world.manager_orders.all) do
+    for _, order in pairs(df.global.world.manager_orders) do
         if order.job_type == df.job_type.ConstructBed then
             self.queued_beds = self.queued_beds + order.amount_left
         end

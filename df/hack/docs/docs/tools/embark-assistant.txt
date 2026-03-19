@@ -1,7 +1,7 @@
 embark-assistant
 ================
 
-Tags: unavailable
+Tags: embark | fort | interface
 
 Command: "embark-assistant"
 

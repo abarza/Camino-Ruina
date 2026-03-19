@@ -1,11 +1,13 @@
 gui/workshop-job
 ================
 
-Tags: unavailable | fort | inspection | jobs
+Tags: fort | inspection | jobs
 
 Command: "gui/workshop-job"
 
   Adjust the input materials used for a job at a workshop.
+
+Keybinding: [Alt][A] in "dwarfmode/QueryBuilding/Some/Workshop/Job"
 
 This tool allows you to inspect or change the input reagents for the selected workshop job (in "q" mode).
 

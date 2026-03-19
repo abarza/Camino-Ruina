@@ -7,20 +7,22 @@
 
 template <class T, class A = std::allocator<T> >
 class svector : public std::vector<T, A> {
+#ifndef WIN32
         public:
-                using std::vector<T, A>::erase;
-                using std::vector<T,A>::begin;
-                using std::vector<T,A>::insert;
+		using std::vector<T, A>::begin;
+#endif
+
+#ifdef WIN32
+        public:
+#endif
                 void erase(typename std::vector<T, A>::size_type i) {
-                        erase(begin() + i);
+                        std::vector<T, A> &vec = *this;
+                        vec.erase(begin() + i);
                 }
                 void insert(typename std::vector<T, A>::size_type i, const T &v) {
 
-                        insert(begin() + i, v);
+                        std::vector<T, A> &vec = *this;
+                        vec.insert(begin() + i, v);
                 }
-                void insert(typename std::vector<T,A>::size_type i,T &&v)
-                {
-                    insert(begin()+i,std::move(v));
-                  }
 };
 #endif

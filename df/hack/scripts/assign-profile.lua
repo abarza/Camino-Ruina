@@ -179,7 +179,7 @@ local function main(...)
     end
 
     local profile = load_profile(profile_name, filename)
-    apply_profile(profile, unit, reset)
+    apply_profile(profile, unit_id, reset)
 end
 
 if not dfhack_flags.module then

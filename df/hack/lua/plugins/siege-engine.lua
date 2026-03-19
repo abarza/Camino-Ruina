@@ -146,7 +146,7 @@ function getBaseUnitWeight(unit)
             return -30
         elseif flags1.diplomat or flags1.merchant or flags1.forest then
             return -5
-        elseif flags1.tame and unit.civ_id == df.global.plotinfo.civ_id then
+        elseif flags1.tame and unit.civ_id == df.global.ui.civ_id then
             return -1
         end
     end
@@ -234,8 +234,17 @@ function pickUniqueTargets(reachable)
     return unique
 end
 
+function describeUnit(unit)
+    local desc = dfhack.units.getProfessionName(unit)
+    local name = dfhack.units.getVisibleName(unit)
+    if name.has_name then
+        return desc .. ' ' .. dfhack.TranslateName(name)
+    end
+    return desc
+end
+
 function produceCombatReport(operator, item, target)
-    local msg = dfhack.units.getReadableName(operator) .. ' launches ' ..
+    local msg = describeUnit(operator) .. ' launches ' ..
                 utils.getItemDescriptionPrefix(item) ..
                 utils.getItemDescription(item) ..
                 ' at '

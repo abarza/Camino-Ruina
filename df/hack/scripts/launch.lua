@@ -1,19 +1,26 @@
 -- Launch unit to cursor location
 -- Based on propel.lua by Roses, molested by Rumrusher and I until this happened, sorry.
+--[====[
 
-local guidm = require('gui.dwarfmode')
+launch
+======
+Activate with a cursor on screen and you will go there rapidly. Attack
+something first to ride them there.
 
+]====]
 function launch(unitSource,unitRider)
-    if not dfhack.world.isAdventureMode() then
+    local curpos
+    if df.global.ui_advmode.menu == df.ui_advmode_menu.Look then
+        curpos = df.global.cursor
+    elseif df.global.gamemode == df.game_mode.ADVENTURE then
+        qerror("No [l] cursor located! You would have slammed into the ground and exploded.")
+    else
         qerror("Must be used in adventurer mode or the arena!")
     end
-    local curpos = guidm.getCursorPos()
-    if not curpos then
-        qerror("No cursor located! You would have slammed into the ground and exploded.")
-    end
+
 
     local count=0
-    local l = df.global.world.projectiles.all
+    local l = df.global.world.proj_list
     local lastlist=l
     l=l.next
     while l do
@@ -54,15 +61,13 @@ function launch(unitSource,unitRider)
     proj.flags.high_flying=true --this probably doesn't do anything, let me know if you figure out what it is
     proj.flags.parabolic=true
     proj.flags.no_collide=true
-    proj.flags.no_adv_pause=true
+    proj.flags.unk9=true
     proj.speed_x=resultx*10000
     proj.speed_y=resulty*10000
     proj.speed_z=resultz*15000 --higher z speed makes it easier to reach a target safely
-
-    local adv = dfhack.world.getAdventurer()
-    if adv.job.hunt_target==nil then
+    if df.global.world.units.active[0].job.hunt_target==nil then
         proj.flags.safe_landing=true
-    elseif adv.job.hunt_target then
+    elseif df.global.world.units.active[0].job.hunt_target then
         proj.flags.safe_landing=false
     end
     local unitoccupancy = dfhack.maps.ensureTileBlock(unitSource.pos).occupancy[unitSource.pos.x%16][unitSource.pos.y%16]
@@ -75,11 +80,11 @@ function launch(unitSource,unitRider)
     unitSource.flags1.on_ground=false
 end
 
-local unitSource = dfhack.world.getAdventurer()
+local unitSource = df.global.world.units.active[0]
 local unitRider = nil --as:df.unit
 if unitSource.job.hunt_target ~= nil then
     unitRider = unitSource
-    unitSource = unitSource.job.hunt_target
+    unitSource = df.global.world.units.active[0].job.hunt_target
     unitSource.general_refs:insert("#",{new=df.general_ref_unit_riderst,unit_id=unitRider.id})
     unitRider.relationship_ids.RiderMount=unitSource.id
     unitRider.flags1.rider=true

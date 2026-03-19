@@ -18,9 +18,9 @@ local utils = require 'utils'
 local dlg = require 'gui.dialogs'
 
 local defs = df.global.world.raws.itemdefs
-local entity = df.global.plotinfo.main.fortress_entity
-local tasks = df.global.plotinfo.tasks
-local equipment = df.global.plotinfo.equipment
+local entity = df.global.ui.main.fortress_entity
+local tasks = df.global.ui.tasks
+local equipment = df.global.ui.equipment
 
 function find_best_weapon(unit,mode)
     local best = nil
@@ -71,7 +71,7 @@ function unassign_wrong_items(unit,position,spec,subtype)
                 utils.insert_sorted(equipment.items_unassigned.WEAPON,item,'id')
             end
             equipment.update.weapon = true
-            unit.uniform.pickup_flags.update = true
+            unit.military.pickup_flags.update = true
         end
     end
 end

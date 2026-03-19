@@ -1,7 +1,7 @@
 power-meter
 ===========
 
-Tags: unavailable
+Tags: fort | gameplay | buildings
 
   Allow pressure plates to measure power.
 

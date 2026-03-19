@@ -1,772 +1,365 @@
--- Show, save, and restore lists of active mods.
---@ module = true
+-- a graphical mod manager for df
+local gui=require 'gui'
+local widgets=require 'gui.widgets'
+--[====[
 
-local dialogs = require('gui.dialogs')
-local gui = require('gui')
-local json = require('json')
-local overlay = require('plugins.overlay')
-local scriptmanager = require('script-manager')
-local utils = require('utils')
-local widgets = require('gui.widgets')
+gui/mod-manager
+===============
+A simple way to install and remove small mods, which are not included
+in DFHack.  Examples are `available here <https://github.com/warmist/df-mini-mods>`_.
 
-local presets_file = json.open("dfhack-config/mod-manager.json")
-local GLOBAL_KEY = 'mod-manager'
+.. image:: /docs/images/mod-manager.png
 
-local function vanilla(dir)
-    return dir:startswith('data/vanilla')
-end
+Each mod is a lua script located in :file:`{<DF>}/mods/`, which MUST define
+the following variables:
 
--- get_moddable_viewscreen(), get_any_moddable_viewscreen() and get_modlist_fields are declared
--- as global functions so external tools can call them to get the DF mod list
-function get_moddable_viewscreen(type)
-    local vs = nil
-    if type == 'region' then
-        vs = dfhack.gui.getViewscreenByType(df.viewscreen_new_regionst, 0)
-    elseif type == 'arena' then
-        vs = dfhack.gui.getViewscreenByType(df.viewscreen_new_arenast, 0)
-    end
-    return vs
-end
+:name:          a name that is displayed in list
+:author:        mod author, also displayed
+:description:   a description of the mod
 
-function get_any_moddable_viewscreen()
-    local vs = dfhack.gui.getViewscreenByType(df.viewscreen_new_regionst, 0)
-    if not vs then
-        vs = dfhack.gui.getViewscreenByType(df.viewscreen_new_arenast, 0)
-    end
-    return vs
-end
+Of course, this doesn't actually make a mod - so one or more of the
+following should also be defined:
 
-function get_modlist_fields(kind, viewscreen)
-    if kind == "available" then
-        return {
-            id = viewscreen.available_id,
-            numeric_version = viewscreen.available_numeric_version,
-            earliest_compat_numeric_version = viewscreen.available_earliest_compat_numeric_version,
-            src_dir = viewscreen.available_src_dir,
-            name = viewscreen.available_name,
-            displayed_version = viewscreen.available_displayed_version,
-            mod_header = viewscreen.available_mod_header,
-        }
-    elseif kind == "base_available" then
-        return {
-            id = viewscreen.base_available_id,
-            numeric_version = viewscreen.base_available_numeric_version,
-            earliest_compat_numeric_version = viewscreen.base_available_earliest_compat_numeric_version,
-            src_dir = viewscreen.base_available_src_dir,
-            name = viewscreen.base_available_name,
-            displayed_version = viewscreen.base_available_displayed_version,
-            mod_header = viewscreen.base_available_mod_header,
-        }
-    elseif kind == "object_load_order" then
-        return {
-            id = viewscreen.object_load_order_id,
-            numeric_version = viewscreen.object_load_order_numeric_version,
-            earliest_compat_numeric_version = viewscreen.object_load_order_earliest_compat_numeric_version,
-            src_dir = viewscreen.object_load_order_src_dir,
-            name = viewscreen.object_load_order_name,
-            displayed_version = viewscreen.object_load_order_displayed_version,
-            mod_header = viewscreen.object_load_order_mod_header,
-        }
+:raws_list:     a list (table) of file names that need to be copied over to df raws
+:patch_entity:  a chunk of text to patch entity
+                *TODO: add settings to which entities to add*
+:patch_init:    a chunk of lua to add to lua init
+:patch_dofile:  a list (table) of files to add to lua init as "dofile"
+:patch_files:   a table of files to patch
+
+                :filename:  a filename (in raws folder) to patch
+                :patch:     what to add
+                :after:     a string after which to insert
+
+:guard:         a token that is used in raw files to find additions and remove them on uninstall
+:guard_init:    a token for lua file
+:[pre|post]_(un)install:
+                Callback functions, which can trigger more complicated behavior
+
+]====]
+local entity_file=dfhack.getDFPath().."/raw/objects/entity_default.txt"
+local init_file=dfhack.getDFPath().."/raw/init.lua"
+local mod_dir=dfhack.getDFPath().."/hack/mods"
+
+function fileExists(filename)
+    local file=io.open(filename,"rb")
+    if file==nil then
+        return
     else
-        error("Invalid kind: " .. kind)
+        file:close()
+        return true
     end
 end
+if not fileExists(init_file) then
+    local initFile=io.open(init_file,"a")
+    initFile:close()
+end
+function copyFile(from,to) --oh so primitive
+    local filefrom=io.open(from,"rb")
+    local fileto=io.open(to,"w+b")
+    local buf=filefrom:read("*a")
+    printall(buf)
+    fileto:write(buf)
+    filefrom:close()
+    fileto:close()
+end
+function patchInit(initFileName,patch_guard,code)
+    local initFile=io.open(initFileName,"a")
+    initFile:write(string.format("\n%s\n%s\n%s",patch_guard[1],
+        code,patch_guard[2]))
+    initFile:close()
+end
+function patchDofile( luaFileName,patch_guard,dofile_list,mod_path )
+    local luaFile=io.open(luaFileName,"a")
+    luaFile:write(patch_guard[1].."\n")
+    for _,v in ipairs(dofile_list) do
+        local fixed_path=mod_path:gsub("\\","/")
+        luaFile:write(string.format("dofile('%s/%s')\n",fixed_path,v))
+    end
+    luaFile:write(patch_guard[2].."\n")
+    luaFile:close()
+end
+function patchFile(file_name,patch_guard,after_string,code)
+    local input_lines=patch_guard[1].."\n"..code.."\n"..patch_guard[2]
 
----@return boolean      # true if the mod entry was copied over; false if the mod or mod version was not found.
----@return string|nil   # loaded version - DISPLAYED_VERSION from the mod's info.txt
-local function copy_mod_entry(viewscreen, to, from, mod_id, mod_version)
-    local to_fields = get_modlist_fields(to, viewscreen)
-    local from_fields = get_modlist_fields(from, viewscreen)
+    local badchars="[%:%[%]]"
+    local find_string=after_string:gsub(badchars,"%%%1") --escape some bad chars
 
-    local mod_index = nil
-    local loaded_version = nil
-    for i, v in ipairs(from_fields.id) do
-        local version = from_fields.numeric_version[i]
-        local src_dir = from_fields.src_dir[i]
-        local displayed_version = from_fields.displayed_version[i].value
-        -- assumes that vanilla mods will not have multiple possible indices.
-        if v.value == mod_id and (vanilla(src_dir) or version == mod_version) then
-            if version ~= mod_version then
-                loaded_version = displayed_version
-            end
-            mod_index = i
-            break
+    local entityFile=io.open(file_name,"r")
+    local buf=entityFile:read("*all")
+    entityFile:close()
+    local entityFile=io.open(file_name,"w+")
+    buf=string.gsub(buf,find_string,after_string.."\n"..input_lines)
+    entityFile:write(buf)
+    entityFile:close()
+end
+function findGuards(str,start,patch_guard)
+    local pStart=string.find(str,patch_guard[1],start)
+    if pStart==nil then return nil end
+    local pEnd=string.find(str,patch_guard[2],pStart)
+    if pEnd==nil then error("Start guard token found, but end was not found") end
+    return pStart-1,pEnd+#patch_guard[2]+1
+end
+function findGuardsFile(filename,patch_guard)
+    local file=io.open(filename,"r")
+    local buf=file:read("*all")
+    return findGuards(buf,1,patch_guard)
+end
+function unPatchFile(filename,patch_guard)
+    local file=io.open(filename,"r")
+    local buf=file:read("*all")
+    file:close()
+
+    local newBuf=""
+    local pos=1
+    local lastPos=1
+    repeat
+        local endPos
+        pos,endPos=findGuards(buf,lastPos,patch_guard)
+        newBuf=newBuf..string.sub(buf,lastPos,pos)
+        if endPos~=nil then
+            lastPos=endPos
         end
-    end
+    until pos==nil
 
-    if mod_index == nil then
-        return false, nil
-    end
-
-    for k, v in pairs(to_fields) do
-        if type(from_fields[k][mod_index]) == "userdata" then
-            v:insert('#', from_fields[k][mod_index]:new())
-        else
-            v:insert('#', from_fields[k][mod_index])
-        end
-    end
-
-    return true, loaded_version
+    local file=io.open(filename,"w+")
+    file:write(newBuf)
+    file:close()
 end
-
----@return boolean      # true if the mod entry was copied over; false if the mod or mod version was not found.
----@return string|nil   # loaded version - DISPLAYED_VERSION from the mod's info.txt
-local function enable_mod(viewscreen, mod_id, mod_version)
-    return copy_mod_entry(viewscreen, "object_load_order", "base_available", mod_id, mod_version)
-end
-
----@return boolean      # true if the mod entry was copied over; false if the mod or mod version was not found.
----@return string|nil   # loaded version - DISPLAYED_VERSION from the mod's info.txt
-local function make_available_mod(viewscreen, mod_id, mod_version)
-    return copy_mod_entry(viewscreen, "available", "base_available", mod_id, mod_version)
-end
-
-local function clear_mods(viewscreen)
-    local active_modlist = get_modlist_fields('object_load_order', viewscreen)
-    local avail_modlist = get_modlist_fields('available', viewscreen)
-    for _, modlist in ipairs({active_modlist, avail_modlist}) do
-        for _, v in pairs(modlist) do
-            for i = #v - 1, 0, -1 do
-                v:erase(i)
-            end
-        end
-    end
-end
-
-local function set_available_mods(viewscreen, loaded)
-    local base_avail = get_modlist_fields('base_available', viewscreen)
-    local unused = {}
-    for i, id in ipairs(base_avail.id) do
-        if not loaded[id.value] then
-            local version = base_avail.numeric_version[i]
-            table.insert(unused, { id= id.value, version= version })
-        end
-    end
-
-    for _, v in ipairs(unused) do
-        local success, _ = make_available_mod(viewscreen, v.id, v.version)
-        if not success then
-            dfhack.printerr('failed to show '..v.id..' in available list')
-        end
-    end
-end
-
-local function get_active_modlist(viewscreen)
-    local t = {}
-    local fields = get_modlist_fields("object_load_order", viewscreen)
-    for i, v in ipairs(fields.id) do
-        local version = fields.numeric_version[i]
-        table.insert(t, { version = version, id = v.value })
-    end
-    return t
-end
-
---- @return string[]
---- @return { id: string, new: string }[]
-local function swap_modlist(viewscreen, modlist)
-    clear_mods(viewscreen)
-
-    local failures = {}
-    local changed = {}
-    local loaded = {}
-    for _, v in ipairs(modlist) do
-        local success, version = enable_mod(viewscreen, v.id, v.version)
-        if not success then
-            table.insert(failures, v.id)
-        else
-            if version then
-                table.insert(changed, { id= v.id, new= version })
-            end
-            loaded[v.id] = true
-        end
-    end
-
-    set_available_mods(viewscreen, loaded)
-    return failures, changed
-end
-
---------------------
--- ModmanageMenu
-
-ModmanageMenu = defclass(ModmanageMenu, widgets.Window)
-ModmanageMenu.ATTRS {
-    view_id = "modman_menu",
-    frame_title = "Modlist Manager",
-    frame_style = gui.WINDOW_FRAME,
-
-    resize_min = { w = 30, h = 15 },
-    frame = { w = 40, t = 10, b = 15 },
-
-    resizable = true,
-    autoarrange_subviews=false,
-}
-
-local function save_new_preset(preset_name)
-    local viewscreen = get_any_moddable_viewscreen()
-    local modlist = get_active_modlist(viewscreen)
-    table.insert(presets_file.data, { name = preset_name, modlist = modlist })
-    presets_file:write()
-end
-
-local function remove_preset(idx)
-    if idx > #presets_file.data then
-        return
-    end
-
-    table.remove(presets_file.data, idx)
-    presets_file:write()
-end
-
-local function overwrite_preset(idx)
-    if idx > #presets_file.data then
-        return
-    end
-
-    local viewscreen = get_any_moddable_viewscreen()
-    local modlist = get_active_modlist(viewscreen)
-    presets_file.data[idx].modlist = modlist
-    presets_file:write()
-end
-
-local function prepare_warning(text, failed, changed, unset_default_on_failure)
-    if not failed and not changed then return end
-
-    if failed then
-        if unset_default_on_failure then
-            table.insert(text, {
-                text='Failed to load some mods from your default preset.',
-                pen=COLOR_LIGHTRED,
-            })
-            table.insert(text, NEWLINE)
-            table.insert(text, {
-                text='Preset is being unmarked as the default for safety.',
-                pen=COLOR_LIGHTRED,
-            })
-        else
-            table.insert(text, {
-                text='Failed to load some mods from the preset.',
-                pen=COLOR_LIGHTRED,
-            })
-        end
-    end
-
-    if failed and changed then
-        table.insert(text, NEWLINE)
-    end
-
-    if changed then
-        table.insert(text, {
-            text='Some vanilla mods have been updated.',
-            pen=COLOR_LIGHTRED,
-        })
-    end
-    table.insert(text, NEWLINE)
-    table.insert(text, 'Please re-create your preset with mods you currently have installed.')
-    table.insert(text, NEWLINE)
-    table.insert(text, NEWLINE)
-end
-
-local function load_preset(idx, unset_default_on_failure)
-    if idx > #presets_file.data then
-        return
-    end
-
-    local viewscreen = get_any_moddable_viewscreen()
-    local modlist = presets_file.data[idx].modlist
-    local failures, changes = swap_modlist(viewscreen, modlist)
-    local text = {}
-
-    local failed = #failures > 0
-    local changed = #changes > 0
-
-    prepare_warning(text, failed, changed)
-    if failed and unset_default_on_failure then
-        presets_file.data[idx].default = false
-        presets_file:write()
-    end
-
-    if failed then
-        table.insert(text, 'Here are the mods that failed to load:')
-        table.insert(text, NEWLINE)
-        table.insert(text, NEWLINE)
-        for _, v in ipairs(failures) do
-            table.insert(text, ('- %s'):format(v))
-            table.insert(text, NEWLINE)
-        end
-    end
-
-    if failed and changed then
-        table.insert(text, NEWLINE) -- just to separate the sections
-    end
-
-    if changed then
-        table.insert(text, 'Here are the vanilla mods that have been updated:')
-        table.insert(text, NEWLINE)
-        table.insert(text, NEWLINE)
-        for _, v in ipairs(changes) do
-            table.insert(text, ('- %s to %s'):format(v.id, v.new))
-            table.insert(text, NEWLINE)
-        end
-    end
-
-    if failed or changed then
-        dialogs.showMessage("Warning", text)
-    end
-end
-
-local function find_preset_by_name(name)
-    for i, v in ipairs(presets_file.data) do
-        if v.name == name then
-            return i
-        end
-    end
-end
-
-local function rename_preset(idx, new_name)
-    if idx > #presets_file.data then
-        return
-    end
-
-    presets_file.data[idx].name = new_name
-    presets_file:write()
-end
-
-local function toggle_default(idx)
-    if idx > #presets_file.data then
-        return
-    end
-
-    if presets_file.data[idx].default then
-        presets_file.data[idx].default = false
-        presets_file:write()
+function checkInstalled(dfMod) --try to figure out if installed
+    if dfMod.checkInstalled then
+        return dfMod.checkInstalled()
     else
-        for i, v in ipairs(presets_file.data) do
-            v.default = false
-        end
-        presets_file.data[idx].default = true
-        presets_file:write()
-    end
-end
-
-function ModmanageMenu:init()
-    local presetList
-
-    local function refresh_list()
-        presets_file:read()
-        local presets = utils.clone(presets_file.data, true)
-        local default_set = false
-        for _, v in ipairs(presets) do
-            v.text = v.name
-
-            if v.default and not default_set then
-                v.text = v.text .. " (default)"
-                default_set = true
-            end
-        end
-
-        presetList:setChoices(presets)
-    end
-
-    presetList = widgets.List {
-        frame = { b = 5 },
-        on_double_click = function(idx, current)
-            load_preset(idx)
-        end,
-    }
-
-    refresh_list()
-
-    self:addviews{
-        presetList,
-
-        widgets.HotkeyLabel{
-            frame = { l = 0, b = 1, w = 15 },
-            key = "CUSTOM_S",
-            label = "Save current",
-            on_activate = function()
-                dialogs.showInputPrompt("Enter preset name", nil, nil, "", function(t)
-                    local existing_idx = find_preset_by_name(t)
-                    if existing_idx then
-                        dialogs.showYesNoPrompt(
-                            "Confirmation",
-                            "Overwrite " .. t .. "?",
-                            nil,
-                            function()
-                                overwrite_preset(existing_idx)
-                                refresh_list()
-                            end
-                        )
-
-                        return
-                    else
-                        save_new_preset(t)
-                        refresh_list()
-                    end
-                end)
-            end,
-        },
-
-        widgets.HotkeyLabel{
-            frame = { l = 16, b = 1, w = 15 },
-            key = "CUSTOM_R",
-            label = "Rename",
-            on_activate = function()
-                local idx, current = presetList:getSelected()
-
-                if not idx then
-                    return
-                end
-
-                dialogs.showInputPrompt("Enter new name", nil, nil, current.name, function(t)
-                    local existing_idx = find_preset_by_name(t)
-
-                    if existing_idx then
-                        if existing_idx == idx then
-                            return
-                        end
-
-                        dialogs.showYesNoPrompt(
-                            "Confirmation",
-                            "Overwrite " .. t .. "?",
-                            nil,
-                            function()
-                                remove_preset(existing_idx)
-                                rename_preset(idx, t)
-                                refresh_list()
-                            end
-                        )
-                    else
-                        rename_preset(idx, t)
-                        refresh_list()
-                    end
-                end)
-            end,
-        },
-
-        widgets.HotkeyLabel{
-            frame = { l = 0, b = 2, w = 15 },
-            key = "SELECT",
-            label = "Load",
-            on_activate = function()
-                local idx, current = presetList:getSelected()
-
-                if not idx then
-                    return
-                end
-
-                load_preset(idx)
-            end,
-        },
-
-        widgets.HotkeyLabel{
-            frame = { l = 16, b = 2, w = 15 },
-            key = "CUSTOM_D",
-            label = "Delete",
-            on_activate = function()
-                local idx, current = presetList:getSelected()
-
-                if not idx then
-                    return
-                end
-
-                dialogs.showYesNoPrompt(
-                    "Confirmation",
-                    "Delete " .. current.text .. "?",
-                    nil,
-                    function()
-                        remove_preset(idx)
-                        refresh_list()
-                    end
-                )
-            end,
-        },
-
-        widgets.HotkeyLabel{
-            frame = { l = 0, b = 0, w = 20 },
-            key = "CUSTOM_Q",
-            label = "Set as default",
-            on_activate = function()
-                local idx, current = presetList:getSelected()
-
-                if not idx then
-                    return
-                end
-
-                toggle_default(idx)
-                refresh_list()
-            end
-        },
-    }
-end
-
---------------------
--- ModmanageScreen
-
-ModmanageScreen = defclass(ModmanageScreen, gui.ZScreen)
-ModmanageScreen.ATTRS {
-    focus_path = "mod-manager",
-    defocusable = false,
-}
-
-function ModmanageScreen:init()
-    self:addviews{
-        ModmanageMenu{}
-    }
-end
-
---------------------
--- ModlistWindow
-
-ModlistWindow = defclass(ModlistWindow, widgets.Window)
-ModlistWindow.ATTRS{
-    frame_title="Active Mods",
-    frame={w=55, h=20},
-    resizable=true,
-}
-
-local function get_num_vanilla_mods()
-    local count = 0
-    for _,mod in ipairs(scriptmanager.get_active_mods()) do
-        if mod.vanilla then
-            count = count + 1
-        end
-    end
-    return count
-end
-
-local function get_num_non_vanilla_mods()
-    local count = 0
-    for _,mod in ipairs(scriptmanager.get_active_mods()) do
-        if not mod.vanilla then
-            count = count + 1
-        end
-    end
-    return count
-end
-
-function ModlistWindow:init()
-    self:addviews{
-        widgets.CycleHotkeyLabel{
-            view_id='vanilla',
-            frame={l=0, t=0, w=24},
-            key='CUSTOM_V',
-            label='Vanilla mods:',
-            options={
-                {label='Include', value=true, pen=COLOR_LIGHTBLUE},
-                {label='Exclude', value=false, pen=COLOR_LIGHTRED},
-            },
-            initial_option=false,
-            on_change=function() self:refresh_list() end,
-        },
-        widgets.Divider{
-            frame={t=2, h=1},
-            frame_style=gui.FRAME_THIN,
-            frame_style_l=false,
-            frame_style_r=false,
-        },
-        widgets.HotkeyLabel{
-            frame={t=4, r=0},
-            label='Export to clipboard (single line)',
-            text_pen=COLOR_YELLOW,
-            auto_width=true,
-            on_activate=function()
-                local text = {}
-                for _,choice in ipairs(self.subviews.list:getChoices()) do
-                    table.insert(text, ('%s %s'):format(choice.data.name, choice.data.version))
-                end
-                dfhack.internal.setClipboardTextCp437Multiline(table.concat(text, ', '))
-            end,
-            enabled=function() return #self.subviews.list:getChoices() > 0 end,
-        },
-        widgets.HotkeyLabel{
-            frame={t=5, r=0},
-            label='Export to clipboard (with links)',
-            text_pen=COLOR_YELLOW,
-            auto_width=true,
-            on_activate=function()
-                local text = {}
-                for _,choice in ipairs(self.subviews.list:getChoices()) do
-                    table.insert(text, choice.export_text)
-                end
-                dfhack.internal.setClipboardTextCp437Multiline(table.concat(text, NEWLINE))
-            end,
-            enabled=function() return #self.subviews.list:getChoices() > 0 end,
-        },
-        widgets.Label{
-            frame={l=0, t=4},
-            text={
-                'Load',
-                NEWLINE,
-                'order',
-            },
-        },
-        widgets.Label{
-            frame={l=7, t=5},
-            text='Mod',
-        },
-        widgets.List{
-            view_id='list',
-            frame={t=7, b=2},
-        },
-        widgets.Label{
-            frame={l=0, b=0},
-            text={
-                {text=('%d'):format(get_num_vanilla_mods()), pen=COLOR_LIGHTBLUE},
-                ' vanilla mods',
-                {text=function() return self.subviews.vanilla:getOptionValue() and '' or ' (hidden)' end},
-                ', ',
-                {text=('%d'):format(get_num_non_vanilla_mods()), pen=COLOR_BROWN},
-                ' non-vanilla mods',
-            },
-        },
-    }
-
-    self:refresh_list()
-end
-
-function ModlistWindow:refresh_list()
-    local include_vanilla = self.subviews.vanilla:getOptionValue()
-
-    local choices = {}
-    for idx,mod in ipairs(scriptmanager.get_active_mods()) do
-        if not include_vanilla and mod.vanilla then goto continue end
-        local metadata = scriptmanager.get_mod_info_metadata(mod.path, 'STEAM_FILE_ID')
-        local steam_id = metadata and metadata.STEAM_FILE_ID or nil
-        local url = steam_id and (': https://steamcommunity.com/sharedfiles/filedetails/?id=%s'):format(steam_id) or ''
-        table.insert(choices, {
-            text={
-                {text=idx, width=2, rjustify=true},
-                ') ',
-                {text=mod.name, gap=3},
-                ' (',
-                {text=mod.version, pen=COLOR_LIGHTGREEN},
-                ')',
-            },
-            data=mod,
-            export_text=('- %s (%s)%s'):format(mod.name, mod.version, url),
-        })
-        ::continue::
-    end
-
-    self.subviews.list:setChoices(choices)
-end
-
---------------------
--- ModlistScreen
-
-ModlistScreen = defclass(ModlistScreen, gui.ZScreen)
-ModlistScreen.ATTRS{
-    focus_path="mod-manager",
-}
-
-function ModlistScreen:init()
-    self:addviews{
-        ModlistWindow{}
-    }
-end
-
-function ModlistScreen:onDismiss()
-    view = nil
-end
-
---------------------
--- Overlays
-
-ModmanageOverlay = defclass(ModmanageOverlay, overlay.OverlayWidget)
-ModmanageOverlay.ATTRS {
-    frame = { w=16, h=3 },
-    frame_style = gui.MEDIUM_FRAME,
-    desc = "Adds a link to the mod selection screen for accessing the mod manager.",
-    default_pos = { x=5, y=-6 },
-    version = 2,
-    viewscreens = { "new_region/Mods", "new_arena/Mods" },
-    default_enabled=true,
-}
-
-function ModmanageOverlay:init()
-    self:addviews{
-        widgets.HotkeyLabel{
-            frame = {l=0, t=0, w = 20, h = 1},
-            key = "CUSTOM_M",
-            view_id = "modman_open",
-            label = "Mod Manager",
-            on_activate = function()
-                ModmanageScreen{}:show()
-            end,
-        },
-    }
-end
-
-NotificationOverlay = defclass(NotificationOverlay, overlay.OverlayWidget)
-NotificationOverlay.ATTRS {
-    frame = { w=60, h=1 },
-    desc = "Displays a message when a mod preset has been automatically applied.",
-    default_pos = { x=3, y=-6 },
-    version = 2,
-    viewscreens = { "new_region" },
-    default_enabled=true,
-}
-
-notification_message = ""
-next_notification_timer_call = 0
-notification_overlay_end = 0
-function NotificationOverlay:init()
-    self:addviews{
-        widgets.Label{
-            frame = { l=0, t=0, w = 60, h = 1 },
-            view_id = "lbl",
-            text = {{ text = function() return notification_message end }},
-            text_pen = { fg = COLOR_GREEN, bold = true, bg = nil },
-
-        },
-    }
-end
-
-OVERLAY_WIDGETS = {
-    button = ModmanageOverlay,
-    notification = NotificationOverlay,
-}
-
-function notification_timer_fn()
-    if #notification_message > 0 then
-        if notification_overlay_end < dfhack.getTickCount() then
-            notification_message = ""
-        end
-    end
-
-    dfhack.timeout(50, 'frames', notification_timer_fn)
-end
-
-notification_timer_fn()
-
-local default_applied = false
-dfhack.onStateChange[GLOBAL_KEY] = function(sc)
-    if sc == SC_VIEWSCREEN_CHANGED then
-        local vs = get_any_moddable_viewscreen()
-        if vs and not default_applied then
-            default_applied = true
-            for i, v in ipairs(presets_file.data) do
-                if v.default then
-                    load_preset(i, true)
-
-                    notification_message = "*** Loaded mod list '" .. v.name .. "'!"
-                    notification_overlay_end = dfhack.getTickCount() + 5000
-
-                    break
+        if dfMod.raws_list then
+            for k,v in pairs(dfMod.raws_list) do
+                if fileExists(dfhack.getDFPath().."/raw/objects/"..v) then
+                    return true,v
                 end
             end
-        elseif not vs then
-            default_applied = false
+        end
+        if dfMod.patch_entity then
+            if findGuardsFile(entity_file,dfMod.guard)~=nil then
+                return true,"entity_default.txt"
+            end
+        end
+        if dfMod.patch_files then
+            for k,v in pairs(dfMod.patch_files) do
+                if findGuardsFile(dfhack.getDFPath().."/raw/objects/"..v.filename,dfMod.guard)~=nil then
+                    return true,"v.filename"
+                end
+            end
+        end
+        if dfMod.patch_init then
+            if findGuardsFile(init_file,dfMod.guard_init)~=nil then
+                return true,"init.lua"
+            end
         end
     end
 end
+manager=defclass(manager,gui.FramedScreen)
 
-if dfhack_flags.module then
-    return
+function manager:init(args)
+    self.mods={}
+    local mods=self.mods
+    local mlist=dfhack.internal.getDir(mod_dir)
+
+    if mlist==nil or #mlist==0 then
+        qerror("Mod directory not found! Are you sure it is in:"..mod_dir)
+    end
+    for k,v in ipairs(mlist) do
+        if v~="." and v~=".." then
+            local f,modData=pcall(dofile,mod_dir.."/".. v .. "/init.lua")
+            if f then
+                mods[modData.name]=modData
+                modData.guard=modData.guard or {">>"..modData.name.." patch","<<End "..modData.name.." patch"}
+                modData.guard_init={"--"..modData.guard[1],"--"..modData.guard[2]}
+                modData.path=mod_dir.."/"..v..'/'
+            end
+        end
+    end
+    ---show thingy
+    local modList={}
+    for k,v in pairs(self.mods) do
+        table.insert(modList,{text=k,data=v})
+    end
+
+    self:addviews{
+
+
+        widgets.Panel{subviews={
+            widgets.Label{
+                text="Info:",
+                frame={t=1,l=1}
+            },
+            widgets.Label{
+                text="<no-info>",
+                --text={text=self:callback("formDescription")},
+                view_id='info',
+                frame={t=2,l=1},
+            },
+            widgets.Label{
+                text={"Author:",{text=self:callback("formAuthor")}},
+                view_id='author',
+                frame={b=5,l=1}
+            },
+            widgets.Label{
+                text={
+                {text="Install",key="CUSTOM_I",key_sep="()",disabled=self:callback("curModInstalled"),
+                    on_activate=self:callback("installCurrent")},NEWLINE,
+                {text="Uninstall",key="CUSTOM_U",key_sep="()",enabled=self:callback("curModInstalled"),
+                    on_activate=self:callback("uninstallCurrent")},NEWLINE,
+                {text="Settings",key="CUSTOM_S",key_sep="()",enabled=self:callback("hasSettings")},NEWLINE,
+                {text="Exit",key="LEAVESCREEN",key_sep="()",},NEWLINE
+                },
+                frame={l=1,b=0}
+            },
+        },
+        frame={l=21,t=1,b=1}
+        },
+        widgets.Panel{subviews={
+            widgets.Label{
+                text="Mods:",
+                frame={t=1,l=1}
+            },
+            widgets.List{
+                choices=modList,
+                frame={t=2,l=1},
+                on_select=self:callback("selectMod")
+            },
+            },
+            frame={w=20,t=1,l=1,b=1}
+        },
+    }
+    self:updateState()
+
 end
-
-if not dfhack.isWorldLoaded() then
-    qerror("Please load a game before using the mod manager to see active mods.")
+function manager:postinit(args)
+    self:selectMod(1,{data=self.selected})-- workaround for first call, now the subviews are constructed
 end
+function manager:curModInstalled()
+    return self.selected.installed
+end
+function manager:hasSettings()
+    return self.selected.settings -- somehow add the entity selection as a default, if it mods entities
+end
+function manager:formDescription()
+    local ret={}
+    if self.selected.description then
+        return self.selected.description
+        --[[
+        local str=self.selected.description:split("\n")
+        for _,s in ipairs(str) do
+            table.insert(ret,{text=s})
+            table.insert(ret,NEWLINE)
+        end
+        return ret]]
+    else
+        return "<no-info>"
+    end
+end
+function manager:formAuthor()
+    return self.selected.author or "<no-info>"
+end
+function manager:selectMod(idx,choice)
+    self.selected=choice.data
+    if self.subviews.info then
+        self.subviews.info:setText(self:formDescription())
+        self:updateLayout()
+    end
+end
+function manager:updateState()
+    for k,v in pairs(self.mods) do
+        v.installed=checkInstalled(v)
+    end
+end
+function manager:installCurrent()
+    self:install(self.selected)
+end
+function manager:uninstallCurrent()
+    self:uninstall(self.selected)
+end
+function manager:install(trgMod,force)
 
-view = view and view:raise() or ModlistScreen{}:show()
+    if trgMod==nil then
+        qerror 'Mod does not exist'
+    end
+    if not force then
+        local isInstalled,file=checkInstalled(trgMod) -- maybe load from .installed?
+        if isInstalled then
+            qerror("Mod already installed. File:"..file)
+        end
+    end
+    print("installing:"..trgMod.name)
+    if trgMod.pre_install then
+        trgMod.pre_install(args)
+    end
+    if trgMod.raws_list then
+        for k,v in pairs(trgMod.raws_list) do
+            copyFile(trgMod.path..v,dfhack.getDFPath().."/raw/objects/"..v)
+        end
+    end
+    if trgMod.patch_entity then
+        local entity_target="[ENTITY:MOUNTAIN]" --TODO configure
+        patchFile(entity_file,trgMod.guard,entity_target,trgMod.patch_entity)
+    end
+    if trgMod.patch_files then
+        for k,v in pairs(trgMod.patch_files) do
+            patchFile(dfhack.getDFPath().."/raw/objects/"..v.filename,trgMod.guard,v.after,v.patch)
+        end
+    end
+    if trgMod.patch_init then
+        patchInit(init_file,trgMod.guard_init,trgMod.patch_init)
+    end
+    if trgMod.patch_dofile then
+        patchDofile(init_file,trgMod.guard_init,trgMod.patch_dofile,trgMod.path)
+    end
+    trgMod.installed=true
+
+    if trgMod.post_install then
+        trgMod.post_install(self)
+    end
+    print("done")
+end
+function manager:uninstall(trgMod)
+    print("Uninstalling:"..trgMod.name)
+    if trgMod.pre_uninstall then
+        trgMod.pre_uninstall(args)
+    end
+
+    if trgMod.raws_list then
+        for k,v in pairs(trgMod.raws_list) do
+            os.remove(dfhack.getDFPath().."/raw/objects/"..v)
+        end
+    end
+    if trgMod.patch_entity then
+        unPatchFile(entity_file,trgMod.guard)
+    end
+    if trgMod.patch_files then
+        for k,v in pairs(trgMod.patch_files) do
+            unPatchFile(dfhack.getDFPath().."/raw/objects/"..v.filename,trgMod.guard)
+        end
+    end
+    if trgMod.patch_init or trgMod.patch_dofile then
+        unPatchFile(init_file,trgMod.guard_init)
+    end
+
+    trgMod.installed=false
+    if trgMod.post_uninstall then
+        trgMod.post_uninstall(args)
+    end
+    print("done")
+end
+function manager:onInput(keys)
+
+    if keys.LEAVESCREEN  then
+        self:dismiss()
+    else
+        self:inputToSubviews(keys)
+    end
+
+end
+if dfhack.gui.getCurFocus()~='title' then
+    qerror("Can only be used in title screen")
+end
+local m=manager{}
+m:show()

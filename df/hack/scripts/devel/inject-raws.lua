@@ -134,7 +134,7 @@ function add_to_dwarf_civs(btype, id)
     end
 
     for _,entity in ipairs(df.global.world.entities.all) do
-        if entity.race == df.global.plotinfo.race_id then
+        if entity.race == df.global.ui.race_id then
             local bvec = typeinfo[3] --as:string
             add_to_civ(entity, bvec, id)
         end

@@ -1,7 +1,7 @@
 gui/stamper
 ===========
 
-Tags: unavailable
+Tags: fort | design | map
 
 Command: "gui/stamper"
 

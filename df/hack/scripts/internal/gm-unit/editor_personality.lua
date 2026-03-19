@@ -9,7 +9,7 @@ local setneed = dfhack.reqscript("modtools/set-need")
 
 
 Editor_Personality = defclass(Editor_Personality, base_editor.Editor)
-Editor_Personality.ATTRS{
+Editor_Personality.ATTRS = {
     frame_title = "Personality editor"
 }
 
@@ -64,8 +64,9 @@ function Editor_Personality:editTrait(index, choice)
   )
 end
 
-function Editor_Personality:onClose()
+function Editor_Personality:close()
   setneed.rebuildNeeds(self.target_unit)
+  self:dismiss()
 end
 
 function Editor_Personality:init(args)
@@ -75,22 +76,26 @@ function Editor_Personality:init(args)
 
   self:addviews{
     widgets.List{
-      frame = {t=0, b=4,l=0},
+      frame = {t=0, b=2,l=1},
       view_id = "traits",
       on_submit = self:callback("editTrait"),
+      on_submit2 = self:callback("averageTrait")
     },
     widgets.Label{
-      frame = {b=0, l=0},
+      frame = {b=1, l=1},
       text = {
+        {text = ": exit editor ", key = "LEAVESCREEN", on_activate = self:callback("close")},
         {text = ": edit value ", key = "SELECT"},
         {text = ": randomise selected ", key = "CUSTOM_R", on_activate = self:callback("randomiseSelected")},
-        NEWLINE,
-        {text = ": raise ", key = "KEYBOARD_CURSOR_RIGHT", on_activate = self:callback("step", 1)},
-        {text = ": reduce ", key = "KEYBOARD_CURSOR_LEFT", on_activate = self:callback("step", -1)},
-        {text = ": set to caste average", key = "STRING_A047", on_activate = function()
-            self:averageTrait(self.subviews.traits:getSelected())
-         end},
+        {text = ": raise ", key = "CURSOR_RIGHT", on_activate = self:callback("step", 1)},
+        {text = ": reduce", key = "CURSOR_LEFT", on_activate = self:callback("step", -1)},
       },
+    },
+    widgets.Label{
+      frame = {b = 0, l = 1},
+      text = {
+        {text = ": set to caste average", key = "SEC_SELECT"}
+      }
     },
   }
 

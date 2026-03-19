@@ -1,6 +1,35 @@
 -- Size Check
 --author mifki
 --luacheck:skip-entirely
+--
+--[====[
+
+devel/sc
+========
+Size Check: scans structures for invalid vectors, misaligned structures,
+and unidentified enum values.
+
+.. note::
+
+    This script can take a very long time to complete, and DF may be
+    unresponsive while it is running. You can use `kill-lua` to interrupt
+    this script.
+
+Examples:
+
+* scan world::
+
+    devel/sc
+
+* scan all globals::
+
+    devel/sc -all
+
+* scan result of expression::
+
+    devel/sc [expr]
+
+]====]
 
 local utils = require('utils')
 
@@ -8,6 +37,7 @@ local guess_pointers = false
 local check_vectors = true
 local check_pointers = true
 local check_enums = true
+
 
 -- not really a queue, I know
 local queue
@@ -89,7 +119,7 @@ local count = -1
 local function check_container(obj, path)
     count = count + 1
     if dfhack.is_interactive() and count % 500 == 0 then
-        local i = ((count // 500) % 4) + 1
+        local i = ((count / 500) % 4) + 1
         dfhack.print(prog:sub(i, i) .. '\r')
         dfhack.console.flush()
     end
@@ -97,7 +127,7 @@ local function check_container(obj, path)
         if df.isvalid(v) == 'ref' then
             local s, a = v:sizeof()
 
-            if v and v._kind == 'container' and k ~= 'bad' and k ~= 'temp_save' then
+            if v and v._kind == 'container' and k ~= 'bad' then
                 if tostring(v._type):sub(1,6) == 'vector' and check_vectors and not is_valid_vector(a) then
                     local key = tostring(obj._type) .. '.' .. k
                     if not checkedp[key] then
@@ -132,7 +162,7 @@ local function check_container(obj, path)
                             --print ('  OK')
                         else
                             bold (t)
-                            err ('  NOT OK '.. s .. ' ' .. s2 .. ' at ' .. path .. '.' .. k)
+                            err ('  NOT OK '.. s .. ' ' .. s2)
                         end
                     end
 
@@ -175,6 +205,7 @@ local function check_container(obj, path)
                         if not (obj._type == df.unit_preference and k == 'item_type')
                         and not (obj._type == df.unit.T_job and k == 'mood_skill')
                         and not (obj._type == df.unit and k == 'idle_area_type')
+                        and not (obj._type == df.history_event_body_abusedst.T_props)
                         and not (field._type == df.skill_rating)
                         and field.value >= -1 and field.value < 1024 then
                             local key = tostring(obj._type) .. '.' .. k .. tostring(field.value)

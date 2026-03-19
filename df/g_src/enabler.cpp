@@ -1,3 +1,9 @@
+#ifdef __APPLE__
+# include "osx_messagebox.h"
+#elif defined(unix)
+# include <gtk/gtk.h>
+#endif
+
 #include <cassert>
 
 #include "platform.h"
@@ -5,14 +11,6 @@
 #include "random.h"
 #include "init.h"
 #include "music_and_sound_g.h"
-#include "dfhooks.h"
-#ifdef WIN32
-#include "glaiel/crashlogs.h"
-#endif
-#ifndef NO_FMOD
-extern musicsoundst musicsound;
-extern adv_music_statest adv_music_state;
-#endif
 
 #ifdef unix
 # include <locale.h>
@@ -28,52 +26,64 @@ int glerrorcount = 0;
 // Set to 0 when the game wants to quit
 static int loopvar = 1;
 
-// Reports an error to the user
+// Reports an error to the user, using a MessageBox and stderr.
 void report_error(const char *error_preface, const char *error_message)
 {
-	warning_modal_ok(string(error_preface)+": "+error_message);
+  char *buf = NULL;
+  // +4 = +colon +space +newline +nul
+  buf = new char[strlen(error_preface) + strlen(error_message) + 4];
+  sprintf(buf, "%s: %s\n", error_preface, error_message);
+  MessageBox(NULL, buf, "Error", MB_OK);
+  fprintf(stderr, "%s", buf);
+  delete [] buf;
 }
 
-Either<texture_fullid,int32_t/*texture_ttfid*/> renderer::screen_to_texid(int x, int y) {
+Either<texture_fullid,texture_ttfid> renderer::screen_to_texid(int x, int y) {
   const int tile = x * gps.dimy + y;
-  const unsigned char *s = screen + tile*8;
+  const unsigned char *s = screen + tile*4;
 
   struct texture_fullid ret;
   int ch;
+  int bold;
+  int fg;
+  int bg;
 
   // TTF text does not get the full treatment.
-  /*
-  if (s[7] == GRAPHICSTYPE_TTF) {
+  if (s[3] == GRAPHICSTYPE_TTF) {
     texture_ttfid texpos = *((unsigned int *)s) & 0xffffff;
     return Either<texture_fullid,texture_ttfid>(texpos);
-  } else if (s[7] == GRAPHICSTYPE_TTFCONT) {
+  } else if (s[3] == GRAPHICSTYPE_TTFCONT) {
     // TTFCONT means this is a tile that does not have TTF anchored on it, but is covered by TTF.
     // Since this may actually be stale information, we'll draw it as a blank space,
     ch = 32;
-  } else */{
+    fg = bg = bold = 0;
+  } else {
     // Otherwise, it's a normal (graphical?) tile.
     ch   = s[0];
+    bold = (s[3] != 0) * 8;
+    fg   = (s[1] + bold) % 16;
+    bg   = s[2] % 16;
   }
   
-	//removed static here because it literally doesn't recognize that this flag has changed otherwise
-		//that is, use_graphics and init.display.flag.has_flag(INIT_DISPLAY_FLAG_USE_GRAPHICS) return different values
-  bool use_graphics = init.display.flag.has_flag(INIT_DISPLAY_FLAG_USE_GRAPHICS);
+  static bool use_graphics = init.display.flag.has_flag(INIT_DISPLAY_FLAG_USE_GRAPHICS);
   
-	const uint32_t stp_flag	      = screentexpos_flag[tile];
-
   if (use_graphics) {
     const long texpos             = screentexpos[tile];
+    const char addcolor           = screentexpos_addcolor[tile];
+    const unsigned char grayscale = screentexpos_grayscale[tile];
+    const unsigned char cf        = screentexpos_cf[tile];
+    const unsigned char cbr       = screentexpos_cbr[tile];
 
     if (texpos) {
       ret.texpos = texpos;
-      if (stp_flag & SCREENTEXPOS_FLAG_GRAYSCALE) {
-        ret.r = (float)s[1]/255.0f;
-        ret.g = (float)s[2]/255.0f;
-        ret.b = (float)s[3]/255.0f;
-        ret.br = (float)s[4]/255.0f;
-        ret.bg = (float)s[5]/255.0f;
-        ret.bb = (float)s[6]/255.0f;
-      } else if (stp_flag & SCREENTEXPOS_FLAG_ADDCOLOR) {
+      if (grayscale) {
+        ret.r = enabler.ccolor[cf][0];
+        ret.g = enabler.ccolor[cf][1];
+        ret.b = enabler.ccolor[cf][2];
+        ret.br = enabler.ccolor[cbr][0];
+        ret.bg = enabler.ccolor[cbr][1];
+        ret.bb = enabler.ccolor[cbr][2];
+      } else if (addcolor) {
         goto use_ch;
       } else {
         ret.r = ret.g = ret.b = 1;
@@ -83,131 +93,33 @@ Either<texture_fullid,int32_t/*texture_ttfid*/> renderer::screen_to_texid(int x,
     }
   }
   
-	if(enabler.flag & ENABLERFLAG_BASIC_TEXT)
-		{
-		if(stp_flag & SCREENTEXPOS_FLAG_TOP_OF_TEXT)ret.texpos=init.font.basic_font_texpos_top[ch];
-		else if(stp_flag & SCREENTEXPOS_FLAG_BOTTOM_OF_TEXT)ret.texpos=init.font.basic_font_texpos_bot[ch];
-		else ret.texpos=init.font.basic_font_texpos[ch];
-		}
-	else if(stp_flag & SCREENTEXPOS_FLAG_TOP_OF_TEXT)
-		{
-		ret.texpos=enabler.is_fullscreen()?init.font.large_font_texpos_top[ch]:init.font.small_font_texpos_top[ch];
-		}
-	else if(stp_flag & SCREENTEXPOS_FLAG_BOTTOM_OF_TEXT)
-		{
-		ret.texpos=enabler.is_fullscreen()?init.font.large_font_texpos_bot[ch]:init.font.small_font_texpos_bot[ch];
-		}
-	else ret.texpos=enabler.is_fullscreen()?init.font.large_font_texpos[ch]:init.font.small_font_texpos[ch];
-
+  ret.texpos = enabler.is_fullscreen() ?
+    init.font.large_font_texpos[ch] :
+    init.font.small_font_texpos[ch];
  use_ch:
-    ret.r = (float)s[1]/255.0f;
-    ret.g = (float)s[2]/255.0f;
-    ret.b = (float)s[3]/255.0f;
-    ret.br = (float)s[4]/255.0f;
-    ret.bg = (float)s[5]/255.0f;
-    ret.bb = (float)s[6]/255.0f;
+  ret.r = enabler.ccolor[fg][0];
+  ret.g = enabler.ccolor[fg][1];
+  ret.b = enabler.ccolor[fg][2];
+  ret.br = enabler.ccolor[bg][0];
+  ret.bg = enabler.ccolor[bg][1];
+  ret.bb = enabler.ccolor[bg][2];
 
  skip_ch:
 
-  return Either<texture_fullid,int32_t/*texture_ttfid*/>(ret);
+  return Either<texture_fullid,texture_ttfid>(ret);
 }
 
-Either<texture_fullid,int32_t/*texture_ttfid*/> renderer::screen_top_to_texid(int x, int y) {
-  const int tile = x * gps.dimy + y;
-  const unsigned char *s = screen_top + tile*8;
-
-  struct texture_fullid ret;
-  int ch;
-
-  // TTF text does not get the full treatment.
-/*  if (s[7] == GRAPHICSTYPE_TTF) {
-    texture_ttfid texpos = *((unsigned int *)s) & 0xffffff;
-    return Either<texture_fullid,texture_ttfid>(texpos);
-  } else if (s[7] == GRAPHICSTYPE_TTFCONT) {
-    // TTFCONT means this is a tile that does not have TTF anchored on it, but is covered by TTF.
-    // Since this may actually be stale information, we'll draw it as a blank space,
-    ch = 32;
-  } else */{
-    // Otherwise, it's a normal (graphical?) tile.
-    ch   = s[0];
-  }
-  
-	//removed static here because it literally doesn't recognize that this flag has changed otherwise
-		//that is, use_graphics and init.display.flag.has_flag(INIT_DISPLAY_FLAG_USE_GRAPHICS) return different values
-  bool use_graphics = init.display.flag.has_flag(INIT_DISPLAY_FLAG_USE_GRAPHICS);
-  
-	const uint32_t stp_flag	      = screentexpos_top_flag[tile];
-
-  if (use_graphics) {
-    const long texpos             = screentexpos_top[tile];
-
-    if (texpos) {
-      ret.texpos = texpos;
-      if (stp_flag & SCREENTEXPOS_FLAG_GRAYSCALE) {
-        ret.r = (float)s[1]/255.0f;
-        ret.g = (float)s[2]/255.0f;
-        ret.b = (float)s[3]/255.0f;
-        ret.br = (float)s[4]/255.0f;
-        ret.bg = (float)s[5]/255.0f;
-        ret.bb = (float)s[6]/255.0f;
-      } else if (stp_flag & SCREENTEXPOS_FLAG_ADDCOLOR) {
-        goto use_ch;
-      } else {
-        ret.r = ret.g = ret.b = 1;
-        ret.br = ret.bg = ret.bb = 0;
-      }
-      goto skip_ch;
-    }
-  }
-  
-	if(enabler.flag & ENABLERFLAG_BASIC_TEXT)
-		{
-		ret.texpos=init.font.basic_font_texpos[ch];
-		}
-	else if(stp_flag & SCREENTEXPOS_FLAG_TOP_OF_TEXT)
-		{
-		ret.texpos=enabler.is_fullscreen()?init.font.large_font_texpos_top[ch]:init.font.small_font_texpos_top[ch];
-		}
-	else if(stp_flag & SCREENTEXPOS_FLAG_BOTTOM_OF_TEXT)
-		{
-		ret.texpos=enabler.is_fullscreen()?init.font.large_font_texpos_bot[ch]:init.font.small_font_texpos_bot[ch];
-		}
-	else ret.texpos=enabler.is_fullscreen()?init.font.large_font_texpos[ch]:init.font.small_font_texpos[ch];
-
- use_ch:
-    ret.r = (float)s[1]/255.0f;
-    ret.g = (float)s[2]/255.0f;
-    ret.b = (float)s[3]/255.0f;
-    ret.br = (float)s[4]/255.0f;
-    ret.bg = (float)s[5]/255.0f;
-    ret.bb = (float)s[6]/255.0f;
-
- skip_ch:
-
-  return Either<texture_fullid,int32_t/*texture_ttfid*/>(ret);
-}
 
 #ifdef CURSES
 # include "renderer_curses.cpp"
 #endif
 #include "renderer_2d.hpp"
-//#include "renderer_opengl.hpp"
+#include "renderer_opengl.hpp"
 
-#ifndef FULL_RELEASE_VERSION
-bool cinematic_mode=false;
-int32_t cinematic_shift_x=0;
-int32_t cinematic_shift_y=0;
-int32_t cinematic_shift_dx=0;
-int32_t cinematic_shift_dy=0;
-int32_t cinematic_shift_velx=0;
-int32_t cinematic_shift_vely=0;
-int32_t cinematic_start_scrollx=0;
-int32_t cinematic_start_scrolly=0;
-#endif
 
-enablerst::enablerst() : async_fromcomplete(false) {
-  must_do_render_things_before_display=false;
-  fullscreen_state = 0;
+enablerst::enablerst() {
+  fullscreen = false;
+  sync = NULL;
   renderer = NULL;
   calculated_fps = calculated_gfps = frame_sum = gframe_sum = frame_last = gframe_last = 0;
   fps = 100; gfps = 20;
@@ -217,476 +129,104 @@ enablerst::enablerst() : async_fromcomplete(false) {
 
 void renderer::display()
 {
-	++gps.refresh_buffer_val;
-	if (gps.refresh_buffer_val>100000000)
-		{
-		gps.refresh_buffer_val=0;
-		if (gps.screentexpos_refresh_buffer!=NULL)memset(gps.screentexpos_refresh_buffer,0,sizeof(int32_t)*gps.dimx*gps.dimy);
-		}
-
-#ifndef FULL_RELEASE_VERSION
-	if (cinematic_mode)gps.force_full_display_count=2;
-#endif
-
-	if (gps.force_full_display_count)
-		{
-		do_blank_screen_fill();
-
-		int32_t lvp=LOWER_VIEWPORT_MAX-1;
-		while (lvp>=0)
-			{
-			if (gps.lower_viewport[lvp]!=NULL)
-				{
-				if (gps.lower_viewport[lvp]->flag&GRAPHIC_VIEWPORT_FLAG_ACTIVE)
-					{
-					update_full_viewport(gps.lower_viewport[lvp]);
-					}
-				}
-			--lvp;
-			}
-		if ((gps.main_viewport!=NULL)?(gps.main_viewport->flag&GRAPHIC_VIEWPORT_FLAG_ACTIVE):false)
-			{
-			update_full_viewport(gps.main_viewport);
-			}
-
-		if ((gps.main_map_port!=NULL)?(gps.main_map_port->flag&GRAPHIC_MAP_PORT_FLAG_ACTIVE):false)
-			{
-			update_full_map_port(gps.main_map_port);
-			}
-		}
-	else
-		{
-		if ((gps.main_viewport!=NULL)?(gps.main_viewport->flag&GRAPHIC_VIEWPORT_FLAG_ACTIVE):false)
-			{
-			const int32_t dimx=gps.main_viewport->dim_x;
-			const int32_t dimy=gps.main_viewport->dim_y;
-			int32_t off=0,lvp;
-			for (int32_t x2=0; x2<dimx; ++x2)
-				{
-				for (int32_t y2=0; y2<dimy; ++y2,++off)
-					{
-					bool refresh=false;
-
-					if (gps.main_viewport->screentexpos[off]!=gps.main_viewport->screentexpos_old[off]||
-						gps.main_viewport->screentexpos_background[off]!=gps.main_viewport->screentexpos_background_old[off]||
-						gps.main_viewport->screentexpos_background_two[off]!=gps.main_viewport->screentexpos_background_two_old[off]||
-						gps.main_viewport->screentexpos_floor_flag[off]!=gps.main_viewport->screentexpos_floor_flag_old[off]||
-						gps.main_viewport->screentexpos_spatter_flag[off]!=gps.main_viewport->screentexpos_spatter_flag_old[off]||
-						gps.main_viewport->screentexpos_spatter[off]!=gps.main_viewport->screentexpos_spatter_old[off]||
-						gps.main_viewport->screentexpos_liquid_flag[off]!=gps.main_viewport->screentexpos_liquid_flag_old[off]||
-						gps.main_viewport->screentexpos_ramp_flag[off]!=gps.main_viewport->screentexpos_ramp_flag_old[off]||
-						gps.main_viewport->screentexpos_shadow_flag[off]!=gps.main_viewport->screentexpos_shadow_flag_old[off]||
-						gps.main_viewport->screentexpos_building_one[off]!=gps.main_viewport->screentexpos_building_one_old[off]||
-						gps.main_viewport->screentexpos_building_two[off]!=gps.main_viewport->screentexpos_building_two_old[off]||
-						gps.main_viewport->screentexpos_top_shadow[off]!=gps.main_viewport->screentexpos_top_shadow_old[off]||
-						gps.main_viewport->screentexpos_item[off]!=gps.main_viewport->screentexpos_item_old[off]||
-						gps.main_viewport->screentexpos_vehicle[off]!=gps.main_viewport->screentexpos_vehicle_old[off]||
-						gps.main_viewport->screentexpos_projectile[off]!=gps.main_viewport->screentexpos_projectile_old[off]||
-						gps.main_viewport->screentexpos_high_flow[off]!=gps.main_viewport->screentexpos_high_flow_old[off]||
-						gps.main_viewport->screentexpos_vermin[off]!=gps.main_viewport->screentexpos_vermin_old[off]||
-						gps.main_viewport->screentexpos_signpost[off]!=gps.main_viewport->screentexpos_signpost_old[off]||
-						gps.main_viewport->screentexpos_left_creature[off]!=gps.main_viewport->screentexpos_left_creature_old[off]||
-						gps.main_viewport->screentexpos_right_creature[off]!=gps.main_viewport->screentexpos_right_creature_old[off]||
-						gps.main_viewport->screentexpos_upleft_creature[off]!=gps.main_viewport->screentexpos_upleft_creature_old[off]||
-						gps.main_viewport->screentexpos_up_creature[off]!=gps.main_viewport->screentexpos_up_creature_old[off]||
-						gps.main_viewport->screentexpos_upright_creature[off]!=gps.main_viewport->screentexpos_upright_creature_old[off]||
-						gps.main_viewport->screentexpos_designation[off]!=gps.main_viewport->screentexpos_designation_old[off]||
-						gps.main_viewport->screentexpos_interface[off]!=gps.main_viewport->screentexpos_interface_old[off])refresh=true;
-					if (!refresh)
-						{
-						lvp=0;
-						while (lvp<LOWER_VIEWPORT_MAX)
-							{
-							graphic_viewportst *vp=gps.lower_viewport[lvp];
-							if (vp==NULL)break;
-							if (!(vp->flag&GRAPHIC_VIEWPORT_FLAG_ACTIVE))
-								{
-								++lvp;
-								continue;
-								}
-							if (vp->screentexpos[off]!=vp->screentexpos_old[off]||
-								vp->screentexpos_background[off]!=vp->screentexpos_background_old[off]||
-								vp->screentexpos_background_two[off]!=vp->screentexpos_background_two_old[off]||
-								vp->screentexpos_floor_flag[off]!=vp->screentexpos_floor_flag_old[off]||
-								vp->screentexpos_spatter_flag[off]!=vp->screentexpos_spatter_flag_old[off]||
-								vp->screentexpos_spatter[off]!=vp->screentexpos_spatter_old[off]||
-								vp->screentexpos_liquid_flag[off]!=vp->screentexpos_liquid_flag_old[off]||
-								vp->screentexpos_ramp_flag[off]!=vp->screentexpos_ramp_flag_old[off]||
-								vp->screentexpos_shadow_flag[off]!=vp->screentexpos_shadow_flag_old[off]||
-								vp->screentexpos_building_one[off]!=vp->screentexpos_building_one_old[off]||
-								vp->screentexpos_building_two[off]!=vp->screentexpos_building_two_old[off]||
-								vp->screentexpos_top_shadow[off]!=vp->screentexpos_top_shadow_old[off]||
-								vp->screentexpos_item[off]!=vp->screentexpos_item_old[off]||
-								vp->screentexpos_vehicle[off]!=vp->screentexpos_vehicle_old[off]||
-								vp->screentexpos_projectile[off]!=vp->screentexpos_projectile_old[off]||
-								vp->screentexpos_high_flow[off]!=vp->screentexpos_high_flow_old[off]||
-								vp->screentexpos_vermin[off]!=vp->screentexpos_vermin_old[off]||
-								vp->screentexpos_signpost[off]!=vp->screentexpos_signpost_old[off]||
-								vp->screentexpos_left_creature[off]!=vp->screentexpos_left_creature_old[off]||
-								vp->screentexpos_right_creature[off]!=vp->screentexpos_right_creature_old[off]||
-								vp->screentexpos_upleft_creature[off]!=vp->screentexpos_upleft_creature_old[off]||
-								vp->screentexpos_up_creature[off]!=vp->screentexpos_up_creature_old[off]||
-								vp->screentexpos_upright_creature[off]!=vp->screentexpos_upright_creature_old[off]||
-								vp->screentexpos_designation[off]!=vp->screentexpos_designation_old[off]||
-								vp->screentexpos_interface[off]!=vp->screentexpos_interface_old[off])refresh=true;
-							++lvp;
-							if (refresh)break;
-							}
-						}
-
-					if (!refresh)continue;
-
-					lvp=LOWER_VIEWPORT_MAX-1;
-					while (lvp>=0)
-						{
-						if (gps.lower_viewport[lvp]!=NULL)update_viewport_tile(gps.lower_viewport[lvp],x2,y2);
-						--lvp;
-						}
-					update_viewport_tile(gps.main_viewport,x2,y2);
-					}
-				}
-			}
-
-		if ((gps.main_map_port!=NULL)?(gps.main_map_port->flag&GRAPHIC_MAP_PORT_FLAG_ACTIVE):false)
-			{
-			const int32_t dimx=gps.main_map_port->dim_x;
-			const int32_t dimy=gps.main_map_port->dim_y;
-			int32_t off=0;
-			for (int32_t y2=0; y2<dimy; ++y2)
-				{
-				for (int32_t x2=0; x2<dimx; ++x2,++off)
-					{
-					bool refresh=false;
-					if (gps.main_map_port->screentexpos_base[off]!=gps.main_map_port->screentexpos_base_old[off]||
-						gps.main_map_port->screentexpos_edge[0][off]!=gps.main_map_port->screentexpos_edge_old[0][off]||
-						gps.main_map_port->screentexpos_edge[1][off]!=gps.main_map_port->screentexpos_edge_old[1][off]||
-						gps.main_map_port->screentexpos_edge[2][off]!=gps.main_map_port->screentexpos_edge_old[2][off]||
-						gps.main_map_port->screentexpos_edge[3][off]!=gps.main_map_port->screentexpos_edge_old[3][off]||
-						gps.main_map_port->screentexpos_edge[4][off]!=gps.main_map_port->screentexpos_edge_old[4][off]||
-						gps.main_map_port->screentexpos_edge[5][off]!=gps.main_map_port->screentexpos_edge_old[5][off]||
-						gps.main_map_port->screentexpos_edge[6][off]!=gps.main_map_port->screentexpos_edge_old[6][off]||
-						gps.main_map_port->screentexpos_edge[7][off]!=gps.main_map_port->screentexpos_edge_old[7][off]||
-						gps.main_map_port->screentexpos_edge2[0][off]!=gps.main_map_port->screentexpos_edge2_old[0][off]||
-						gps.main_map_port->screentexpos_edge2[1][off]!=gps.main_map_port->screentexpos_edge2_old[1][off]||
-						gps.main_map_port->screentexpos_edge2[2][off]!=gps.main_map_port->screentexpos_edge2_old[2][off]||
-						gps.main_map_port->screentexpos_edge2[3][off]!=gps.main_map_port->screentexpos_edge2_old[3][off]||
-						gps.main_map_port->screentexpos_edge2[4][off]!=gps.main_map_port->screentexpos_edge2_old[4][off]||
-						gps.main_map_port->screentexpos_edge2[5][off]!=gps.main_map_port->screentexpos_edge2_old[5][off]||
-						gps.main_map_port->screentexpos_edge2[6][off]!=gps.main_map_port->screentexpos_edge2_old[6][off]||
-						gps.main_map_port->screentexpos_edge2[7][off]!=gps.main_map_port->screentexpos_edge2_old[7][off]||
-						gps.main_map_port->screentexpos_detail[off]!=gps.main_map_port->screentexpos_detail_old[off]||
-						gps.main_map_port->screentexpos_tunnel[off]!=gps.main_map_port->screentexpos_tunnel_old[off]||
-						gps.main_map_port->screentexpos_river[off]!=gps.main_map_port->screentexpos_river_old[off]||
-						gps.main_map_port->screentexpos_road[off]!=gps.main_map_port->screentexpos_road_old[off]||
-						gps.main_map_port->screentexpos_site[off]!=gps.main_map_port->screentexpos_site_old[off]||
-						gps.main_map_port->screentexpos_army[off]!=gps.main_map_port->screentexpos_army_old[off]||
-						gps.main_map_port->screentexpos_interface[off]!=gps.main_map_port->screentexpos_interface_old[off]||
-						gps.main_map_port->screentexpos_detail_to_n[off]!=gps.main_map_port->screentexpos_detail_to_n_old[off]||
-						gps.main_map_port->screentexpos_detail_to_s[off]!=gps.main_map_port->screentexpos_detail_to_s_old[off]||
-						gps.main_map_port->screentexpos_detail_to_w[off]!=gps.main_map_port->screentexpos_detail_to_w_old[off]||
-						gps.main_map_port->screentexpos_detail_to_e[off]!=gps.main_map_port->screentexpos_detail_to_e_old[off]||
-						gps.main_map_port->screentexpos_detail_to_nw[off]!=gps.main_map_port->screentexpos_detail_to_nw_old[off]||
-						gps.main_map_port->screentexpos_detail_to_ne[off]!=gps.main_map_port->screentexpos_detail_to_ne_old[off]||
-						gps.main_map_port->screentexpos_detail_to_sw[off]!=gps.main_map_port->screentexpos_detail_to_sw_old[off]||
-						gps.main_map_port->screentexpos_detail_to_se[off]!=gps.main_map_port->screentexpos_detail_to_se_old[off]||
-						gps.main_map_port->screentexpos_site_to_s[off]!=gps.main_map_port->screentexpos_site_to_s_old[off]||
-						gps.main_map_port->screentexpos_cloud_bits[off]!=gps.main_map_port->screentexpos_cloud_bits_old[off])refresh=true;
-					if (refresh)update_map_port_tile(gps.main_map_port,x2,y2);
-					}
-				}
-			}
-		}
-	update_all();
+  const int dimx = init.display.grid_x;
+  const int dimy = init.display.grid_y;
+  static bool use_graphics = init.display.flag.has_flag(INIT_DISPLAY_FLAG_USE_GRAPHICS);
+  if (gps.force_full_display_count) {
+    // Update the entire screen
+    update_all();
+  } else {
+    Uint32 *screenp = (Uint32*)screen, *oldp = (Uint32*)screen_old;
+    if (use_graphics) {
+      int off = 0;
+      for (int x2=0; x2 < dimx; x2++) {
+        for (int y2=0; y2 < dimy; y2++, ++off, ++screenp, ++oldp) {
+          // We don't use pointers for the non-screen arrays because we mostly fail at the
+          // *first* comparison, and having pointers for the others would exceed register
+          // count.
+          // Partial printing (and color-conversion): Big-ass if.
+          if (*screenp == *oldp &&
+              screentexpos[off] == screentexpos_old[off] &&
+              screentexpos_addcolor[off] == screentexpos_addcolor_old[off] &&
+              screentexpos_grayscale[off] == screentexpos_grayscale_old[off] &&
+              screentexpos_cf[off] == screentexpos_cf_old[off] &&
+              screentexpos_cbr[off] == screentexpos_cbr_old[off])
+            {
+              // Nothing's changed, this clause deliberately empty
+            } else {
+            update_tile(x2, y2);
+          }
+        }
+      }
+    } else {
+      for (int x2=0; x2 < dimx; ++x2) {
+        for (int y2=0; y2 < dimy; ++y2, ++screenp, ++oldp) {
+          if (*screenp != *oldp) {
+            update_tile(x2, y2);
+          }
+        }
+      }
+    }
+  }
+  if (gps.force_full_display_count > 0) gps.force_full_display_count--;
 }
 
 void renderer::cleanup_arrays() {
   if (screen) delete[] screen;
   if (screentexpos) delete[] screentexpos;
-  if (screentexpos_lower) delete[] screentexpos_lower;
-  if (screentexpos_anchored) delete[] screentexpos_anchored;
-  if (screentexpos_anchored_x) delete[] screentexpos_anchored_x;
-  if (screentexpos_anchored_y) delete[] screentexpos_anchored_y;
-  if (screentexpos_flag) delete[] screentexpos_flag;
+  if (screentexpos_addcolor) delete[] screentexpos_addcolor;
+  if (screentexpos_grayscale) delete[] screentexpos_grayscale;
+  if (screentexpos_cf) delete[] screentexpos_cf;
+  if (screentexpos_cbr) delete[] screentexpos_cbr;
   if (screen_old) delete[] screen_old;
   if (screentexpos_old) delete[] screentexpos_old;
-  if (screentexpos_lower_old) delete[] screentexpos_lower_old;
-  if (screentexpos_anchored_old) delete[] screentexpos_anchored_old;
-  if (screentexpos_anchored_x_old) delete[] screentexpos_anchored_x_old;
-  if (screentexpos_anchored_y_old) delete[] screentexpos_anchored_y_old;
-  if (screentexpos_flag_old) delete[] screentexpos_flag_old;
-
-  if (screen_top) delete[] screen_top;
-  if (screentexpos_top) delete[] screentexpos_top;
-  if (screentexpos_top_lower) delete[] screentexpos_top_lower;
-  if (screentexpos_top_anchored) delete[] screentexpos_top_anchored;
-  if (screentexpos_top_anchored_x) delete[] screentexpos_top_anchored_x;
-  if (screentexpos_top_anchored_y) delete[] screentexpos_top_anchored_y;
-  if (screentexpos_top_flag) delete[] screentexpos_top_flag;
-  if (screen_top_old) delete[] screen_top_old;
-  if (screentexpos_top_old) delete[] screentexpos_top_old;
-  if (screentexpos_top_lower_old) delete[] screentexpos_top_lower_old;
-  if (screentexpos_top_anchored_old) delete[] screentexpos_top_anchored_old;
-  if (screentexpos_top_anchored_x_old) delete[] screentexpos_top_anchored_x_old;
-  if (screentexpos_top_anchored_y_old) delete[] screentexpos_top_anchored_y_old;
-  if (screentexpos_top_flag_old) delete[] screentexpos_top_flag_old;
-
-  if(screentexpos_refresh_buffer)delete[] screentexpos_refresh_buffer;
+  if (screentexpos_addcolor_old) delete[] screentexpos_addcolor_old;
+  if (screentexpos_grayscale_old) delete[] screentexpos_grayscale_old;
+  if (screentexpos_cf_old) delete[] screentexpos_cf_old;
+  if (screentexpos_cbr_old) delete[] screentexpos_cbr_old;
 }
 
-void renderer::gps_allocate(int x, int y,int screen_x,int screen_y,int tile_dim_x,int tile_dim_y) {
+void renderer::gps_allocate(int x, int y) {
   cleanup_arrays();
   
-  gps.screen = screen = new unsigned char[x*y*8];
-  memset(screen, 0, x*y*8);
+  gps.screen = screen = new unsigned char[x*y*4];
+  memset(screen, 0, x*y*4);
   gps.screentexpos = screentexpos = new long[x*y];
   memset(screentexpos, 0, x*y*sizeof(long));
-  gps.screentexpos_lower = screentexpos_lower = new long[x*y];
-  memset(screentexpos_lower, 0, x*y*sizeof(long));
-  gps.screentexpos_anchored = screentexpos_anchored = new long[x*y];
-  memset(screentexpos_anchored, 0, x*y*sizeof(long));
-  gps.screentexpos_anchored_x = screentexpos_anchored_x = new long[x*y];
-  memset(screentexpos_anchored_x, 0, x*y*sizeof(long));
-  gps.screentexpos_anchored_y = screentexpos_anchored_y = new long[x*y];
-  memset(screentexpos_anchored_y, 0, x*y*sizeof(long));
-  gps.screentexpos_flag = screentexpos_flag = new uint32_t[x*y];
-  memset(screentexpos_flag, 0, x*y*sizeof(uint32_t));
+  gps.screentexpos_addcolor = screentexpos_addcolor = new char[x*y];
+  memset(screentexpos_addcolor, 0, x*y);
+  gps.screentexpos_grayscale = screentexpos_grayscale = new unsigned char[x*y];
+  memset(screentexpos_grayscale, 0, x*y);
+  gps.screentexpos_cf = screentexpos_cf = new unsigned char[x*y];
+  memset(screentexpos_cf, 0, x*y);
+  gps.screentexpos_cbr = screentexpos_cbr = new unsigned char[x*y];
+  memset(screentexpos_cbr, 0, x*y);
 
-  screen_old = new unsigned char[x*y*8];
-  memset(screen_old, 0, x*y*8);
+  screen_old = new unsigned char[x*y*4];
+  memset(screen_old, 0, x*y*4);
   screentexpos_old = new long[x*y];
   memset(screentexpos_old, 0, x*y*sizeof(long));
-  screentexpos_lower_old = new long[x*y];
-  memset(screentexpos_lower_old, 0, x*y*sizeof(long));
-  screentexpos_anchored_old = new long[x*y];
-  memset(screentexpos_anchored_old, 0, x*y*sizeof(long));
-  screentexpos_anchored_x_old = new long[x*y];
-  memset(screentexpos_anchored_x_old, 0, x*y*sizeof(long));
-  screentexpos_anchored_y_old = new long[x*y];
-  memset(screentexpos_anchored_y_old, 0, x*y*sizeof(long));
-  screentexpos_flag_old = new uint32_t[x*y];
-  memset(screentexpos_flag_old, 0, x*y*sizeof(uint32_t));
+  screentexpos_addcolor_old = new char[x*y];
+  memset(screentexpos_addcolor_old, 0, x*y);
+  screentexpos_grayscale_old = new unsigned char[x*y];
+  memset(screentexpos_grayscale_old, 0, x*y);
+  screentexpos_cf_old = new unsigned char[x*y];
+  memset(screentexpos_cf_old, 0, x*y);
+  screentexpos_cbr_old = new unsigned char[x*y];
+  memset(screentexpos_cbr_old, 0, x*y);
 
-  gps.screen_top = screen_top = new unsigned char[x*y*8];
-  memset(screen_top, 0, x*y*8);
-  gps.screentexpos_top = screentexpos_top = new long[x*y];
-  memset(screentexpos_top, 0, x*y*sizeof(long));
-  gps.screentexpos_top_lower = screentexpos_top_lower = new long[x*y];
-  memset(screentexpos_top_lower, 0, x*y*sizeof(long));
-  gps.screentexpos_top_anchored = screentexpos_top_anchored = new long[x*y];
-  memset(screentexpos_top_anchored, 0, x*y*sizeof(long));
-  gps.screentexpos_top_anchored_x = screentexpos_top_anchored_x = new long[x*y];
-  memset(screentexpos_top_anchored_x, 0, x*y*sizeof(long));
-  gps.screentexpos_top_anchored_y = screentexpos_top_anchored_y = new long[x*y];
-  memset(screentexpos_top_anchored_y, 0, x*y*sizeof(long));
-  gps.screentexpos_top_flag = screentexpos_top_flag = new uint32_t[x*y];
-  memset(screentexpos_top_flag, 0, x*y*sizeof(uint32_t));
-
-  screen_top_old = new unsigned char[x*y*8];
-  memset(screen_top_old, 0, x*y*8);
-  screentexpos_top_old = new long[x*y];
-  memset(screentexpos_top_old, 0, x*y*sizeof(long));
-  screentexpos_top_lower_old = new long[x*y];
-  memset(screentexpos_top_lower_old, 0, x*y*sizeof(long));
-  screentexpos_top_anchored_old = new long[x*y];
-  memset(screentexpos_top_anchored_old, 0, x*y*sizeof(long));
-  screentexpos_top_anchored_x_old = new long[x*y];
-  memset(screentexpos_top_anchored_x_old, 0, x*y*sizeof(long));
-  screentexpos_top_anchored_y_old = new long[x*y];
-  memset(screentexpos_top_anchored_y_old, 0, x*y*sizeof(long));
-  screentexpos_top_flag_old = new uint32_t[x*y];
-  memset(screentexpos_top_flag_old, 0, x*y*sizeof(uint32_t));
-
-  gps.screentexpos_refresh_buffer=screentexpos_refresh_buffer=new int32_t[x*y];
-  memset(screentexpos_refresh_buffer, 0, x*y*sizeof(int32_t));
-
-  gps.screen_pixel_x=(int32_t)screen_x;
-  gps.screen_pixel_y=(int32_t)screen_y;
-  gps.tile_pixel_x=(int32_t)tile_dim_x;
-  gps.tile_pixel_y=(int32_t)tile_dim_y;
   gps.resize(x,y);
-
-  int32_t zf=gps.viewport_zoom_factor;
-  set_viewport_zoom_factor(zf);
-	gps.reshape_viewports(zf);
 }
 
 void renderer::swap_arrays() {
   screen = screen_old; screen_old = gps.screen; gps.screen = screen;
   screentexpos = screentexpos_old; screentexpos_old = gps.screentexpos; gps.screentexpos = screentexpos;
-  screentexpos_lower = screentexpos_lower_old; screentexpos_lower_old = gps.screentexpos_lower; gps.screentexpos_lower = screentexpos_lower;
-  screentexpos_anchored = screentexpos_anchored_old; screentexpos_anchored_old = gps.screentexpos_anchored; gps.screentexpos_anchored = screentexpos_anchored;
-  screentexpos_anchored_x = screentexpos_anchored_x_old; screentexpos_anchored_x_old = gps.screentexpos_anchored_x; gps.screentexpos_anchored_x = screentexpos_anchored_x;
-  screentexpos_anchored_y = screentexpos_anchored_y_old; screentexpos_anchored_y_old = gps.screentexpos_anchored_y; gps.screentexpos_anchored_y = screentexpos_anchored_y;
-  screentexpos_flag = screentexpos_flag_old; screentexpos_flag_old = gps.screentexpos_flag; gps.screentexpos_flag = screentexpos_flag;
+  screentexpos_addcolor = screentexpos_addcolor_old; screentexpos_addcolor_old = gps.screentexpos_addcolor; gps.screentexpos_addcolor = screentexpos_addcolor;
+  screentexpos_grayscale = screentexpos_grayscale_old; screentexpos_grayscale_old = gps.screentexpos_grayscale; gps.screentexpos_grayscale = screentexpos_grayscale;
+  screentexpos_cf = screentexpos_cf_old; screentexpos_cf_old = gps.screentexpos_cf; gps.screentexpos_cf = screentexpos_cf;
+  screentexpos_cbr = screentexpos_cbr_old; screentexpos_cbr_old = gps.screentexpos_cbr; gps.screentexpos_cbr = screentexpos_cbr;
 
-  screen_top = screen_top_old; screen_top_old = gps.screen_top; gps.screen_top = screen_top;
-  screentexpos_top = screentexpos_top_old; screentexpos_top_old = gps.screentexpos_top; gps.screentexpos_top = screentexpos_top;
-  screentexpos_top_lower = screentexpos_top_lower_old; screentexpos_top_lower_old = gps.screentexpos_top_lower; gps.screentexpos_top_lower = screentexpos_top_lower;
-  screentexpos_top_anchored = screentexpos_top_anchored_old; screentexpos_top_anchored_old = gps.screentexpos_top_anchored; gps.screentexpos_top_anchored = screentexpos_top_anchored;
-  screentexpos_top_anchored_x = screentexpos_top_anchored_x_old; screentexpos_top_anchored_x_old = gps.screentexpos_top_anchored_x; gps.screentexpos_top_anchored_x = screentexpos_top_anchored_x;
-  screentexpos_top_anchored_y = screentexpos_top_anchored_y_old; screentexpos_top_anchored_y_old = gps.screentexpos_top_anchored_y; gps.screentexpos_top_anchored_y = screentexpos_top_anchored_y;
-  screentexpos_top_flag = screentexpos_top_flag_old; screentexpos_top_flag_old = gps.screentexpos_top_flag; gps.screentexpos_top_flag = screentexpos_top_flag;
-
-  gps.texblits.clear();
-
-  gps.screen_limit = gps.screen + gps.dimx * gps.dimy * 8;
-  gps.screen_top_limit = gps.screen_top + gps.dimx * gps.dimy * 8;
-
-  int32_t *sw_i32;
-  uint32_t *sw_ui32;
-  uint64_t *sw_ui64;
-  auto vp_s=gps.viewport.begin();
-  auto vp_e=gps.viewport.end();
-  for(;vp_s<vp_e;++vp_s)
-	{
-	graphic_viewportst *vp=*vp_s;
-		sw_i32=vp->screentexpos_background;
-			vp->screentexpos_background=vp->screentexpos_background_old;
-			vp->screentexpos_background_old=sw_i32;
-		sw_i32=vp->screentexpos_background_two;
-			vp->screentexpos_background_two=vp->screentexpos_background_two_old;
-			vp->screentexpos_background_two_old=sw_i32;
-		sw_ui64=vp->screentexpos_floor_flag;
-			vp->screentexpos_floor_flag=vp->screentexpos_floor_flag_old;
-			vp->screentexpos_floor_flag_old=sw_ui64;
-		sw_ui32=vp->screentexpos_spatter_flag;
-			vp->screentexpos_spatter_flag=vp->screentexpos_spatter_flag_old;
-			vp->screentexpos_spatter_flag_old=sw_ui32;
-		sw_i32=vp->screentexpos_spatter;
-			vp->screentexpos_spatter=vp->screentexpos_spatter_old;
-			vp->screentexpos_spatter_old=sw_i32;
-		sw_ui32=vp->screentexpos_liquid_flag;
-			vp->screentexpos_liquid_flag=vp->screentexpos_liquid_flag_old;
-			vp->screentexpos_liquid_flag_old=sw_ui32;
-		sw_ui64=vp->screentexpos_ramp_flag;
-			vp->screentexpos_ramp_flag=vp->screentexpos_ramp_flag_old;
-			vp->screentexpos_ramp_flag_old=sw_ui64;
-		sw_ui32=vp->screentexpos_shadow_flag;
-			vp->screentexpos_shadow_flag=vp->screentexpos_shadow_flag_old;
-			vp->screentexpos_shadow_flag_old=sw_ui32;
-		sw_i32=vp->screentexpos_building_one;
-			vp->screentexpos_building_one=vp->screentexpos_building_one_old;
-			vp->screentexpos_building_one_old=sw_i32;
-		sw_i32=vp->screentexpos_building_two;
-			vp->screentexpos_building_two=vp->screentexpos_building_two_old;
-			vp->screentexpos_building_two_old=sw_i32;
-		sw_i32=vp->screentexpos_top_shadow;
-			vp->screentexpos_top_shadow=vp->screentexpos_top_shadow_old;
-			vp->screentexpos_top_shadow_old=sw_i32;
-		sw_i32=vp->screentexpos_item;
-			vp->screentexpos_item=vp->screentexpos_item_old;
-			vp->screentexpos_item_old=sw_i32;
-		sw_i32=vp->screentexpos_vehicle;
-			vp->screentexpos_vehicle=vp->screentexpos_vehicle_old;
-			vp->screentexpos_vehicle_old=sw_i32;
-		sw_i32=vp->screentexpos_projectile;
-			vp->screentexpos_projectile=vp->screentexpos_projectile_old;
-			vp->screentexpos_projectile_old=sw_i32;
-		sw_i32=vp->screentexpos_high_flow;
-			vp->screentexpos_high_flow=vp->screentexpos_high_flow_old;
-			vp->screentexpos_high_flow_old=sw_i32;
-		sw_i32=vp->screentexpos_vermin;
-			vp->screentexpos_vermin=vp->screentexpos_vermin_old;
-			vp->screentexpos_vermin_old=sw_i32;
-		sw_i32=vp->screentexpos_left_creature;
-			vp->screentexpos_left_creature=vp->screentexpos_left_creature_old;
-			vp->screentexpos_left_creature_old=sw_i32;
-		sw_i32=vp->screentexpos;
-			vp->screentexpos=vp->screentexpos_old;
-			vp->screentexpos_old=sw_i32;
-		sw_i32=vp->screentexpos_right_creature;
-			vp->screentexpos_right_creature=vp->screentexpos_right_creature_old;
-			vp->screentexpos_right_creature_old=sw_i32;
-		sw_i32=vp->screentexpos_signpost;
-			vp->screentexpos_signpost=vp->screentexpos_signpost_old;
-			vp->screentexpos_signpost_old=sw_i32;
-		sw_i32=vp->screentexpos_upleft_creature;
-			vp->screentexpos_upleft_creature=vp->screentexpos_upleft_creature_old;
-			vp->screentexpos_upleft_creature_old=sw_i32;
-		sw_i32=vp->screentexpos_up_creature;
-			vp->screentexpos_up_creature=vp->screentexpos_up_creature_old;
-			vp->screentexpos_up_creature_old=sw_i32;
-		sw_i32=vp->screentexpos_upright_creature;
-			vp->screentexpos_upright_creature=vp->screentexpos_upright_creature_old;
-			vp->screentexpos_upright_creature_old=sw_i32;
-		sw_i32=vp->screentexpos_designation;
-			vp->screentexpos_designation=vp->screentexpos_designation_old;
-			vp->screentexpos_designation_old=sw_i32;
-		sw_i32=vp->screentexpos_interface;
-			vp->screentexpos_interface=vp->screentexpos_interface_old;
-			vp->screentexpos_interface_old=sw_i32;
-	}
-
-  auto mp_s=gps.map_port.begin();
-  auto mp_e=gps.map_port.end();
-  for(;mp_s<mp_e;++mp_s)
-	{
-	graphic_map_portst *vp=*mp_s;
-		sw_i32=vp->screentexpos_base;
-			vp->screentexpos_base=vp->screentexpos_base_old;
-			vp->screentexpos_base_old=sw_i32;
-		int32_t ei;
-		for(ei=0;ei<8;++ei)
-			{
-			sw_i32=vp->screentexpos_edge[ei];
-				vp->screentexpos_edge[ei]=vp->screentexpos_edge_old[ei];
-				vp->screentexpos_edge_old[ei]=sw_i32;
-			sw_i32=vp->screentexpos_edge2[ei];
-				vp->screentexpos_edge2[ei]=vp->screentexpos_edge2_old[ei];
-				vp->screentexpos_edge2_old[ei]=sw_i32;
-			}
-		sw_i32=vp->screentexpos_detail;
-			vp->screentexpos_detail=vp->screentexpos_detail_old;
-			vp->screentexpos_detail_old=sw_i32;
-		sw_i32=vp->screentexpos_tunnel;
-			vp->screentexpos_tunnel=vp->screentexpos_tunnel_old;
-			vp->screentexpos_tunnel_old=sw_i32;
-		sw_i32=vp->screentexpos_river;
-			vp->screentexpos_river=vp->screentexpos_river_old;
-			vp->screentexpos_river_old=sw_i32;
-		sw_i32=vp->screentexpos_road;
-			vp->screentexpos_road=vp->screentexpos_road_old;
-			vp->screentexpos_road_old=sw_i32;
-		sw_i32=vp->screentexpos_site;
-			vp->screentexpos_site=vp->screentexpos_site_old;
-			vp->screentexpos_site_old=sw_i32;
-		sw_i32=vp->screentexpos_army;
-			vp->screentexpos_army=vp->screentexpos_army_old;
-			vp->screentexpos_army_old=sw_i32;
-		sw_i32=vp->screentexpos_interface;
-			vp->screentexpos_interface=vp->screentexpos_interface_old;
-			vp->screentexpos_interface_old=sw_i32;
-		sw_i32=vp->screentexpos_detail_to_n;
-			vp->screentexpos_detail_to_n=vp->screentexpos_detail_to_n_old;
-			vp->screentexpos_detail_to_n_old=sw_i32;
-		sw_i32=vp->screentexpos_detail_to_s;
-			vp->screentexpos_detail_to_s=vp->screentexpos_detail_to_s_old;
-			vp->screentexpos_detail_to_s_old=sw_i32;
-		sw_i32=vp->screentexpos_detail_to_w;
-			vp->screentexpos_detail_to_w=vp->screentexpos_detail_to_w_old;
-			vp->screentexpos_detail_to_w_old=sw_i32;
-		sw_i32=vp->screentexpos_detail_to_e;
-			vp->screentexpos_detail_to_e=vp->screentexpos_detail_to_e_old;
-			vp->screentexpos_detail_to_e_old=sw_i32;
-		sw_i32=vp->screentexpos_detail_to_nw;
-			vp->screentexpos_detail_to_nw=vp->screentexpos_detail_to_nw_old;
-			vp->screentexpos_detail_to_nw_old=sw_i32;
-		sw_i32=vp->screentexpos_detail_to_ne;
-			vp->screentexpos_detail_to_ne=vp->screentexpos_detail_to_ne_old;
-			vp->screentexpos_detail_to_ne_old=sw_i32;
-		sw_i32=vp->screentexpos_detail_to_sw;
-			vp->screentexpos_detail_to_sw=vp->screentexpos_detail_to_sw_old;
-			vp->screentexpos_detail_to_sw_old=sw_i32;
-		sw_i32=vp->screentexpos_detail_to_se;
-			vp->screentexpos_detail_to_se=vp->screentexpos_detail_to_se_old;
-			vp->screentexpos_detail_to_se_old=sw_i32;
-		sw_i32=vp->screentexpos_site_to_s;
-			vp->screentexpos_site_to_s=vp->screentexpos_site_to_s_old;
-			vp->screentexpos_site_to_s_old=sw_i32;
-		sw_ui64=vp->screentexpos_cloud_bits;
-			vp->screentexpos_cloud_bits=vp->screentexpos_cloud_bits_old;
-			vp->screentexpos_cloud_bits_old=sw_ui64;
-	}
+  gps.screen_limit = gps.screen + gps.dimx * gps.dimy * 4;
 }
 
 void enablerst::pause_async_loop()  {
@@ -710,32 +250,31 @@ void enablerst::async_wait() {
       loopvar = 0;
       return;
     case async_msg::complete:
+      if (reset_textures) {
+        puts("Resetting textures");
+        textures.remove_uploaded_textures();
+        textures.upload_textures();
+      }
       return;
     case async_msg::set_fps:
       set_fps(r.fps);
-      async_fromcomplete.release();
+      async_fromcomplete.write();
       break;
     case async_msg::set_gfps:
       set_gfps(r.fps);
-      async_fromcomplete.release();
+      async_fromcomplete.write();
       break;
     case async_msg::push_resize:
       override_grid_size(r.x, r.y);
-      async_fromcomplete.release();
+      async_fromcomplete.write();
       break;
     case async_msg::pop_resize:
       release_grid_size();
-      async_fromcomplete.release();
+      async_fromcomplete.write();
       break;
     case async_msg::reset_textures:
       reset_textures = true;
       break;
-	case async_msg::show_message:
-		{
-		MessageBox(NULL,r.text,r.caption,r.type);
-		async_fromcomplete.release();
-		break;
-		}
     default:
       puts("EMERGENCY: Unknown case in async_wait");
       abort();
@@ -746,8 +285,8 @@ void enablerst::async_wait() {
 void enablerst::async_loop() {
   async_paused = false;
   async_frames = 0;
-  //int total_frames = 0;
-  int fps = 100; // Just a thread-local copy // what?
+  int total_frames = 0;
+  int fps = 100; // Just a thread-local copy
   for (;;) {
     // cout << "FRAMES: " << frames << endl;
     // Check for commands
@@ -773,13 +312,10 @@ void enablerst::async_loop() {
           break;
         case async_cmd::render:
           if (flag & ENABLERFLAG_RENDER) {
-
-            //total_frames++;
+            total_frames++;
             renderer->swap_arrays();
-			/*
             if (total_frames % 1800 == 0)
               ttf_manager.gc();
-			  */
             render_things();
             flag &= ~ENABLERFLAG_RENDER;
             update_gfps();
@@ -802,14 +338,14 @@ void enablerst::async_loop() {
         async_frombox.write(async_msg(async_msg::quit));
         return; // We're done.
       }
-      simticks++;
+      simticks.lock();
+      simticks.val++;
+      simticks.unlock();
       async_frames--;
       if (async_frames < 0) async_frames = 0;
       update_fps();
-	  clear_text_input();
     }
-	SDL_NumJoysticks();
-	hooks_update();
+    SDL_NumJoysticks(); // Hook for dfhack
   }
 }
 
@@ -840,48 +376,23 @@ void enablerst::do_frame() {
   enabler.clock = SDL_GetTicks();
 
   // If it's time to render..
-  if (outstanding_gframes >= 1) {
+  if (outstanding_gframes >= 1 &&
+      (!sync || glClientWaitSync(sync, 0, 0) == GL_ALREADY_SIGNALED)) {
     // Get the async-loop to render_things
     async_cmd cmd(async_cmd::render);
     async_tobox.write(cmd);
     async_wait();
     // Then finish here
-	if(gps.main_thread_requesting_reshape)
-		{
-		int32_t zf=gps.viewport_zoom_factor;
-
-		renderer->set_viewport_zoom_factor(zf);
-
-		gps.reshape_viewports(zf);
-
-		gps.main_thread_requesting_reshape=false;
-		}
-
-	if(!must_do_render_things_before_display)
-		{
-		if(gps.do_post_init_texture_clear)//needs to be after clean tile cache
-			{
-			enabler.textures.delete_all_post_init_textures();
-
-			gps.do_post_init_texture_clear=false;
-			}
-
-		if(gps.do_clean_tile_cache)
-			{
-			renderer->clean_tile_cache();
-
-			gps.do_clean_tile_cache=false;
-			}
-		renderer->tidy_tile_cache();
-		renderer->display();
-		renderer->render();
-		}
-    gputicks++;
+    renderer->display();
+    renderer->render();
+    gputicks.lock();
+    gputicks.val++;
+    gputicks.unlock();
     outstanding_gframes--;
   }
+
   // Sleep until the next gframe
   if (outstanding_gframes < 1) {
-    emit_logs(); // flush game/error logs whenever we have to sleep
     float fragment = 1 - outstanding_gframes;
     float milliseconds = fragment / gfps * 1000;
     // cout << milliseconds << endl;
@@ -893,16 +404,15 @@ void enablerst::eventLoop_SDL()
 {
   
   SDL_Event event;
+  const SDL_Surface *screen = SDL_GetVideoSurface();
   Uint32 mouse_lastused = 0;
   SDL_ShowCursor(SDL_DISABLE);
-  int window_w, window_h;
-  SDL_GetWindowSize(renderer->get_window(), &window_w, &window_h);
+ 
   // Initialize the grid
-  renderer->resize(window_w, window_h);
+  renderer->resize(screen->w, screen->h);
 
   while (loopvar) {
     Uint32 now = SDL_GetTicks();
-	bool already_wheeled = false;
     bool paused_loop = false;
 
     // Check for zoom commands
@@ -920,8 +430,6 @@ void enablerst::eventLoop_SDL()
         renderer->zoom(zoom);
     }
 
-	bool any_text_event=false;
-
     // Check for SDL events
     while (SDL_PollEvent(&event)) {
       // Make sure mainloop isn't running while we're processing input
@@ -929,17 +437,9 @@ void enablerst::eventLoop_SDL()
         pause_async_loop();
         paused_loop = true;
       }
-	  if (hooks_sdl_event(&event)) continue;
       // Handle SDL events
       switch (event.type) {
-	  case SDL_MOUSEWHEEL:
-		  if (!already_wheeled) {
-			  already_wheeled = true;
-			  enabler.add_input(event, now);
-		  }
-		  break;
-	  case SDL_KEYDOWN:
-		if (event.key.repeat) break;
+      case SDL_KEYDOWN:
         // Disable mouse if it's been long enough
         if (mouse_lastused + 5000 < now) {
           if(init.input.flag.has_flag(INIT_INPUT_FLAG_MOUSE_PICTURE)) {
@@ -949,18 +449,13 @@ void enablerst::eventLoop_SDL()
           SDL_ShowCursor(SDL_DISABLE);
         }
       case SDL_KEYUP:
-	  case SDL_QUIT:
+      case SDL_QUIT:
         enabler.add_input(event, now);
         break;
-	  case SDL_TEXTINPUT:
-		enabler.set_text_input(event);
-		any_text_event=true;
-		break;
       case SDL_MOUSEBUTTONDOWN:
       case SDL_MOUSEBUTTONUP:
         if (!init.input.flag.has_flag(INIT_INPUT_FLAG_MOUSE_OFF)) {
           int isdown = (event.type == SDL_MOUSEBUTTONDOWN);
-
           if (event.button.button == SDL_BUTTON_LEFT) {
             enabler.mouse_lbut = isdown;
             enabler.mouse_lbut_down = isdown;
@@ -971,11 +466,6 @@ void enablerst::eventLoop_SDL()
             enabler.mouse_rbut_down = isdown;
             if (!isdown)
               enabler.mouse_rbut_lift = 0;
-          } else if (event.button.button == SDL_BUTTON_MIDDLE) {
-            enabler.mouse_mbut = isdown;
-            enabler.mouse_mbut_down = isdown;
-            if (!isdown)
-              enabler.mouse_mbut_lift = 0;
           } else
             enabler.add_input(event, now);
         }
@@ -987,100 +477,75 @@ void enablerst::eventLoop_SDL()
           // turn on mouse picture
           // enabler.set_tile(gps.tex_pos[TEXTURE_MOUSE], TEXTURE_MOUSE,enabler.mouse_x, enabler.mouse_y);
         } else {
-#ifndef FULL_RELEASE_VERSION
-			if(cinematic_mode&&(cinematic_shift_velx!=0||cinematic_shift_vely!=0))
-				{
-				SDL_ShowCursor(SDL_DISABLE);
-				}
-          else SDL_ShowCursor(SDL_ENABLE);
-#else
           SDL_ShowCursor(SDL_ENABLE);
-#endif
         }
         break;
-      case SDL_WINDOWEVENT:
+      case SDL_ACTIVEEVENT:
         enabler.clear_input();
-		switch (event.window.event) {
-			case SDL_WINDOWEVENT_SHOWN:
-				enabler.flag |= ENABLERFLAG_RENDER;
-				gps.force_full_display_count++;
-				break;
-			case SDL_WINDOWEVENT_EXPOSED:
-				gps.force_full_display_count++;
-				enabler.flag |= ENABLERFLAG_RENDER;
-				break;
-			case SDL_WINDOWEVENT_RESIZED:
-				if (is_fullscreen());
-				//errorlog << "Caught resize event in fullscreen??\n";
-				else {
-					//gamelog << "Resizing window to " << event.resize.w << "x" << event.resize.h << endl << flush;
-					renderer->resize(event.window.data1, event.window.data2);
-				}
-				break;
-			case SDL_WINDOWEVENT_ENTER:
-				mouse_focus = true;
-				break;
-			case SDL_WINDOWEVENT_LEAVE:
-				mouse_focus = false;
-				break;
-		}
-		break;
+        if (event.active.state & SDL_APPACTIVE) {
+          if (event.active.gain) {
+            enabler.flag|=ENABLERFLAG_RENDER;
+            gps.force_full_display_count++;
+          }
+        }
+        break;
+      case SDL_VIDEOEXPOSE:
+        gps.force_full_display_count++;
+        enabler.flag|=ENABLERFLAG_RENDER;
+        break;
+      case SDL_VIDEORESIZE:
+        if (is_fullscreen());
+          //errorlog << "Caught resize event in fullscreen??\n";
+        else {
+          //gamelog << "Resizing window to " << event.resize.w << "x" << event.resize.h << endl << flush;
+          renderer->resize(event.resize.w, event.resize.h);
+        }
+        break;
       } // switch (event.type)
     } //while have event
 
     // Update mouse state
-    if(!init.input.flag.has_flag(INIT_INPUT_FLAG_MOUSE_OFF))
-		{
-		int mouse_x = -1, mouse_y = -1, mouse_state;
-		int precise_mouse_x=-1,precise_mouse_y=-1;
-		// Check whether the renderer considers this valid input or not, and write it to gps
-		if(mouse_focus &&
-			renderer->get_precise_mouse_coords(precise_mouse_x, precise_mouse_y,mouse_x,mouse_y))
-			{
-			mouse_state=1;
-			}
-		else mouse_state=0;
-
-		if(precise_mouse_x!=gps.precise_mouse_x||
-			precise_mouse_y!=gps.precise_mouse_y||
-			mouse_state!=enabler.tracking_on)
-			{
-			// Pause rendering loop and update values
-			if (!paused_loop) {
-			  pause_async_loop();
-			  paused_loop = true;}
-
-			enabler.tracking_on=mouse_state;
-			gps.mouse_x=mouse_x;
-			gps.mouse_y=mouse_y;
-			gps.precise_mouse_x=precise_mouse_x;
-			gps.precise_mouse_y=precise_mouse_y;
-			}
-		}
+    if (!init.input.flag.has_flag(INIT_INPUT_FLAG_MOUSE_OFF)) {
+      int mouse_x = -1, mouse_y = -1, mouse_state;
+      // Check whether the renderer considers this valid input or not, and write it to gps
+      if ((SDL_GetAppState() & SDL_APPMOUSEFOCUS) &&
+          renderer->get_mouse_coords(mouse_x, mouse_y)) {
+        mouse_state = 1;
+      } else {
+        mouse_state = 0;
+      }
+      if (mouse_x != gps.mouse_x || mouse_y != gps.mouse_y ||
+          mouse_state != enabler.tracking_on) {
+        // Pause rendering loop and update values
+        if (!paused_loop) {
+          pause_async_loop();
+          paused_loop = true;
+        }
+        enabler.tracking_on = mouse_state;
+        gps.mouse_x = mouse_x;
+        gps.mouse_y = mouse_y;
+      }
+    }
 
     if (paused_loop)
       unpause_async_loop();
 
-    hooks_sdl_loop_fn();
     do_frame();
-
-#ifndef NO_FMOD
-	musicsound.update();
+	/*
+#if !defined(NO_FMOD)
+    // Call FMOD::System.update(). Manages a bunch of sound stuff.
+    musicsound.update();
 #endif
+	*/
   }
 }
 
 int enablerst::loop(string cmdline) {
   command_line = cmdline;
-#ifdef WIN32
-  glaiel::crashlogs::set_crashlog_folder("crashlogs");
-  glaiel::crashlogs::set_crashlog_header_message("Crashed before main menu. Yikes!");
-  glaiel::crashlogs::set_on_write_crashlog_callback(crashlog_post_func);
-  glaiel::crashlogs::begin_monitoring();
-#endif
+
   // Initialize the tick counters
-  simticks=0;
-  gputicks=0;
+  simticks.write(0);
+  gputicks.write(0);
   
   // Call DF's initialization routine
   if (!beginroutine())
@@ -1094,12 +559,9 @@ int enablerst::loop(string cmdline) {
     report_error("PRINT_MODE", "TEXT not supported on windows");
     exit(EXIT_FAILURE);
 #endif
-  } else {
+  } else if (init.display.flag.has_flag(INIT_DISPLAY_FLAG_2D)) {
     renderer = new renderer_2d();
-  }
-  //*************************** ALLOW OTHER RENDER TYPES THAN 2D?
-  /*
-  else if (init.display.flag.has_flag(INIT_DISPLAY_FLAG_ACCUM_BUFFER)) {
+  } else if (init.display.flag.has_flag(INIT_DISPLAY_FLAG_ACCUM_BUFFER)) {
     renderer = new renderer_accum_buffer();
   } else if (init.display.flag.has_flag(INIT_DISPLAY_FLAG_FRAME_BUFFER)) {
     renderer = new renderer_framebuffer();
@@ -1113,25 +575,21 @@ int enablerst::loop(string cmdline) {
   } else {
     renderer = new renderer_opengl();
   }
-  */
 
   // At this point we should have a window that is setup to render DF.
-  hooks_init();
   if (init.display.flag.has_flag(INIT_DISPLAY_FLAG_TEXT)) {
 #ifdef CURSES
     eventLoop_ncurses();
 #endif
   } else {
+    SDL_EnableUNICODE(1);
     eventLoop_SDL();
   }
 
-  hooks_shutdown();
   endroutine();
 
   // Clean up graphical resources
   delete renderer;
-
-  return 0;
 }
 
 void enablerst::override_grid_size(int x, int y) {
@@ -1140,7 +598,7 @@ void enablerst::override_grid_size(int x, int y) {
     async_msg m(async_msg::push_resize);
     m.x = x; m.y = y;
     async_frombox.write(m);
-    async_fromcomplete.acquire();
+    async_fromcomplete.read();
   } else {
     // We are the renderer; do it.
     overridden_grid_sizes.push(make_pair(init.display.grid_x,init.display.grid_y));
@@ -1151,7 +609,7 @@ void enablerst::override_grid_size(int x, int y) {
 void enablerst::release_grid_size() {
   if (SDL_ThreadID() != renderer_threadid) {
     async_frombox.write(async_msg(async_msg::pop_resize));
-    async_fromcomplete.acquire();
+    async_fromcomplete.read();
   } else {
     if (!overridden_grid_sizes.size()) return;
     // FIXME: Find out whatever is causing release to be called too rarely; right now
@@ -1218,9 +676,10 @@ void enablerst::set_fps(int fps) {
     m.fps = fps;
     async_paused = true;
     async_frombox.write(m);
-    async_fromcomplete.acquire();
+    async_fromcomplete.read();
   } else {
-    if (fps <= 0) fps = 1048576;
+    if (fps == 0)
+      fps = 1048576;
     this->fps = fps;
     fps_per_gfps = fps / gfps;
     struct async_cmd cmd;
@@ -1236,30 +695,13 @@ void enablerst::set_gfps(int gfps) {
     async_msg m(async_msg::set_gfps);
     m.fps = gfps;
     async_frombox.write(m);
-    async_fromcomplete.acquire();
+    async_fromcomplete.read();
   } else {
     if (gfps == 0)
       gfps = 50;
     this->gfps = gfps;
     fps_per_gfps = fps / gfps;
   }
-}
-
-void enablerst::set_listen_to_text(bool listen) 
-{
-	if (listen && !listening_to_text)
-		{
-		SDL_StartTextInput();
-		}
-	listening_to_text=listen;
-}
-
-void enablerst::set_text_input(SDL_Event ev) {
-	std::memcpy(last_text_input.data(), ev.text.text, 32);
-}
-
-void enablerst::clear_text_input() {
-	std::fill(last_text_input.begin(), last_text_input.end(), '\0');
 }
 
 int call_loop(void *dummy) {
@@ -1271,26 +713,31 @@ int main (int argc, char* argv[]) {
 #ifdef unix
   setlocale(LC_ALL, "");
 #endif
+#if !defined(__APPLE__) && defined(unix)
+  bool gtk_ok = false;
+  if (getenv("DISPLAY"))
+    gtk_ok = gtk_init_check(&argc, &argv);
+#endif
 
   // Initialise minimal SDL subsystems.
   int retval = SDL_Init(SDL_INIT_TIMER);
   // Report failure?
   if (retval != 0) {
     report_error("SDL initialization failure", SDL_GetError());
-    return 0;
+    return false;
   }
   enabler.renderer_threadid = SDL_ThreadID();
 
-#ifdef WIN32
-  std::setlocale(LC_ALL,".utf8"); // Ensure UTF-8 locale, since random languages break otherwise
-#endif
-
   // Spawn simulation thread
-  SDL_CreateThread(call_loop, NULL, NULL);
+  SDL_CreateThread(call_loop, NULL);
 
   init.begin(); // Load init.txt settings
   
 #if !defined(__APPLE__) && defined(unix)
+  if (!gtk_ok && !init.display.flag.has_flag(INIT_DISPLAY_FLAG_TEXT)) {
+    puts("Display not found and PRINT_MODE not set to TEXT, aborting.");
+    exit(EXIT_FAILURE);
+  }
   if (init.display.flag.has_flag(INIT_DISPLAY_FLAG_TEXT) &&
       init.display.flag.has_flag(INIT_DISPLAY_FLAG_USE_GRAPHICS)) {
     puts("Graphical tiles are not compatible with text output, sorry");
@@ -1302,14 +749,28 @@ int main (int argc, char* argv[]) {
   retval = SDL_InitSubSystem(init.display.flag.has_flag(INIT_DISPLAY_FLAG_TEXT) ? 0 : SDL_INIT_VIDEO);
   if (retval != 0) {
     report_error("SDL initialization failure", SDL_GetError());
-    return 0;
+    return false;
   }
+  
+#ifdef linux
+  if (!init.media.flag.has_flag(INIT_MEDIA_FLAG_SOUND_OFF)) {
+    // Initialize OpenAL
+    if (!musicsound.initsound()) {
+      puts("Initializing OpenAL failed, no sound will be played");
+      init.media.flag.add_flag(INIT_MEDIA_FLAG_SOUND_OFF);
+    }
+  }
+#endif
+
+#ifdef WIN32
+  // Attempt to get as good a timer as possible
+  int ms = 1;
+  while (timeBeginPeriod(ms) != TIMERR_NOERROR) ms++;
+#endif
 
   // Load keyboard map
   keybinding_init();
-  //NOTE: this order is important!  load_keybindings does not overwrite keys, so loading prefs first is correct
-  enabler.load_keybindings(filest("prefs/interface.txt"));
-  enabler.load_keybindings(filest("data/init/interface.txt").with_flags(FILE_FLAG_ALWAYS_BASE_FIRST));//only adds new keys from new versions etc.
+  enabler.load_keybindings("data/init/interface.txt");
 
   string cmdLine;
   for (int i = 1; i < argc; ++i) { 
@@ -1335,14 +796,119 @@ int main (int argc, char* argv[]) {
   int result = enabler.loop(cmdLine);
 
   SDL_Quit();
+
+#ifdef WIN32
+  timeEndPeriod(ms);
+#endif
   
   return result;
 }
 
+void text_system_file_infost::initialize_info()
+{
+  std::ifstream fseed(filename.c_str());
+  if(fseed.is_open())
+    {
+      string str;
+
+      while(std::getline(fseed,str))
+	{
+	  if(str.length()>0)number++;
+	}
+    }
+  else
+    {
+      string str;
+      str="Error Initializing Text: ";
+      str+=filename;
+      errorlog_string(str);
+    }
+  fseed.close();
+}
+
+void text_system_file_infost::get_text(text_infost &text)
+{
+  text.clean();
+
+  if(number==0)return;
+
+  std::ifstream fseed(filename.c_str());
+  if(fseed.is_open())
+    {
+      string str;
+
+      int num=trandom(number);
+
+      //SKIP AHEAD TO THE RIGHT SPOT
+      while(num>0)
+	{
+	  std::getline(fseed,str);
+	  num--;
+	}
+
+      //PROCESS THE STRING INTO TEXT ELEMENTS
+      if(std::getline(fseed,str))
+	{
+	  int curpos;
+	  string nextstr;
+	  char doing_long=0;
+
+	  text_info_elementst *newel;
+	  long end=(long)str.length();
+			
+	  while(end>0)
+	    {
+	      if(isspace(str[end-1]))end--;
+	      else break;
+	    }
+			
+	  str.resize(end);
+
+	  for(curpos=0;curpos<end;curpos++)
+	    {
+	      //HANDLE TOKEN OR ENDING
+	      //TWO FILE TOKENS IN A ROW MEANS LONG
+	      //ONE MEANS STRING
+	      if(str[curpos]==file_token || curpos==end-1)
+		{
+		  if(str[curpos]!=file_token)nextstr+=str[curpos];
+
+		  //HAVE SOMETHING == SAVE IT
+		  if(!nextstr.empty())
+		    {
+		      if(doing_long)
+			{
+			  newel=new text_info_element_longst(atoi(nextstr.c_str()));
+			  text.element.push_back(newel);
+			  doing_long=0;
+			}
+		      else
+			{
+			  newel=new text_info_element_stringst(nextstr);
+			  text.element.push_back(newel);
+			}
+
+		      nextstr.erase();
+		    }
+		  //STARTING A LONG
+		  else
+		    {
+		      doing_long=1;
+		    }
+		}
+	      //JUST ADD IN ANYTHING ELSE
+	      else
+		{
+		  nextstr+=str[curpos];
+		}
+	    }
+	}
+    }
+  fseed.close();
+}
+
 void curses_text_boxst::add_paragraph(const string &src,int32_t para_width)
 {
-	if(para_width<=0)return;
-
 	stringvectst sp;
 	sp.add_string(src);
 	add_paragraph(sp,para_width);
@@ -1350,8 +916,6 @@ void curses_text_boxst::add_paragraph(const string &src,int32_t para_width)
 
 void curses_text_boxst::add_paragraph(stringvectst &src,int32_t para_width)
 {
-	if(para_width<=0)return;
-
 	bool skip_leading_spaces=false;
 
 	//ADD EACH OF THE STRINGS ON IN TURN

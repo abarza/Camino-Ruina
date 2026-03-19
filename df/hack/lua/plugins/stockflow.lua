@@ -234,7 +234,7 @@ function material_reactions(reactions, itemtypes, mat_info)
 end
 
 function clothing_reactions(reactions, mat_info, filter)
-    local resources = df.historical_entity.find(df.global.plotinfo.civ_id).resources
+    local resources = df.historical_entity.find(df.global.ui.civ_id).resources
     local itemdefs = df.global.world.raws.itemdefs
     local job_types = df.job_type
     resource_reactions(reactions, job_types.MakeArmor,  mat_info, resources.armor_type,  itemdefs.armor,  {permissible = filter})
@@ -283,7 +283,7 @@ function collect_reactions()
     reaction_entry(result, job_types.CatchLiveFish)
 
     -- Cutting, encrusting, and metal extraction.
-    local rock_types = df.global.world.raws.inorganics.all
+    local rock_types = df.global.world.raws.inorganics
     for rock_id = #rock_types-1, 0, -1 do
         local material = rock_types[rock_id].material
         local rock_name = material.state_adj.Solid
@@ -296,19 +296,19 @@ function collect_reactions()
             reaction_entry(result, job_types.EncrustWithGems, {
                 mat_type = 0,
                 mat_index = rock_id,
-                specflag = {encrust_flags={finished_goods=true}},
+                item_category = {finished_goods = true},
             }, "Encrust Finished Goods With "..rock_name)
 
             reaction_entry(result, job_types.EncrustWithGems, {
                 mat_type = 0,
                 mat_index = rock_id,
-                specflag = {encrust_flags={furniture=true}},
+                item_category = {furniture = true},
             }, "Encrust Furniture With "..rock_name)
 
             reaction_entry(result, job_types.EncrustWithGems, {
                 mat_type = 0,
                 mat_index = rock_id,
-                specflag = {encrust_flags={ammo=true}},
+                item_category = {ammo = true},
             }, "Encrust Ammo With "..rock_name)
         end
 
@@ -339,17 +339,17 @@ function collect_reactions()
 
             reaction_entry(result, job_types.EncrustWithGlass, {
                 mat_type = glass_id,
-                specflag = {encrust_flags={finished_goods=true}},
+                item_category = {finished_goods = true},
             }, "Encrust Finished Goods With "..glass_name)
 
             reaction_entry(result, job_types.EncrustWithGlass, {
                 mat_type = glass_id,
-                specflag = {encrust_flags={furniture=true}},
+                item_category = {furniture = true},
             }, "Encrust Furniture With "..glass_name)
 
             reaction_entry(result, job_types.EncrustWithGlass, {
                 mat_type = glass_id,
-                specflag = {encrust_flags={ammo=true}},
+                item_category = {ammo = true},
             }, "Encrust Ammo With "..glass_name)
         end
     end
@@ -408,7 +408,7 @@ function collect_reactions()
     -- Reactions defined in the raws.
     -- Not all reactions are allowed to the civilization.
     -- That includes "Make sharp rock" by default.
-    local entity = df.historical_entity.find(df.global.plotinfo.civ_id)
+    local entity = df.historical_entity.find(df.global.ui.civ_id)
     if not entity then
         -- No global civilization; arena mode?
         -- Anyway, skip remaining reactions, since many depend on the civ.
@@ -1033,15 +1033,18 @@ function orders_match(a, b)
         end
     end
 
-    for key, value in ipairs(a.specflag.encrust_flags) do
-        if b.specflag.encrust_flags[key] ~= value then
-            return false
-        end
-    end
+    local subtables = {
+        "item_category",
+        "material_category",
+    }
 
-    for key, value in ipairs(a.material_category) do
-        if b.material_category[key] ~= value then
-            return false
+    for _, fieldname in ipairs(subtables) do
+        local aa = a[fieldname]
+        local bb = b[fieldname]
+        for key, value in ipairs(aa) do
+            if bb[key] ~= value then
+                return false
+            end
         end
     end
 
@@ -1051,7 +1054,7 @@ end
 -- Reduce the quantity by the number of matching orders in the queue.
 function order_quantity(order, quantity)
     local amount = quantity
-    for _, managed in ipairs(df.global.world.manager_orders.all) do
+    for _, managed in ipairs(df.global.world.manager_orders) do
         if orders_match(order, managed) then
             amount = amount - managed.amount_left
             if amount < 0 then
@@ -1072,9 +1075,9 @@ function create_orders(order, amount)
     -- Todo: Create in a validated state if the fortress is small enough?
     new_order.status.validated = false
     new_order.status.active = false
-    new_order.id = df.global.world.manager_orders.manager_order_next_id
-    df.global.world.manager_orders.manager_order_next_id = df.global.world.manager_orders.manager_order_next_id + 1
-    df.global.world.manager_orders.all:insert('#', new_order)
+    new_order.id = df.global.world.manager_order_next_id
+    df.global.world.manager_order_next_id = df.global.world.manager_order_next_id + 1
+    df.global.world.manager_orders:insert('#', new_order)
 end
 
 function countContents(container, settings)

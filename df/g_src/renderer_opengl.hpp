@@ -1,5 +1,3 @@
-// DEPRECATED--NOT NECESSARY ANYMORE? PROBABLY DELETE>
-
 // STANDARD
 class renderer_opengl : public renderer {
 public:
@@ -116,7 +114,7 @@ protected:
   }
 
   void write_tile_arrays(int x, int y, GLfloat *fg, GLfloat *bg, GLfloat *tex) {
-    Either<texture_fullid,int32_t/*texture_ttfid*/> id = screen_to_texid(x, y);
+    Either<texture_fullid,texture_ttfid> id = screen_to_texid(x, y);
     if (id.isL) {          // An ordinary tile
       const gl_texpos *txt = enabler.textures.gl_texpos;
       // TODO: Only bother to set the one that's actually read in flat-shading mode
@@ -198,85 +196,27 @@ public:
     }
     
     // Find the current desktop resolution if fullscreen resolution is auto
-    init.display.actual_windowed_width = init.display.desired_windowed_width;
-    init.display.actual_windowed_height = init.display.desired_windowed_height;
-    init.display.actual_fullscreen_width = init.display.desired_fullscreen_width;
-    init.display.actual_fullscreen_height = init.display.desired_fullscreen_height;
     if (init.display.desired_fullscreen_width  == 0 ||
         init.display.desired_fullscreen_height == 0) {
       const struct SDL_VideoInfo *info = SDL_GetVideoInfo();
-      init.display.actual_fullscreen_width = info->current_w;
-      init.display.actual_fullscreen_height = info->current_h;
+      init.display.desired_fullscreen_width = info->current_w;
+      init.display.desired_fullscreen_height = info->current_h;
     }
-
-	//verify full screen value against available modes
-	SDL_PixelFormat fmt;
-		fmt.palette = NULL;
-		fmt.BitsPerPixel = 32;
-		fmt.BytesPerPixel = 4;
-		fmt.Rloss = fmt.Gloss = fmt.Bloss = fmt.Aloss = 0;
-	#if SDL_BYTEORDER == SDL_BIG_ENDIAN
-		fmt.Rshift = 24; fmt.Gshift = 16; fmt.Bshift = 8; fmt.Ashift = 0;
-	#else
-		fmt.Rshift = 0; fmt.Gshift = 8; fmt.Bshift = 16; fmt.Ashift = 24;
-	#endif
-		fmt.Rmask = 255 << fmt.Rshift;
-		fmt.Gmask = 255 << fmt.Gshift;
-		fmt.Bmask = 255 << fmt.Bshift;
-		fmt.Amask = 255 << fmt.Ashift;
-		fmt.colorkey = 0;
-		fmt.alpha = 255;
-	Uint32 flags = (SDL_SWSURFACE|SDL_FULLSCREEN);
-
-	bool good=false;
-	int32_t backup_fullscreen_width=0;
-	int32_t backup_fullscreen_height=0;
-	SDL_Rect **modes=SDL_ListModes(&fmt,flags);
-	if(modes==NULL);
-	else if(modes==(SDL_Rect **)-1);
-	else
-		{
-		int32_t i=0;
-		while(modes[i])
-			{
-			if(modes[i]->w>=MINIMUM_WINDOW_WIDTH&&modes[i]->h>=MINIMUM_WINDOW_HEIGHT)
-				{
-				if(backup_fullscreen_width==0)
-					{
-					backup_fullscreen_width=modes[i]->w;
-					backup_fullscreen_height=modes[i]->h;
-					}
-				if(init.display.actual_fullscreen_width==modes[i]->w&&
-					init.display.actual_fullscreen_height==modes[i]->h)
-					{
-					good=true;
-					break;
-					}
-				}
-
-			++i;
-			}
-		}
-	if(!good&&backup_fullscreen_width!=0)
-		{
-		init.display.actual_fullscreen_width=backup_fullscreen_width;
-		init.display.actual_fullscreen_height=backup_fullscreen_height;
-		}
 
     // Initialize our window
     bool worked = init_video(enabler.is_fullscreen() ?
-                             init.display.actual_fullscreen_width :
-                             init.display.actual_windowed_width,
+                             init.display.desired_fullscreen_width :
+                             init.display.desired_windowed_width,
                              enabler.is_fullscreen() ?
-                             init.display.actual_fullscreen_height :
-                             init.display.actual_windowed_height);
+                             init.display.desired_fullscreen_height :
+                             init.display.desired_windowed_height);
 
     // Fallback to windowed mode if fullscreen fails
     if (!worked && enabler.is_fullscreen()) {
       enabler.fullscreen = false;
       report_error("SDL initialization failure, trying windowed mode", SDL_GetError());
-      worked = init_video(init.display.actual_windowed_width,
-                          init.display.actual_windowed_height);
+      worked = init_video(init.display.desired_windowed_width,
+                          init.display.desired_windowed_height);
     }
     // Quit if windowed fails
     if (!worked) {
@@ -359,14 +299,7 @@ public:
 #ifdef DEBUG
     cout << "Resizing grid to " << w << "x" << h << endl;
 #endif
-    const int dispx = enabler.is_fullscreen() ?
-      init.font.large_font_dispx :
-      init.font.small_font_dispx;
-    const int dispy = enabler.is_fullscreen() ?
-      init.font.large_font_dispy :
-      init.font.small_font_dispy;
-
-    gps_allocate(w,h,screen->w,screen->h,dispx,dispy);
+    gps_allocate(w, h);
     reshape_gl();
   }
 
@@ -449,12 +382,12 @@ public:
 public:
   void set_fullscreen() {
     if (enabler.is_fullscreen()) {
-      init.display.actual_windowed_width = screen->w;
-      init.display.actual_windowed_height = screen->h;
-      resize(init.display.actual_fullscreen_width,
-             init.display.actual_fullscreen_height);
+      init.display.desired_windowed_width = screen->w;
+      init.display.desired_windowed_height = screen->h;
+      resize(init.display.desired_fullscreen_width,
+             init.display.desired_fullscreen_height);
     } else {
-      resize(init.display.actual_windowed_width, init.display.actual_windowed_height);
+      resize(init.display.desired_windowed_width, init.display.desired_windowed_height);
     }
   }
 };

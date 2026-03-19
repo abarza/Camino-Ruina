@@ -4,7 +4,124 @@ Este documento traduce la visión de `docs/` en un **roadmap ejecutable**, con *
 
 Fuentes: [`docs/gonzalo_biblia_v3.md`](gonzalo_biblia_v3.md), [`docs/arquitectura.md`](arquitectura.md), [`docs/nota_coordinacion_agentes.md`](nota_coordinacion_agentes.md), [`docs/timing_agente.md`](timing_agente.md), [`docs/ideas.md`](ideas.md).
 
-## Estado actual (auditoría con evidencia)
+---
+
+## Migración DF 53.11 (SDL2) → DF 0.47.05 (TEXT mode)
+
+**Fecha:** 2026-03-19
+**Motivación:** DF 53.11 usa SDL2 para rendering. `xdotool` no puede enviar input a SDL2 (usa XInput2, incompatible con X11 core events). Esto bloquea toda automatización — ni el agente ni VNC pueden interactuar con DF.
+
+DF 0.47.05 es la última versión con `PRINT_MODE:TEXT` (ncurses puro en terminal). A partir de v0.50 el text mode fue eliminado. Esto permite:
+- Input via `tmux send-keys` (100% confiable)
+- Lectura via `tmux capture-pane` (texto directo, sin OCR)
+- DFHack 0.47.05-r8 funciona en text mode
+- Docker más liviano (sin SDL2, Xvfb, openbox, x11vnc, imagemagick, xdotool)
+
+**Saves de 53.x son incompatibles con 0.47.x** — se necesita mundo nuevo.
+
+### Fase 0: Preparación — Binarios
+
+- [ ] Descargar DF 0.47.05 Linux 64-bit desde bay12games
+- [ ] Descargar DFHack 0.47.05-r8 Linux 64-bit gcc-7
+- [ ] Extraer DFHack sobre DF (merge)
+- [ ] Configurar `data/init/init.txt`: `[PRINT_MODE:TEXT]`
+- [ ] Reemplazar contenido de `df/` con los nuevos binarios
+
+**Test:**
+```bash
+ls -la df/dwarfort df/dfhack df/dfhack-run df/hack/libdfhack.so
+grep PRINT_MODE df/data/init/init.txt  # debe decir TEXT
+```
+
+### Fase 1: Docker — Simplificar para text mode
+
+| Archivo | Acción |
+|---|---|
+| `docker/Dockerfile` | Eliminar deps gráficas (xvfb, SDL2, imagemagick, x11vnc, xdotool, openbox), agregar ncurses |
+| `docker/entrypoint.sh` | Eliminar Xvfb/openbox/x11vnc/DISPLAY, mantener tmux + DFHack wait |
+| `docker/launch_df.sh` | Simplificar (text mode no necesita display) |
+| `docker-compose.yml` | Eliminar puerto 5900 (VNC) |
+| `.env.example` | Eliminar referencia a DISPLAY |
+
+**Test:**
+```bash
+docker compose build
+docker compose up -d
+docker exec <c> pgrep -a dwarfort              # DF corriendo
+docker exec <c> tmux capture-pane -t df:0 -p   # muestra texto DF
+docker exec <c> pgrep -a Xvfb                  # vacío
+```
+
+### Fase 2: Scripts — Cambiar I/O del agente
+
+| Archivo | Acción |
+|---|---|
+| `scripts/agente_jugador.py` | `xvfb_io` → `tmux_io` para envío de teclas |
+| `scripts/xvfb_io.py` | ELIMINAR |
+| `scripts/tmux_io.py` | Sin cambios (ya tiene `capture_pane()` y `send_raw_keys()`) |
+| `scripts/dfhack_io.py` | Mantener (mismo protocolo TCP :5000) |
+| `scripts/dfhack_state.lua` | Adaptar API si difiere en 0.47 |
+
+**Test:**
+```bash
+docker exec <c> python3 -c "from scripts.agente_jugador import main; print('OK')"
+docker exec <c> python3 -c "import scripts.xvfb_io" 2>&1 | grep -q "No module"
+```
+
+### Fase 3: DFHack — Verificar compatibilidad 0.47.05-r8
+
+- [ ] `dfhack-run version` responde
+- [ ] `dfhack-run lua "print('ok')"` responde `ok`
+- [ ] `dfhack_state.lua` retorna UNIT/POS/HP/FOCUS/NEARBY sin errores
+
+### Fase 4: Juego — Crear mundo y aventurero
+
+- [ ] Crear mundo nuevo via text mode
+- [ ] Iniciar adventure mode con humano
+- [ ] Verificar DFHack detecta aventurero
+- [ ] Guardar partida (save base del proyecto)
+
+### Fase 5: Agente — Verificar pipeline completo
+
+- [ ] `agente_jugador.py` corre una iteración
+- [ ] Log tiene turnos con UNIT/POS/HP reales
+- [ ] Posiciones cambian entre turnos (aventurero se mueve)
+- [ ] 5+ iteraciones sin errores
+
+### Fase 6: Deploy VPS
+
+- [ ] Push a GitHub
+- [ ] `git pull && docker compose up --build -d` en VPS
+- [ ] Pipeline completo funcionando en VPS
+- [ ] No hay procesos Xvfb/x11vnc/openbox
+
+### Archivos modificados (resumen)
+
+| Archivo | Acción |
+|---|---|
+| `df/` | Reemplazar con DF 0.47.05 + DFHack 0.47.05-r8 |
+| `docker/Dockerfile` | Eliminar deps gráficas, agregar ncurses |
+| `docker/entrypoint.sh` | Eliminar Xvfb/openbox/x11vnc/DISPLAY |
+| `docker/launch_df.sh` | Simplificar |
+| `docker-compose.yml` | Eliminar puerto 5900 |
+| `.env.example` | Eliminar DISPLAY |
+| `scripts/agente_jugador.py` | xvfb_io → tmux_io |
+| `scripts/xvfb_io.py` | ELIMINAR |
+| `scripts/dfhack_state.lua` | Adaptar API 0.47 si difiere |
+
+### Archivos sin cambios
+
+`scripts/tmux_io.py`, `scripts/captura_pantalla.py`, `scripts/decisor_llm.py`, `scripts/intenciones.py`, `scripts/narrador_nocturno.py`, `scripts/llm.py`, `scripts/dfhack_io.py`
+
+---
+
+## Historia: Fases originales (DF 53.11 + SDL2)
+
+> Las fases 0–5 originales fueron completadas con DF 53.11 + SDL2 + Xvfb.
+> Se documentan abajo como referencia histórica. La migración a text mode
+> las reemplaza operativamente.
+
+## Estado al cierre de DF 53.11 (auditoría 2026-03-18)
 
 Fecha de auditoría: 2026-03-18.
 

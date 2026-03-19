@@ -1,7 +1,7 @@
 autolabor-artisans
 ==================
 
-Tags: unavailable
+Tags: fort | auto | labors
 
 Command: "autolabor-artisans"
 

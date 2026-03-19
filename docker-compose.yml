@@ -16,8 +16,6 @@ services:
     security_opt:
       - seccomp:unconfined
       - apparmor:unconfined
-    ports:
-      - "5900:5900"  # VNC (x11vnc) para setup inicial / debug visual
     tty: true
     stdin_open: true
 

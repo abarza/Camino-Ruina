@@ -1,7 +1,7 @@
 fixveins
 ========
 
-Tags: unavailable
+Tags: fort | bugfix | map
 
 Command: "fixveins"
 

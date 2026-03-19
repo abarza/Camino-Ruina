@@ -1,4 +1,3 @@
-/*
 #ifndef TTF_MANAGER_HPP
 #define TTF_MANAGER_HPP
 
@@ -100,4 +99,3 @@ public:
 extern ttf_managerst ttf_manager;
 
 #endif
-*/

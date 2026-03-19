@@ -1,7 +1,7 @@
 modtools/anonymous-script
 =========================
 
-Tags: unavailable
+Tags: dev
 
 Command: "modtools/anonymous-script"
 

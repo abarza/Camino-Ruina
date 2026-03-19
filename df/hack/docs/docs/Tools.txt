@@ -1,7 +1,7 @@
 DFHack tools
 ============
 
-DFHack comes with **a lot** of tools. This page attempts to make it clearer what they are, how they work, and how to find the ones you want.
+DFHack has **a lot** of tools. This page attempts to make it clearer what they are, how they work, and how to find the ones you want.
 
 
 Contents
@@ -37,17 +37,15 @@ Finding the tool you need
 
 DFHack tools are tagged with categories to make them easier to find. These categories are listed in the next few sections. Note that a tool can belong to more than one category. If you already know what you're looking for, try the Search Page or Ctrl-F on this page. If you'd like to see the full list of tools in one flat list, please refer to the annotated index.
 
-Some tools are part of our back catalog and haven't been updated yet for v50 of Dwarf Fortress. These tools are tagged as unavailable. They will still appear in the alphabetical list at the bottom of this page, but unavailable tools will not listed in any of the indices.
-
 
 DFHack tools by game mode
 -------------------------
 
 * adventure
-     Tools that are useful while in adventure mode.
+     Tools that are useful while in adventure mode. Note that some tools only tagged with "fort" might also work in adventure mode, but not always in expected ways. Feel free to experiment, though!
 
 * dfhack
-     Tools that you use to run DFHack commands or interact with the DFHack or DF system.
+     Tools that you use to run DFHack commands or interact with the DFHack library. This tag also includes tools that help you manage the DF game itself (e.g. settings, saving, etc.)
 
 * embark
      Tools that are useful while on the fort embark screen or while creating an adventurer.
@@ -63,7 +61,7 @@ DFHack tools by theme
 ---------------------
 
 * armok
-     Tools which give the player god-like powers or the ability to access information the game intentionally keeps hidden. Players that do not wish to see these tools can hide them in the "Preferences" tab of gui/control-panel.
+     Tools that give you complete control over an aspect of the game or provide access to information that the game intentionally keeps hidden.
 
 * auto
      Tools that run in the background and automatically manage routine, toilsome aspects of your fortress.
@@ -72,13 +70,13 @@ DFHack tools by theme
      Tools that fix specific bugs, either permanently or on-demand.
 
 * design
-     Tools that help you with fort layout.
+     Tools that help you design your fort.
 
 * dev
-     Tools that are useful when debugging or developing mods.
+     Tools that are useful when developing scripts or mods.
 
 * fps
-     Tools that help you prevent impact to your FPS.
+     Tools that help you manage FPS drop.
 
 * gameplay
      Tools that introduce new gameplay elements.
@@ -87,7 +85,7 @@ DFHack tools by theme
      Tools that let you view information that is otherwise difficult to find.
 
 * productivity
-     Tools that help you perform common tasks quickly and easily.
+     Tools that help you do things that you could do manually, but using the tool is better and faster.
 
 
 DFHack tools by what they affect
@@ -115,13 +113,13 @@ DFHack tools by what they affect
      Tools that deal with labor assignment.
 
 * map
-     Tools that interact with the game map.
+     Tools  that interact with the game map.
 
 * military
      Tools that interact with the military.
 
 * plants
-     Tools that interact with grass, trees, shrubs, and crops.
+     Tools that interact with trees, shrubs, and crops.
 
 * stockpiles
      Tools that interact with stockpiles.
@@ -148,19 +146,15 @@ All DFHack tools alphabetically
 
 * add-thought
 
+* adv-fix-sleepers
+
 * adv-max-skills
 
-* advtools
-
-* agitation-rebalance
+* adv-rumors
 
 * alias
 
-* allneeds
-
 * animal-control
-
-* aquifer
 
 * armoks-blessing
 
@@ -182,8 +176,6 @@ All DFHack tools alphabetically
 
 * autobutcher
 
-* autocheese
-
 * autochop
 
 * autoclothing
@@ -192,21 +184,25 @@ All DFHack tools alphabetically
 
 * autofarm
 
-* autofish
-
 * autogems
+
+* autohauler
 
 * autolabor
 
 * autolabor-artisans
 
+* automaterial
+
+* automelt
+
 * autonestbox
 
 * autonick
 
-* autoslab
+* autotrade
 
-* autotraining
+* autounsuspend
 
 * ban-cooking
 
@@ -228,7 +224,7 @@ All DFHack tools alphabetically
 
 * burial
 
-* burrow
+* burrows
 
 * cannibalism
 
@@ -262,11 +258,15 @@ All DFHack tools alphabetically
 
 * combat-harden
 
-* combine
+* combine-drinks
+
+* combine-plants
+
+* command-prompt
 
 * confirm
 
-* control-panel
+* create-items
 
 * createitem
 
@@ -282,8 +282,6 @@ All DFHack tools alphabetically
 
 * deramp
 
-* design
-
 * deteriorate
 
 * die
@@ -296,11 +294,11 @@ All DFHack tools alphabetically
 
 * diggingInvaders
 
-* diplomacy
-
 * disable
 
 * do-job-now
+
+* drain-aquifer
 
 * dwarf-op
 
@@ -308,25 +306,21 @@ All DFHack tools alphabetically
 
 * dwarfvet
 
-* edgescroll
-
 * elevate-mental
 
 * elevate-physical
 
-* embark-anyone
-
 * embark-assistant
 
 * embark-skills
+
+* embark-tools
 
 * emigration
 
 * empty-bin
 
 * enable
-
-* entomb
 
 * eventful
 
@@ -346,9 +340,9 @@ All DFHack tools alphabetically
 
 * firestarter
 
-* fix-occupancy
-
 * fix-ster
+
+* fix-unit-occupancy
 
 * fixnaked
 
@@ -359,8 +353,6 @@ All DFHack tools alphabetically
 * flows
 
 * follow
-
-* forbid
 
 * force
 
@@ -394,31 +386,17 @@ All DFHack tools alphabetically
 
 * hide
 
-* hide-interface
-
-* hide-tutorials
-
 * hotkey-notes
 
 * hotkeys
 
-* husbandry
-
-* idle-crafting
-
-* immortal-cravings
-
-* infinite-sky
+* infiniteSky
 
 * install-info
 
-* instruments
-
-* item
+* isoworldremote
 
 * jobutils
-
-* justice
 
 * keybinding
 
@@ -448,10 +426,6 @@ All DFHack tools alphabetically
 
 * locate-ore
 
-* logcleaner
-
-* logistics
-
 * ls
 
 * lua
@@ -462,13 +436,15 @@ All DFHack tools alphabetically
 
 * make-monarch
 
-* makeown
-
 * manipulator
 
 * map-render
 
 * markdown
+
+* masspit
+
+* max-wave
 
 * migrants-now
 
@@ -476,15 +452,13 @@ All DFHack tools alphabetically
 
 * mode
 
+* mousequery
+
 * multicmd
 
 * names
 
-* necronomicon
-
 * nestboxes
-
-* notes
 
 * on-new-fortress
 
@@ -498,9 +472,9 @@ All DFHack tools alphabetically
 
 * pathable
 
-* pet-uncapper
+* petcapRemover
 
-* plant
+* plants
 
 * plug
 
@@ -516,10 +490,6 @@ All DFHack tools alphabetically
 
 * prefchange
 
-* preserve-rooms
-
-* preserve-tombs
-
 * prioritize
 
 * probe
@@ -534,8 +504,6 @@ All DFHack tools alphabetically
 
 * quicksave
 
-* quickstart-guide
-
 * region-pops
 
 * regrass
@@ -548,11 +516,11 @@ All DFHack tools alphabetically
 
 * remove-wear
 
+* rename
+
 * rendermax
 
 * repeat
-
-* resize-armor
 
 * resurrect-adv
 
@@ -564,9 +532,13 @@ All DFHack tools alphabetically
 
 * reveal-hidden-units
 
+* ruby
+
 * sc-script
 
 * script
+
+* search
 
 * season-palette
 
@@ -579,6 +551,8 @@ All DFHack tools alphabetically
 * setfps
 
 * show
+
+* show-unit-syndromes
 
 * showmood
 
@@ -608,19 +582,11 @@ All DFHack tools alphabetically
 
 * stonesense
 
-* store-owned
-
 * strangemood
 
 * stripcaged
 
 * superdwarf
-
-* suspend
-
-* suspendmanager
-
-* sync-windmills
 
 * tags
 
@@ -638,7 +604,7 @@ All DFHack tools alphabetically
 
 * title-folder
 
-* toggle-kbd-cursor
+* title-version
 
 * trackstop
 
@@ -664,19 +630,25 @@ All DFHack tools alphabetically
 
 * unretire-anyone
 
+* unsuspend
+
 * view-item-info
 
 * view-unit-reports
 
-* warn-stranded
+* warn-starving
+
+* warn-stealers
 
 * weather
 
-* work-now
+* workNow
 
 * workflow
 
 * workorder
+
+* workorder-recheck
 
 * xlsxreader
 
@@ -702,21 +674,19 @@ All DFHack tools alphabetically
 
 * devel/dump-rpc
 
-* devel/dump-tooltip-ids
-
 * devel/eventful-client
 
 * devel/export-dt-ini
 
-* devel/export-map
+* devel/find-offsets
 
 * devel/find-primitive
+
+* devel/find-twbt
 
 * devel/hello-world
 
 * devel/inject-raws
-
-* devel/input-monitor
 
 * devel/inspect-screen
 
@@ -738,6 +708,8 @@ All DFHack tools alphabetically
 
 * devel/pop-screen
 
+* devel/prepare-save
+
 * devel/print-args
 
 * devel/print-args2
@@ -750,8 +722,6 @@ All DFHack tools alphabetically
 
 * devel/sc
 
-* devel/scan-vtables
-
 * devel/scanitemother
 
 * devel/send-key
@@ -760,27 +730,15 @@ All DFHack tools alphabetically
 
 * devel/test-perlin
 
-* devel/tile-browser
-
-* devel/tree-info
-
 * devel/unit-path
 
 * devel/visualize-structure
 
 * devel/watch-minecarts
 
-* fix/archery-practice
-
 * fix/blood-del
 
-* fix/civil-war
-
-* fix/codex-pages
-
 * fix/corrupt-equipment
-
-* fix/corrupt-jobs
 
 * fix/dead-units
 
@@ -788,69 +746,31 @@ All DFHack tools alphabetically
 
 * fix/dry-buckets
 
-* fix/empty-wheelbarrows
-
-* fix/engravings
-
-* fix/general-strike
+* fix/item-occupancy
 
 * fix/loyaltycascade
 
-* fix/noexert-exhaustion
-
-* fix/occupancy
-
-* fix/ownership
-
 * fix/population-cap
-
-* fix/protect-nicks
 
 * fix/retrieve-units
 
-* fix/sleepers
-
 * fix/stable-temp
-
-* fix/stuck-instruments
 
 * fix/stuck-merchants
 
-* fix/stuck-squad
-
-* fix/stuck-worship
-
 * fix/stuckdoors
 
-* fix/symbol-unstick
-
-* fix/wildlife
-
-* gui/adv-finder
+* fix/tile-occupancy
 
 * gui/advfort
 
-* gui/aquifer
-
 * gui/autobutcher
 
-* gui/autochop
-
-* gui/autodump
-
-* gui/autofish
-
 * gui/autogems
-
-* gui/autotraining
-
-* gui/biomes
 
 * gui/blueprint
 
 * gui/choose-weapons
-
-* gui/civ-alert
 
 * gui/clone-uniform
 
@@ -858,19 +778,15 @@ All DFHack tools alphabetically
 
 * gui/companion-order
 
-* gui/confirm
-
-* gui/control-panel
+* gui/confirm-opts
 
 * gui/cp437-table
 
 * gui/create-item
 
-* gui/design
+* gui/create-tree
 
 * gui/dfstatus
-
-* gui/embark-anywhere
 
 * gui/extended-status
 
@@ -882,10 +798,6 @@ All DFHack tools alphabetically
 
 * gui/guide-path
 
-* gui/journal
-
-* gui/keybinds
-
 * gui/kitchen-info
 
 * gui/launcher
@@ -894,19 +806,13 @@ All DFHack tools alphabetically
 
 * gui/load-screen
 
-* gui/logcleaner
-
-* gui/manipulator
+* gui/manager-quantity
 
 * gui/mass-remove
 
-* gui/masspit
+* gui/mechanisms
 
 * gui/mod-manager
-
-* gui/notes
-
-* gui/notify
 
 * gui/overlay
 
@@ -926,37 +832,19 @@ All DFHack tools alphabetically
 
 * gui/rename
 
-* gui/reveal
-
 * gui/room-list
-
-* gui/sandbox
-
-* gui/seedwatch
 
 * gui/settings-manager
 
 * gui/siege-engine
 
-* gui/siegemanager
-
-* gui/sitemap
-
-* gui/spectate
-
 * gui/stamper
 
 * gui/stockpiles
 
-* gui/suspendmanager
-
 * gui/teleport
 
-* gui/tiletypes
-
 * gui/unit-info-viewer
-
-* gui/unit-syndromes
 
 * gui/workflow
 
@@ -981,6 +869,8 @@ All DFHack tools alphabetically
 * modtools/extra-gamelog
 
 * modtools/fire-rate
+
+* modtools/force
 
 * modtools/if-entity
 

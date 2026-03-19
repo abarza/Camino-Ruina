@@ -1,7 +1,7 @@
 modtools/fire-rate
 ==================
 
-Tags: unavailable
+Tags: dev
 
 Command: "modtools/fire-rate"
 

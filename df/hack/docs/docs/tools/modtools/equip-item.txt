@@ -1,7 +1,7 @@
 modtools/equip-item
 ===================
 
-Tags: unavailable
+Tags: dev
 
 Command: "modtools/equip-item"
 

@@ -5,8 +5,9 @@
 -- which is a great place to look up stuff like "How the hell do I find out if
 -- a creature can be sheared?!!"
 
---@ module=true
-
+--initialized = false -- uncomment this when working with the code
+if not initialized then
+    initialized = true
 
 local function print_help()
     print(dfhack.script_help())
@@ -40,11 +41,11 @@ end
 local used_types = {
     df.job_type,
     df.item_type,
-    df.workquota_frequency_type,
-    df.logic_condition_type,
-    df.workquota_order_condition_type,
+    df.manager_order.T_frequency,
+    df.manager_order_condition_item.T_compare_type,
+    df.manager_order_condition_order.T_condition,
     df.tool_uses,
-    df.job_art_specifier_type
+    df.job_art_specification.T_type
 }
 local function print_types(_, filter)
     for _, t in ipairs(used_types) do
@@ -76,37 +77,45 @@ local function orders_match(a, b)
         end
     end
 
-    for key, value in ipairs(a.specflag.encrust_flags) do
-        if b.specflag.encrust_flags[key] ~= value then
-            return false
-        end
-    end
+    local subtables = {
+        "item_category",
+        "material_category",
+    }
 
-    for key, value in ipairs(a.material_category) do
-        if b.material_category[key] ~= value then
-            return false
+    for _, fieldname in ipairs(subtables) do
+        local aa = a[fieldname]
+        local bb = b[fieldname]
+        for key, value in ipairs(aa) do
+            if bb[key] ~= value then
+                return false
+            end
         end
     end
 
     return true
 end
 
--- Get the remaining quantity for open matching orders in the queue.
-local function cur_order_quantity(order)
-    local amount, cur_order, cur_idx = 0, nil, nil
-    for idx, managed in ipairs(world.manager_orders.all) do
+-- Reduce the quantity by the number of matching orders in the queue.
+local function order_quantity(order, quantity)
+    local amount = quantity
+    for _, managed in ipairs(world.manager_orders) do
         if orders_match(order, managed) then
             -- if infinity, don't plan anything
             if 0 == managed.amount_total then
-                return 0, managed, idx
+                return -1
             end
-            amount = amount + managed.amount_left
-            cur_order = cur_order or managed
-            cur_idx = cur_idx or idx
+            -- if ordered infinity don't reduce
+            if 0 ~= quantity then
+                amount = amount - managed.amount_left
+                if amount <= 0 then
+                    return -1
+                end
+            end
         end
     end
-    return amount, cur_order, cur_idx
+    return amount
 end
+-- ]]
 
 -- make sure we have 'WEAPON' not 24.
 local function ensure_df_string(df_list, key)
@@ -181,14 +190,14 @@ end
 
 -- creates a df.manager_order from it's definition.
 -- this is translated orders.cpp to Lua,
-function create_orders(orders, quiet)
+local function create_orders(orders)
     -- is dfhack.with_suspend necessary?
 
     -- we need id mapping to restore saved order_conditions
     local id_mapping = {}
     for _, it in ipairs(orders) do
-        id_mapping[it["id"]] = world.manager_orders.manager_order_next_id
-        world.manager_orders.manager_order_next_id = world.manager_orders.manager_order_next_id + 1
+        id_mapping[it["id"]] = world.manager_order_next_id
+        world.manager_order_next_id = world.manager_order_next_id + 1
     end
 
     for _, it in ipairs (orders) do
@@ -243,7 +252,7 @@ function create_orders(orders, quiet)
         end
 
         if it["item_category"] then
-            local ok, bad = set_flags_from_list(it["item_category"], order.specflag.encrust_flags)
+            local ok, bad = set_flags_from_list(it["item_category"], order.item_category)
             if not ok then
                 qerror ("Invalid item_category value for manager order: " .. bad)
             end
@@ -265,7 +274,7 @@ function create_orders(orders, quiet)
         end
 
         if it["art"] then
-            order.art_spec.type = ensure_df_id(df.job_art_specifier_type, it["art"]["type"])
+            order.art_spec.type = ensure_df_id(df.job_art_specification.T_type, it["art"]["type"])
                         or qerror ("Invalid art type value for manager order: " .. it["art"]["type"])
             order.art_spec.id = tonumber( it["art"]["id"] )
             if it["art"]["subid"] then
@@ -278,7 +287,7 @@ function create_orders(orders, quiet)
         --order.status.validated = it["is_validated"] -- ignoring
         --order.status.active = it["is_active"] -- ignoring
 
-        order.frequency = ensure_df_id(df.workquota_frequency_type, it["frequency"])
+        order.frequency = ensure_df_id(df.manager_order.T_frequency, it["frequency"])
                         or qerror("Invalid frequency value for manager order: " .. it["frequency"])
 
         -- finished_year, finished_year_tick
@@ -300,7 +309,7 @@ function create_orders(orders, quiet)
                 condition = df.manager_order_condition_item:new()
                 dfhack.with_onerror(function() condition:delete() end, -- cleanup in case of errors
                 function()
-                condition.compare_type = ensure_df_id(df.logic_condition_type, it2["condition"])
+                condition.compare_type = ensure_df_id(df.manager_order_condition_item.T_compare_type, it2["condition"])
                                     or qerror ("Invalid item condition for manager order: " .. it2["condition"] )
                 condition.compare_val = tonumber(it2["value"])
 
@@ -342,13 +351,13 @@ function create_orders(orders, quiet)
                 if it2["bearing"] then
                     local bearing = it2["bearing"]
                     local idx
-                    for i, raw in ipairs(world.raws.inorganics.all) do
+                    for i, raw in ipairs(world.raws.inorganics) do
                         if raw.id == bearing then
                             idx = i
                             break
                         end
                     end
-                    condition.metal_ore = idx
+                    condition.inorganic_bearing = idx
                                             or qerror( "Invalid item condition inorganic bearing type for manager order: " .. it2["bearing"] )
                 end
 
@@ -386,7 +395,7 @@ function create_orders(orders, quiet)
                 condition.order_id = id ~= it["id"] and id_mapping[id]
                                     or qerror("Missing order condition target for manager order: " .. it2["order"])
 
-                condition.condition = ensure_df_id(df.workquota_order_condition_type, it2["condition"])
+                condition.condition = ensure_df_id(df.manager_order_condition_order.T_condition, it2["condition"])
                                     or qerror ( "Invalid order condition type for manager order: " .. it2["condition"] )
 
                 -- condition.unk_1
@@ -395,56 +404,37 @@ function create_orders(orders, quiet)
                 end)
             end
         end
-        --order.items.elements = vector<job_item*>
+        --order.items = vector<job_item*>
 
         local amount = it.amount_total
         if it.__reduce_amount then
-            -- modify existing order if possible
-            local cur_amount, cur_order, cur_order_idx = cur_order_quantity(order)
-            if cur_order then
-                if 0 == cur_amount then
-                    amount = -1
-                elseif 0 ~= amount then
-                    local diff = amount - cur_order.amount_left
-                    amount = -1
-                    if verbose then print('adjusting existing order by', diff) end
-                    cur_order.amount_left = cur_order.amount_left + diff
-                    cur_order.amount_total = cur_order.amount_total + diff
-                    if cur_order.amount_left <= 0 then
-                        if verbose then print('negative amount; removing existing order') end
-                        world.manager_orders.all:erase(cur_order_idx)
-                        cur_order:delete()
-                    end
-                end
-            end
+            -- reduce if there are identical orders
+            -- with some amount_left.
+            amount = order_quantity(order, amount)
         end
 
         if amount < 0 then
             if verbose then
-                print(string.format("Order %s (%s) not queued.",
-                    it.id, df.job_type[order.job_type]))
+                print(string.format(
+                    "Order %s (%s) not queued: amount reduced from %s to %s.",
+                    it.id, df.job_type[order.job_type], tostring(it.amount_total), tostring(amount)
+                ))
             end
             order:delete()
         else
             order.amount_left = amount
             order.amount_total = amount
 
-            local job_type = df.job_type[order.job_type]
-            if job_type == "CustomReaction" then
-                job_type  = job_type .. " '" .. order.reaction_name .. "'"
-            end
-            if not quiet then
-                print("Queuing " .. job_type
-                    .. (amount==0 and " infinitely" or " x"..amount))
-            end
-            world.manager_orders.all:insert('#', order)
+            print("Queuing " .. df.job_type[order.job_type]
+                .. (amount==0 and " infinitely" or " x"..amount))
+            world.manager_orders:insert('#', order)
         end
         end)
     end
 end
 
 -- set missing values, process special `amount_total` value
-function preprocess_orders(orders)
+local function preprocess_orders(orders)
     -- if called with single order make an array
     if orders.job then
         orders = {orders}
@@ -500,9 +490,7 @@ function preprocess_orders(orders)
             print(string.format("order.id<json>: %s; job: %s; .amount_total: %s; .__reduce_amount: %s",
             order.id, df.job_type[ order.job ], order.amount_total, order.__reduce_amount))
         end
-        if order.amount_total >= 0 or order.__reduce_amount then
-            ret[#ret + 1] = order
-        end
+        if order.amount_total >= 0 then ret[#ret + 1] = order end
     end
 
     return ret
@@ -512,7 +500,7 @@ local order_defaults = {
     frequency = 'OneTime'
 }
 local _order_mt = {__index = order_defaults}
-function fillin_defaults(orders)
+local function fillin_defaults(orders)
     for _, order in ipairs(orders) do
         setmetatable(order, _order_mt)
     end
@@ -560,31 +548,36 @@ default_action = function (...)
     create_orders(orders)
 end
 
+-- see https://github.com/jjyg/df-ai/blob/master/ai/population.rb
+-- especially `update_pets`
+
 local uu = dfhack.units
-local function isValidAnimal(u)
-    -- this should also check for the absence of misc trait 55 (as of 50.09), but we don't
-    -- currently have an enum definition for that value yet
+local function isValidUnit(u)
     return uu.isOwnCiv(u)
         and uu.isAlive(u)
         and uu.isAdult(u)
-        and uu.isActive(u)
-        and uu.isFortControlled(u)
-        and uu.isTame(u)
-        and not uu.isMarkedForSlaughter(u)
-        and not uu.getMiscTrait(u, df.misc_trait_type.Migrant, false)
+        and u.flags1.tame -- no idea if this is needed...
+        and not u.flags1.merchant
+        and not u.flags1.forest -- no idea what this is
+        and not u.flags2.for_trade
+        and not u.flags2.slaughter
 end
 
+local MilkCounter = df.misc_trait_type["MilkCounter"]
 calcAmountFor_MilkCreature = function ()
     local cnt = 0
     if debug_verbose then print "Milkable units:" end
     for i, u in pairs(world.units.active) do
-        if isValidAnimal(u) and uu.isMilkable(u) and not uu.isPet(u) then
-            local mt_milk = uu.getMiscTrait(u, df.misc_trait_type.MilkCounter, false)
+        if isValidUnit(u)
+        and uu.isMilkable(u)
+        --and uu.getMiscTrait(u, MilkCounter, false) -- aka "was milked"; but we could use its .value for something.
+        then
+            local mt_milk = uu.getMiscTrait(u, MilkCounter, false)
             if not mt_milk then cnt = cnt + 1 end
 
             if debug_verbose then
                 local mt_milk_val = mt_milk and mt_milk.value or "not milked recently"
-                print(u.id, uu.getRaceName(u), mt_milk_val)
+                print(i, uu.getRaceName(u), mt_milk_val)
             end
         end
     end
@@ -594,7 +587,10 @@ end
 
 -- true/false or nil if no shearable_tissue_layer with length > 0.
 local function canShearCreature(u)
-    local stls = dfhack.units.getCasteRaw(u).shearable_tissue_layer
+    local stls = world.raws.creatures
+            .all[u.race]
+            .caste[u.caste]
+            .shearable_tissue_layer
 
     local any
     for _, stl in ipairs(stls) do
@@ -618,7 +614,8 @@ calcAmountFor_ShearCreature = function ()
     local cnt = 0
     if debug_verbose then print "Shearable units:" end
     for i, u in pairs(world.units.active) do
-        if isValidAnimal(u) then
+        if isValidUnit(u)
+        then
             local can, info = canShearCreature(u)
             if can then cnt = cnt + 1 end
 
@@ -651,9 +648,7 @@ actions = {
     ["--reset"] = function() initialized = false end,
 }
 
-if dfhack_flags.module then
-    return
-end
+end -- `if not initialized `
 
 -- Lua is beautiful.
 (actions[ (...) or "?" ] or default_action)(...)

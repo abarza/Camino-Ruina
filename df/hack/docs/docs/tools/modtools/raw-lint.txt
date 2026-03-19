@@ -1,7 +1,7 @@
 modtools/raw-lint
 =================
 
-Tags: unavailable
+Tags: dev
 
 Command: "modtools/raw-lint"
 

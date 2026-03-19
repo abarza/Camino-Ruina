@@ -1,7 +1,7 @@
 growcrops
 =========
 
-Tags: unavailable
+Tags: fort | armok | plants
 
 Command: "growcrops"
 

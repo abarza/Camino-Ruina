@@ -7,7 +7,7 @@ local base_editor = reqscript("internal/gm-unit/base_editor")
 
 
 Editor_Wounds=defclass(Editor_Wounds, base_editor.Editor)
-Editor_Wounds.ATTRS{
+Editor_Wounds.ATTRS={
     frame_title = "Wounds editor"
     --filter
 }
@@ -115,27 +115,29 @@ function Editor_Wounds:init( args )
 
     self:addviews{
     widgets.List{
-        frame = {t=0, b=2,l=0},
+
+        frame = {t=0, b=1,l=1},
         view_id="wounds",
         on_submit=self:callback("edit_cur_wound"),
         on_submit2=self:callback("delete_current_wound")
     },
-    widgets.HotkeyLabel{
-        frame = { b=0,l=0},
-        label = 'delete wound',
-        key = 'STRING_A045', -- '-'
-        on_activate = function()
-            self:delete_current_wound(self.subviews.wounds:getSelected())
-        end,
-    },
+    widgets.Label{
+                frame = { b=0,l=1},
+                text ={{text= ": exit editor ",
+                    key  = "LEAVESCREEN",
+                    on_activate= self:callback("dismiss")},
 
-    --[[ TODO(warmist): implement this and the create_new_wound
-    {text=": edit wound ",
-    key = "SELECT"},]]
+                    --[[ TODO(warmist): implement this and the create_new_wound
+                    {text=": edit wound ",
+                    key = "SELECT"},]]
 
-    --[[{text=": create wound ",
-    key = "CUSTOM_CTRL_I",
-    on_activate= self:callback("create_new_wound")},]]
-    }
+                    {text=": delete wound ",
+                    key = "SEC_SELECT"},
+                    --[[{text=": create wound ",
+                    key = "CUSTOM_CTRL_I",
+                    on_activate= self:callback("create_new_wound")},]]
+                    }
+            },
+        }
     self:update_wounds()
 end

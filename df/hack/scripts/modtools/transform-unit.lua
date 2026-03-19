@@ -66,17 +66,9 @@ if args.clear then
  return
 end
 
-local unit
-if args.unit then
- unit = df.unit.find(tonumber(args.unit))
-else
- unit = dfhack.gui.getSelectedUnit(true)
+if not args.unit then
+ error 'Specify a unit.'
 end
-if not unit then
- error 'Select or specify a valid unit'
- return
-end
-local unit_id = unit.id
 
 if not args.duration then
  args.duration = 'forever'
@@ -86,10 +78,11 @@ local raceIndex
 local race
 local caste
 if args.untransform then
- raceIndex = normalRace[unit_id].race
+ local unit = df.unit.find(tonumber(args.unit))
+ raceIndex = normalRace[args.unit].race
  race = df.creature_raw.find(raceIndex)
- caste = normalRace[unit_id].caste
- normalRace[unit_id] = nil
+ caste = normalRace[args.unit].caste
+ normalRace[args.unit] = nil
 else
  if not args.race or not args.caste then
   error 'Specficy a target form.'
@@ -120,12 +113,13 @@ else
  end
 end
 
+local unit = df.unit.find(tonumber(args.unit))
 local oldRace = unit.enemy.normal_race
 local oldCaste = unit.enemy.normal_caste
 if args.setPrevRace then
- normalRace[unit_id] = {}
- normalRace[unit_id].race = oldRace
- normalRace[unit_id].caste = oldCaste
+ normalRace[args.unit] = {}
+ normalRace[args.unit].race = oldRace
+ normalRace[args.unit].caste = oldCaste
 end
 transform(unit,raceIndex,caste,args.setPrevRace)
 

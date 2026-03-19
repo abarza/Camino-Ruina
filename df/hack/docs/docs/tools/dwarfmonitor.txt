@@ -1,11 +1,15 @@
 dwarfmonitor
 ============
 
-Tags: unavailable
+Tags: fort | inspection | jobs | units
 
 Command: "dwarfmonitor"
 
   Report on dwarf preferences and efficiency.
+
+Keybinding: [Alt][M] -> ""dwarfmonitor prefs"" in "dwarfmode/Default"
+
+Keybinding: [Ctrl][F] -> ""dwarfmonitor stats"" in "dwarfmode/Default"
 
 It can also show heads-up display widgets with live fort statistics.
 

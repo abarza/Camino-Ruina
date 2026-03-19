@@ -1,7 +1,7 @@
 modtools/create-tree
 ====================
 
-Tags: unavailable
+Tags: dev
 
 Command: "modtools/create-tree"
 
@@ -9,9 +9,7 @@ Command: "modtools/create-tree"
 
 Spawns a tree.
 
-
-Usage
------
+Usage:
 
    -tree treeName
        specify the tree to be created

@@ -1,7 +1,7 @@
 map-render
 ==========
 
-Tags: unavailable
+Tags: dev | graphics
 
   Provides a Lua API for re-rendering portions of the map.
 

@@ -2,18 +2,6 @@ local _ENV = mkmodule('utils')
 
 local df = df
 
----@generic T
----@param obj T|fun(...): T
----@param ... unknown
----@return T
-function getval(obj, ...)
-    if type(obj) == 'function' then
-        return obj(...)
-    else
-        return obj
-    end
-end
-
 -- Comparator function
 function compare(a,b)
     if a < b then
@@ -464,32 +452,6 @@ function erase_sorted(vector,item,field,cmp)
     return erase_sorted_key(vector,key,field,cmp)
 end
 
-FILTER_FULL_TEXT = false
-
-function search_text(text, search_tokens)
-    text = dfhack.toSearchNormalized(text)
-    if type(search_tokens) ~= 'table' then
-        search_tokens = search_tokens:split()
-    end
-
-    for _,search_token in ipairs(search_tokens) do
-        if search_token == '' then goto continue end
-        search_token = dfhack.toSearchNormalized(search_token:escape_pattern())
-
-        -- the separate checks for non-space or non-punctuation allows
-        -- punctuation itself to be matched if that is useful (e.g.
-        -- filenames or parameter names)
-        if not FILTER_FULL_TEXT and not text:match('%f[^%p\x00]'..search_token)
-                and not text:match('%f[^%s\x00]'..search_token) then
-            return false
-        elseif FILTER_FULL_TEXT and not text:find(search_token) then
-            return false
-        end
-        ::continue::
-    end
-    return true
-end
-
 -- Calls a method with a string temporary
 function call_with_string(obj,methodname,...)
     return dfhack.with_temp_object(
@@ -515,7 +477,7 @@ function getItemDescription(item,mode)
 end
 
 function getItemDescriptionPrefix(item,mode)
-    return call_with_string(item, 'getItemDescriptionPrefix', mode or df.article_type.INDEFINITE)
+    return call_with_string(item, 'getItemDescriptionPrefix', mode or 0)
 end
 
 -- Split the string by the given delimiter
@@ -579,9 +541,6 @@ function normalizePath(path)
     return path:gsub(PLATFORM_SLASH, '/'):gsub('/+', '/')
 end
 
----@nodiscard
----@param tab table
----@return table<string, integer>
 function invert(tab)
     local result = {}
     for k,v in pairs(tab) do
@@ -590,28 +549,12 @@ function invert(tab)
     return result
 end
 
-function tabulate(fun, start, stop, step)
-    local step = step or 1
-    local result = {}
-    for i = start, stop, step do
-        table.insert(result, fun(i))
-    end
-    return result
-end
-
 -- processArgs() and processArgsGetopt() have been moved to argparse.lua.
 -- The 'require' statements are within the functions to avoid adding hard
 -- dependencies to utils.lua (which could lead to circular dependency issues).
----@nodiscard
----@param args string[] Most commonly `{ ... }`
----@param validArgs table<string, integer> Use `utils.invert`
----@return table<string, string|string[]|nil>
 function processArgs(args, validArgs)
     return require('argparse').processArgs(args, validArgs)
 end
----@param args string[] Most commonly `{ ... }`
----@param optionActions argparse.OptionAction[]
----@return nil
 function processArgsGetopt(args, optionActions)
     return require('argparse').processArgsGetopt(args, optionActions)
 end

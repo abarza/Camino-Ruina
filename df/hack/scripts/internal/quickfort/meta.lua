@@ -44,16 +44,11 @@ local function do_meta(zlevel, grid, ctx)
     stats.meta_blueprints = stats.meta_blueprints or
             {label='Blueprints applied', value=0, always=true}
 
-    ensure_keys(ctx, 'meta', 'parents') -- context history for infinite loop protection
-
     -- use get_ordered_grid_cells() to ensure we process blueprints in exactly
     -- the declared order (pairs() over the grid makes no such guarantee)
     for _, cell in ipairs(quickfort_parse.get_ordered_grid_cells(grid)) do
         local section_name, extra =
                 get_section_name(cell.cell, cell.text, ctx.sheet_name)
-        if ctx.meta.parents[section_name] then
-            qerror(('infinite loop detected in blueprint: "%s"'):format(section_name))
-        end
         local modifiers =
                 quickfort_parse.get_meta_modifiers(extra, ctx.blueprint_name)
         local repeat_str = ''
@@ -63,16 +58,9 @@ local function do_meta(zlevel, grid, ctx)
                             (modifiers.repeat_zoff > 0) and 'up' or 'down')
         end
         log('applying blueprint%s: "%s"', repeat_str, section_name)
-        ctx.meta.parents[section_name] = true
-        local ok, err = pcall(quickfort_command.do_command_section,
-                ctx, section_name, modifiers)
-        ctx.meta.parents[section_name] = nil
-        if ok then
-            stats.meta_blueprints.value =
-                    stats.meta_blueprints.value + modifiers.repeat_count
-        else
-            dfhack.printerr(err)
-        end
+        quickfort_command.do_command_section(ctx, section_name, modifiers)
+        stats.meta_blueprints.value =
+                stats.meta_blueprints.value + modifiers.repeat_count
         -- don't let called blueprints permanently alter the z-level
         ctx.cursor.z = zlevel
     end

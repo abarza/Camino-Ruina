@@ -1,7 +1,7 @@
 putontable
 ==========
 
-Tags: adventure | fort | armok | buildings | items
+Tags: fort | armok | items
 
 Command: "putontable"
 

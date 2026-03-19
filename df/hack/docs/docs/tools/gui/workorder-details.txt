@@ -1,11 +1,13 @@
 gui/workorder-details
 =====================
 
-Tags: unavailable | fort | inspection | workorders
+Tags: fort | inspection | workorders
 
 Command: "gui/workorder-details"
 
   Adjust input materials and traits for workorders.
+
+Keybinding: [D] in "workquota_details"
 
 This tool allows you to adjust item types, materials, and/or traits for items used in manager workorders. The jobs created from those workorders will inherit the details.
 

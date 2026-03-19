@@ -1,7 +1,7 @@
 modtools/invader-item-destroyer
 ===============================
 
-Tags: unavailable
+Tags: dev
 
 Command: "modtools/invader-item-destroyer"
 

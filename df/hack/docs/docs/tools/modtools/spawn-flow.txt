@@ -1,7 +1,7 @@
 modtools/spawn-flow
 ===================
 
-Tags: unavailable
+Tags: dev
 
 Command: "modtools/spawn-flow"
 

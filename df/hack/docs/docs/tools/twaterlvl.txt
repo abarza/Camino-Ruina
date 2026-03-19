@@ -7,6 +7,8 @@ Command: "twaterlvl"
 
   Show/hide numeric liquid depth on the map.
 
+Keybinding: [Ctrl][W] in "dwarfmode|dungeonmode"
+
 You can use this tool to toggle between displaying/not displaying liquid depth as numbers on the map.
 
 

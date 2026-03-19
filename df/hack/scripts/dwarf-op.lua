@@ -73,10 +73,10 @@ FileData: {
 --]]--
 function LoadPersistentData()
     local gamePath = dfhack.getDFPath()
-    local fortName = dfhack.TranslateName(df.world_site.find(df.global.plotinfo.site_id).name)
+    local fortName = dfhack.TranslateName(df.world_site.find(df.global.ui.site_id).name)
     local savePath = dfhack.getSavePath()
     local fileName = fortName .. ".json.dat"
-    local file_cur = gamePath .. "/save/current/" .. fileName
+    local file_cur = gamePath .. "/data/save/current/" .. fileName
     local file_sav = savePath .. "/" .. fileName
     local cur = json.open(file_cur)
     local saved = json.open(file_sav)
@@ -94,9 +94,9 @@ end
 
 function SavePersistentData()
     local gamePath = dfhack.getDFPath()
-    local fortName = dfhack.TranslateName(df.world_site.find(df.global.plotinfo.site_id).name)
+    local fortName = dfhack.TranslateName(df.world_site.find(df.global.ui.site_id).name)
     local fileName = fortName .. ".json.dat"
-    local cur = json.open(gamePath .. "/save/current/" .. fileName)
+    local cur = json.open(gamePath .. "/data/save/current/" .. fileName)
     local newDwfTable = {}
     for k,v in pairs(OpData.Dwarves) do
         if v~=nil then
@@ -110,12 +110,12 @@ end
 
 function ClearPersistentData(all)
     local gamePath = dfhack.getDFPath()
-    local fortName = dfhack.TranslateName(df.world_site.find(df.global.plotinfo.site_id).name)
+    local fortName = dfhack.TranslateName(df.world_site.find(df.global.ui.site_id).name)
     local savePath = dfhack.getSavePath()
     local fileName = fortName .. ".json.dat"
-    local file_cur = gamePath .. "/save/current/" .. fileName
+    local file_cur = gamePath .. "/data/save/current/" .. fileName
     local file_sav = savePath .. "/" .. fileName
-    local cur = json.open(gamePath .. "/save/current/" .. fileName)
+    local cur = json.open(gamePath .. "/data/save/current/" .. fileName)
     print("Deleting " .. file_cur)
     cur.data = {}
     cur:write() --can't seem to find a way to fully nuke this file, unless manually done
@@ -733,7 +733,7 @@ local seasons = {
     'winter',
 }
 function GetWave(dwf)
-    arrival_time = current_tick - dwf.useable_interaction.time_on_site;
+    arrival_time = current_tick - dwf.curse.time_on_site;
     --print(string.format("Current year %s, arrival_time = %s, ticks_per_year = %s", df.global.cur_year, arrival_time, ticks_per_year))
     arrival_year = df.global.cur_year + (arrival_time // ticks_per_year);
     arrival_season = 1 + (arrival_time % ticks_per_year) // ticks_per_season;

@@ -130,6 +130,7 @@ local building_inputs = {
             vector_id=df.job_item_vector_id.PIPE_SECTION
         }
     },
+    [df.building_type.Construction] = { { flags2={ building_material=true, non_economic=true } } },
     [df.building_type.Hatch] = {
         {
             item_type=df.item_type.HATCH_COVER,
@@ -179,7 +180,6 @@ local building_inputs = {
     [df.building_type.NestBox] = { { has_tool_use=df.tool_uses.NEST_BOX, item_type=df.item_type.TOOL } },
     [df.building_type.Hive] = { { has_tool_use=df.tool_uses.HIVE, item_type=df.item_type.TOOL } },
     [df.building_type.OfferingPlace] = { { has_tool_use=df.tool_uses.PLACE_OFFERING, item_type=df.item_type.TOOL } },
-    [df.building_type.Instrument] = { {item_type=df.item_type.INSTRUMENT, vector_id=df.job_item_vector_id.INSTRUMENT_STATIONARY} },
     [df.building_type.Bookcase] = { { has_tool_use=df.tool_uses.BOOKCASE, item_type=df.item_type.TOOL } },
     [df.building_type.DisplayFurniture] = { { has_tool_use=df.tool_uses.DISPLAY_OBJECT, item_type=df.item_type.TOOL } },
     [df.building_type.Rollers] = {
@@ -352,27 +352,6 @@ local siegeengine_input = {
             quantity=3
         }
     },
-    [df.siegeengine_type.BoltThrower] = {
-        {
-            item_type=df.item_type.BOLT_THROWER_PARTS,
-            vector_id=df.job_item_vector_id.BOLT_THROWER_PARTS,
-        },
-        {
-            flags1={ empty=true },
-            item_type=df.item_type.BIN,
-            vector_id=df.job_item_vector_id.BIN,
-        },
-        {
-            name='mechanism',
-            item_type=df.item_type.TRAPPARTS,
-            vector_id=df.job_item_vector_id.TRAPPARTS,
-        },
-        {
-            name='chain',
-            item_type=df.item_type.CHAIN,
-            vector_id=df.job_item_vector_id.CHAIN
-        },
-    },
 }
 --[[ Functions for lookup in tables. ]]
 
@@ -400,11 +379,6 @@ local function get_inputs_by_type(type,subtype,custom)
         return trap_inputs[subtype]
     elseif type == df.building_type.SiegeEngine then
         return siegeengine_input[subtype]
-    elseif type == df.building_type.Construction then
-        if subtype == df.construction_type.ReinforcedWall then
-            return { { flags2={ building_material=true, non_economic=true }, quantity=2 }, { flags3={ metal=true }, item_type=df.item_type.BAR, vector_id=df.job_item_vector_id.BAR } }
-        end
-        return { { flags2={ building_material=true, non_economic=true } } }
     else
         return building_inputs[type]
     end

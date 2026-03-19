@@ -7,16 +7,16 @@ Command: "confirm"
 
   Adds confirmation dialogs for destructive actions.
 
-In the base game, it is frighteningly easy to destroy hours of work with a single misclick. Now you can avoid the consequences of accidentally disbanding a squad (for example), or deleting a hauling route.
-
-See gui/confirm for a configuration GUI that controls which confirmation prompts are enabled.
+Now you can get the chance to avoid seizing goods from traders or deleting a hauling route in case you hit the key accidentally.
 
 
 Usage
 -----
 
-   confirm [list]
-   confirm enable|disable all
-   confirm enable|disable <id> [<id> ...]
+"enable confirm", "confirm enable all"
+   Enable all confirmation options. Replace with "disable" to disable all.
 
-Run without parameters (or with the "list" option) to see the available confirmation dialogs and their IDs. You can enable or disable all dialogs or set them individually by their IDs.
+"confirm enable option1 [option2...]"
+   Enable (or "disable") specific confirmation dialogs.
+
+When run without parameters, "confirm" will report which confirmation dialogs are currently enabled.

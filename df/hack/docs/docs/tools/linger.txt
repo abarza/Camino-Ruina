@@ -1,7 +1,7 @@
 linger
 ======
 
-Tags: unavailable
+Tags: adventure | armok
 
 Command: "linger"
 

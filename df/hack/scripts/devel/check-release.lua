@@ -1,4 +1,9 @@
 -- basic check for release readiness
+--[====[
+devel/check-release
+===================
+Basic checks for release readiness
+]====]
 
 local ok = true
 function err(s)

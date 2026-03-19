@@ -1,7 +1,7 @@
 hotkey-notes
 ============
 
-Tags: unavailable
+Tags: fort | inspection
 
 Command: "hotkey-notes"
 

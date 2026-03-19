@@ -31,7 +31,6 @@ function RaceBox:preinit(info)
     info.choices=choices
 end
 function showRacePrompt(title, text, tcolor, on_select, on_cancel, min_width,allow_none)
-    print('showing race prompt')
     RaceBox{
         frame_title = title,
         text = text,
@@ -45,7 +44,7 @@ end
 CivBox = defclass(CivBox,dialog.ListBox)
 CivBox.focus_path = "CivBox"
 
-CivBox.ATTRS{
+CivBox.ATTRS={
     format_name="$NAME ($ENGLISH):$ID",
     format_no_name="<unnamed>:$ID",
     name_other="<other(-1)>",
@@ -66,7 +65,7 @@ function civ_name(id,format_name,format_no_name,name_other,name_invalid)
             return name_invalid or "<invalid>"
         end
     end
-    local t={NAME=dfhack.translation.translateName(civ.name),ENGLISH=dfhack.translation.translateName(civ.name,true),ID=civ.id} --TODO race?, maybe something from raws?
+    local t={NAME=dfhack.TranslateName(civ.name),ENGLISH=dfhack.TranslateName(civ.name,true),ID=civ.id} --TODO race?, maybe something from raws?
     if t.NAME=="" then
         return string.gsub(format_no_name or "<unnamed> ($ID)", "%$(%w+)", t)
     end
@@ -107,12 +106,11 @@ function CivBox:choose_race()
 end
 function CivBox:init(info)
     self.subviews.list.frame={t=3,r=0,l=0}
-    self.subviews.list.edit.text_area.text_area.ignore_keys={"STRING_A047"}
     self:addviews{
         widgets.Label{frame={t=1,l=0},text={
-        {text="Filter race ",key="STRING_A047",key_sep="()",on_activate=self:callback("choose_race")},
+        {text="Filter race ",key="CUSTOM_CTRL_A",key_sep="()",on_activate=self:callback("choose_race")},
         }},
-        widgets.Label{frame={t=1,l=16},view_id="race_label",
+        widgets.Label{frame={t=1,l=21},view_id="race_label",
         text=": <none>",
         }
     }
@@ -131,7 +129,7 @@ function showCivPrompt(title, text, tcolor, on_select, on_cancel, min_width,allo
 end
 
 Editor_Civ=defclass(Editor_Civ, base_editor.Editor)
-Editor_Civ.ATTRS{
+Editor_Civ.ATTRS={
     frame_title = "Civilization editor"
 }
 
@@ -144,12 +142,12 @@ function Editor_Civ:init( args )
     end
 
     self:addviews{
-    widgets.Label{view_id="civ_name",frame = { t=0,l=0}, text="Currently: "..civ_name(self.target_unit.civ_id)},
-    widgets.Label{frame = { t=2,l=0}, text={{text=": set to other (-1, usually enemy)",key="CUSTOM_N",
+    widgets.Label{view_id="civ_name",frame = { t=1,l=1}, text="Currently: "..civ_name(self.target_unit.civ_id)},
+    widgets.Label{frame = { t=2,l=1}, text={{text=": set to other (-1, usually enemy)",key="CUSTOM_N",
         on_activate= function() self.target_unit.civ_id=-1;self:update_curren_civ() end}}},
-    widgets.Label{frame = { t=3,l=0}, text={{text=": set to current civ ("..df.global.plotinfo.civ_id..")",key="CUSTOM_C",
-        on_activate= function() self.target_unit.civ_id=df.global.plotinfo.civ_id;self:update_curren_civ() end}}},
-    widgets.Label{frame = { t=4,l=0}, text={{text=": manually enter",key="CUSTOM_E",
+    widgets.Label{frame = { t=3,l=1}, text={{text=": set to current civ ("..df.global.ui.civ_id..")",key="CUSTOM_C",
+        on_activate= function() self.target_unit.civ_id=df.global.ui.civ_id;self:update_curren_civ() end}}},
+    widgets.Label{frame = { t=4,l=1}, text={{text=": manually enter",key="CUSTOM_E",
         on_activate=function ()
          dialog.showInputPrompt("Civ id","Enter new civ id:",COLOR_WHITE,
             tostring(self.target_unit.civ_id),function(new_value)
@@ -158,7 +156,7 @@ function Editor_Civ:init( args )
             end)
         end}}
         },
-    widgets.Label{frame= {t=5,l=0}, text={{text=": select from list",key="CUSTOM_L",
+    widgets.Label{frame= {t=5,l=1}, text={{text=": select from list",key="CUSTOM_L",
         on_activate=function (  )
             showCivPrompt("Choose civilization", "Select units civilization",nil,function ( id,choice )
                 self.target_unit.civ_id=choice.num
@@ -166,5 +164,13 @@ function Editor_Civ:init( args )
             end,nil,nil,true)
         end
         }}},
-    }
+    widgets.Label{
+                frame = { b=0,l=1},
+                text ={{text= ": exit editor ",
+                    key  = "LEAVESCREEN",
+                    on_activate= self:callback("dismiss")
+                    },
+                    }
+            },
+        }
 end

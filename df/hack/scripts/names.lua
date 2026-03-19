@@ -55,7 +55,7 @@ function namescr:init()
         local uid = parent.unit.id --hint:df.viewscreen_dungeon_monsterstatusst
         trg = df.unit.find(uid) --luacheck: retype
         nameType = df.language_name_type.Figure
-    elseif df.global.adventure.menu == df.ui_advmode_menu.Look then
+    elseif df.global.ui_advmode.menu == df.ui_advmode_menu.Look then
         local t_look = df.global.ui_look_list.items[df.global.ui_look_cursor]
         if t_look.type == df.ui_look_list.T_items.T_type.Unit then
             trg = t_look.data.Unit --luacheck: retype

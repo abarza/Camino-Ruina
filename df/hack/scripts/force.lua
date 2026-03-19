@@ -1,58 +1,44 @@
-local wildlife = reqscript('fix/wildlife')
+-- Forces an event (wrapper for modtools/force)
+--[====[
 
-local function findCiv(civ)
-    if civ == 'player' then return df.historical_entity.find(df.global.plotinfo.civ_id) end
-    if tonumber(civ) then return df.historical_entity.find(tonumber(civ)) end
-    civ = string.lower(tostring(civ))
-    for _,entity in ipairs(df.global.world.entities.all) do
-        if string.lower(entity.entity_raw.code) == civ then return entity end
-    end
-end
+force
+=====
+A simpler wrapper around the `modtools/force` script.
 
-local args = { ... }
+Usage:
+
+- ``force event_type``
+- ``force event_type civ_id`` - civ ID required for ``Diplomat`` and ``Caravan``
+  events
+
+See `modtools/force` for a complete list of event types.
+
+]====]
+
+local utils = require 'utils'
+local args = {...}
 if #args < 1 then qerror('missing event type') end
 if args[1]:find('help') then
-    print(dfhack.script_help())
-    return
+    return print(dfhack.script_help())
 end
-
-local eventType = args[1]:upper()
-
--- handle synthetic events
-if eventType == 'WILDLIFE' then
-    wildlife.free_all_wildlife(args[2] == 'all')
-    return
-end
-
--- handle native events
+local eventType = nil
 for _, type in ipairs(df.timed_event_type) do
     if type:lower() == args[1]:lower() then
         eventType = type
     end
 end
-if not df.timed_event_type[eventType] then
+if not eventType then
     qerror('unknown event type: ' .. args[1])
 end
-if eventType == 'FeatureAttack' then
-    qerror('Event type: FeatureAttack is not currently supported')
-end
 
-local civ
-
+local newArgs = {'--eventType', eventType}
 if eventType == 'Caravan' or eventType == 'Diplomat' then
-    civ = findCiv(args[2] or 'player')
-    if not civ then
-        qerror('unable to find civilization: '..tostring(civ))
+    table.insert(newArgs, '--civ')
+    if not args[2] then
+        table.insert(newArgs, 'player')
+    else
+        table.insert(newArgs, args[2])
     end
-elseif eventType == 'Migrants' then
-    civ = findCiv('player')
 end
 
-df.global.timed_events:insert('#', {
-    new=true,
-    type=df.timed_event_type[eventType],
-    season=df.global.cur_season,
-    season_ticks=df.global.cur_season_tick,
-    entity=civ,
-    feature_ind=-1,
-})
+dfhack.run_script('modtools/force', table.unpack(newArgs))

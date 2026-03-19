@@ -1,37 +1,37 @@
---@module = true
---@enable = true
+--Allow stressed dwarves to emigrate from the fortress
+-- For 34.11 by IndigoFenix; update and cleanup by PeridexisErrant
+-- old version:  http://dffd.bay12games.com/file.php?id=8404
+--[====[
 
-local utils = require('utils')
+emigration
+==========
+Allows dwarves to emigrate from the fortress when stressed,
+in proportion to how badly stressed they are and adjusted
+for who they would have to leave with - a dwarven merchant
+being more attractive than leaving alone (or with an elf).
+The check is made monthly.
 
-local nobles = reqscript('internal/emigration/emigrate-nobles')
-local unit_link_utils = reqscript('internal/emigration/unit-link-utils')
+A happy dwarf (ie with negative stress) will never emigrate.
 
-local GLOBAL_KEY = 'emigration' -- used for state change hooks and persistence
+Usage::
 
-local function get_default_state()
-    return {
-        enabled=false,
-        last_cycle_tick=0
-    }
+    emigration enable|disable
+
+]====]
+
+enabled = enabled or false
+
+local args = {...}
+if args[1] == "enable" then
+    enabled = true
+elseif args[1] == "disable" then
+    enabled = false
 end
-
-state = state or get_default_state()
-
-function isEnabled()
-    return state.enabled
-end
-
-local function persist_state()
-    dfhack.persistent.saveSiteData(GLOBAL_KEY, state)
-end
-
-local TICKS_PER_MONTH = 33600
-local TICKS_PER_YEAR = 12 * TICKS_PER_MONTH
 
 function desireToStay(unit,method,civ_id)
     -- on a percentage scale
-    local value = 100 - unit.status.current_soul.personality.stress / 5000
-    if method == 'merchant' then
+    local value = 100 - unit.status.current_soul.personality.stress_level / 5000
+    if method == 'merchant' or method == 'diplomat' then
         if civ_id ~= unit.civ_id then value = value*2 end end
     if method == 'wild' then
         value = value*5 end
@@ -40,45 +40,22 @@ end
 
 function desert(u,method,civ)
     u.following = nil
-    local line = dfhack.units.getReadableName(u) .. " has "
+    local line = dfhack.TranslateName(dfhack.units.getVisibleName(u)) .. " has "
     if method == 'merchant' then
         line = line.."joined the merchants"
-        unit_link_utils.markUnitForEmigration(u, civ, false)
+        u.flags1.merchant = true
+        u.civ_id = civ
+    elseif method == 'diplomat' then
+        line = line.."followed the diplomat"
+        u.flags1.diplomat = true
+        u.civ_id = civ
     else
         line = line.."abandoned the settlement in search of a better life."
-        unit_link_utils.markUnitForEmigration(u, civ, true)
+        u.civ_id = -1
+        u.flags1.forest = true
+        u.animal.leave_countdown = 2
     end
-
-    local hf = df.historical_figure.find(u.hist_figure_id)
-    local fort_ent = df.global.plotinfo.main.fortress_entity
-    local civ_ent = df.historical_entity.find(hf.civ_id)
-    local newent_id = -1
-    local newsite_id = -1
-
-    unit_link_utils.removeUnitAssociations(u)
-    unit_link_utils.removeHistFigFromEntity(hf, fort_ent)
-
-    -- try to find a new entity for the unit to join
-    for _,entity_link in ipairs(civ_ent.entity_links) do
-        if entity_link.type == df.entity_entity_link_type.CHILD and entity_link.target ~= fort_ent.id then
-            newent_id = entity_link.target
-            break
-        end
-    end
-
-    if newent_id > -1 then
-        -- try to find a new site for the unit to join
-        for _,site_link in ipairs(df.global.world.entities.all[hf.civ_id].site_links) do
-            local site_id = df.global.plotinfo.site_id
-            if site_link.type == df.entity_site_link_type.Claim and site_link.target ~= site_id then
-                newsite_id = site_link.target
-                break
-            end
-        end
-        local newent = df.historical_entity.find(newent_id)
-        unit_link_utils.addHistFigToSite(hf, newsite_id, newent)
-    end
-    print(dfhack.df2console(line))
+    print(line)
     dfhack.gui.showAnnouncement(line, COLOR_WHITE)
 end
 
@@ -87,13 +64,23 @@ function canLeave(unit)
         return false
     end
 
-    return dfhack.units.isActive(unit) and
-        dfhack.units.isCitizen(unit) and
-        not dfhack.units.getNoblePositions(unit) and
-        not unit.flags1.chained and
-        unit.military.squad_id == -1 and
-        not dfhack.units.isBaby(unit) and
-        not dfhack.units.isChild(unit)
+    for _, skill in pairs(unit.status.current_soul.skills) do
+        if skill.rating > 14 then return false end
+    end
+
+    return dfhack.units.isOwnRace(unit) and  --  Doubtful check. naturalized citizens
+           dfhack.units.isOwnCiv(unit) and   --  might also want to leave.
+           dfhack.units.isActive(unit) and
+           not dfhack.units.isOpposedToLife(unit) and
+           not unit.flags1.merchant and
+           not unit.flags1.diplomat and
+           not unit.flags1.chained and
+           dfhack.units.getNoblePositions(unit) == nil and
+           unit.military.squad_id == -1 and
+           dfhack.units.isCitizen(unit) and
+           dfhack.units.isSane(unit) and
+           not dfhack.units.isBaby(unit) and
+           not dfhack.units.isChild(unit)
 end
 
 function checkForDeserters(method,civ_id)
@@ -108,6 +95,7 @@ end
 
 function checkmigrationnow()
     local merchant_civ_ids = {} --as:number[]
+    local diplomat_civ_ids = {} --as:number[]
     local allUnits = df.global.world.units.active
     for i=0, #allUnits-1 do
         local unit = allUnits[i]
@@ -117,72 +105,33 @@ function checkmigrationnow()
         and not unit.flags1.tame
         then
             if unit.flags1.merchant then table.insert(merchant_civ_ids, unit.civ_id) end
+            if unit.flags1.diplomat then table.insert(diplomat_civ_ids, unit.civ_id) end
         end
     end
 
-    if #merchant_civ_ids == 0 then
-        checkForDeserters('wild', df.global.plotinfo.main.fortress_entity.entity_links[0].target)
-    else
-        for _, civ_id in pairs(merchant_civ_ids) do checkForDeserters('merchant', civ_id) end
-    end
-
-    state.last_cycle_tick = dfhack.world.ReadCurrentTick() + TICKS_PER_YEAR * dfhack.world.ReadCurrentYear()
+    for _, civ_id in pairs(merchant_civ_ids) do checkForDeserters('merchant', civ_id) end
+    for _, civ_id in pairs(diplomat_civ_ids) do checkForDeserters('diplomat', civ_id) end
+    checkForDeserters('wild', -1)
 end
 
 local function event_loop()
-    if not state.enabled then return end
-
-    local current_tick = dfhack.world.ReadCurrentTick() + TICKS_PER_YEAR * dfhack.world.ReadCurrentYear()
-    if current_tick - state.last_cycle_tick < TICKS_PER_MONTH then
-        local timeout_ticks = state.last_cycle_tick - current_tick + TICKS_PER_MONTH
-        dfhack.timeout(timeout_ticks, 'ticks', event_loop)
-    else
+    if enabled then
         checkmigrationnow()
         dfhack.timeout(1, 'months', event_loop)
     end
 end
 
-dfhack.onStateChange[GLOBAL_KEY] = function(sc)
-    if sc == SC_MAP_UNLOADED then
-        state.enabled = false
-        return
+dfhack.onStateChange.loadEmigration = function(code)
+    if code==SC_MAP_LOADED then
+        if enabled then
+            print("Emigration enabled.")
+            event_loop()
+        else
+            print("Emigration disabled.")
+        end
     end
-
-    if sc ~= SC_MAP_LOADED or df.global.gamemode ~= df.game_mode.DWARF then
-        return
-    end
-
-    state = get_default_state()
-    utils.assign(state, dfhack.persistent.getSiteData(GLOBAL_KEY, state))
-
-    event_loop()
 end
 
-if dfhack_flags.module then
-    return
+if dfhack.isMapLoaded() then
+    dfhack.onStateChange.loadEmigration(SC_MAP_LOADED)
 end
-
-if df.global.gamemode ~= df.game_mode.DWARF or not dfhack.isMapLoaded() then
-    dfhack.printerr('emigration needs a loaded fortress map to work')
-    return
-end
-
-local args = {...}
-if dfhack_flags and dfhack_flags.enable then
-    args = {dfhack_flags.enable_state and 'enable' or 'disable'}
-end
-
-if args[1] == "enable" then
-    state.enabled = true
-elseif args[1] == "disable" then
-    state.enabled = false
-elseif args[1] == "nobles" then
-    table.remove(args, 1)
-    nobles.run(args)
-else
-    print('emigration is ' .. (state.enabled and 'enabled' or 'not enabled'))
-    return
-end
-
-event_loop()
-persist_state()

@@ -343,7 +343,7 @@ function IsEntityPermitted(id)
         return true
     end
 
-    local entsrc = df.historical_entity.find(df.global.plotinfo.civ_id)
+    local entsrc = df.historical_entity.find(df.global.ui.civ_id)
     if entsrc == nil then
         return false
     end
@@ -489,12 +489,12 @@ local function checkSidebar()
         dfhack.timeout(1, "frames", checkSidebar)
     end
 
-    local sidebar = df.global.game.building
+    local sidebar = df.global.ui_sidebar_menus.building
 
-    if not sidebarIsBuild and df.global.plotinfo.main.mode ~= df.ui_sidebar_mode.Build then
+    if not sidebarIsBuild and df.global.ui.main.mode ~= df.ui_sidebar_mode.Build then
         -- Not in build mode.
         return
-    elseif sidebarIsBuild and df.global.plotinfo.main.mode ~= df.ui_sidebar_mode.Build then
+    elseif sidebarIsBuild and df.global.ui.main.mode ~= df.ui_sidebar_mode.Build then
         -- Just exited build mode
         sidebarIsBuild = false
         sidebarLastCat = -1

@@ -47,17 +47,9 @@ Contents
 
   * Using CMake
 
-  * Using the documentation build script
-
-  * Building a PDF version
-
   * Running Sphinx manually
 
-* Troubleshooting
-
-  * "undefined label"
-
-  * "toctree contains reference to document that doesn't have a title"
+  * Building a PDF version
 
 * Building the changelogs
 
@@ -253,7 +245,7 @@ The options header should follow the examples, with each option in the same form
        Show help text.
    ``-l``, ``--quality <level>``
        Set the quality of the architecture for built architected
-       buildings.
+       builtings.
    ``-q``, ``--quiet``
        Suppress informational output (error messages are still
        printed).
@@ -268,11 +260,15 @@ Scripts and plugins distributed separately from DFHack's release packages don't 
 
 Note that since help text for external scripts and plugins is not rendered by Sphinx, it should be written in plain text. Any reStructuredText markup will not be processed and, if present, will be shown verbatim to the player (which is probably not what you want).
 
-For external scripts, the short description comes from a comment on the first line (the comment marker and extra whitespace is stripped):
+For external scripts, the short description comes from a comment on the first line (the comment marker and extra whitespace is stripped). For Lua, this would look like:
 
    -- A short description of my cool script.
 
-The main help text for an external script needs to appear between two markers -- "[====[" and "]====]". The documentation standards above still apply to external tools, but there is no need to include backticks for links or monospaced fonts. Here is an example for an entire script header:
+and for Ruby scripts it would look like:
+
+   # A short description of my cool script.
+
+The main help text for an external script needs to appear between two markers. For Lua, these markers are "[====[" and "]====]", and for Ruby they are "=begin" and "=end". The documentation standards above still apply to external tools, but there is no need to include backticks for links or monospaced fonts. Here is a Lua example for an entire script header:
 
    -- Inventory management for adventurers.
    -- [====[
@@ -384,15 +380,29 @@ Once the required dependencies are installed, there are multiple ways to run Sph
 Using CMake
 ~~~~~~~~~~~
 
-See our page on build options.
+Enabling the "BUILD_DOCS" CMake option will cause the documentation to be built whenever it changes as part of the normal DFHack build process. There are several ways to do this:
+
+* When initially running CMake, add "-DBUILD_DOCS:bool=ON" to your "cmake" command. For example:
+
+     cmake .. -DCMAKE_BUILD_TYPE:string=Release -DBUILD_DOCS:bool=ON -DCMAKE_INSTALL_PREFIX=<path to DF>
+
+* If you have already run CMake, you can simply run it again from your build folder to update your configuration:
+
+     cmake .. -DBUILD_DOCS:bool=ON
+
+* You can edit the "BUILD_DOCS" setting in CMakeCache.txt directly
+
+* You can use the CMake GUI or "ccmake" to change the "BUILD_DOCS" setting
+
+* On Windows, if you prefer to use the batch scripts, you can run "generate-msvc-gui.bat" and set "BUILD_DOCS" through the GUI. If you are running another file, such as "generate-msvc-all.bat", you will need to edit the batch script to add the flag. You can also run "cmake" on the command line, similar to other platforms.
+
+By default, both HTML and text docs are built by CMake. The generated documentation is stored in "docs/html" and "docs/text" (respectively) in the root DFHack folder, and they will both be installed to "hack/docs" when you install DFHack. The html and txt files will intermingle, but will not interfere with one another.
 
 
-Using the documentation build script
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Running Sphinx manually
+~~~~~~~~~~~~~~~~~~~~~~~
 
-You can also build the documentation without running CMake - this is faster if you only want to rebuild the documentation regardless of any code changes.
-
-The recommended approach is the "docs/build.py" script. This is the same script that CMake uses internally, which wraps Sphinx with a few additional options to handle common cases and can build multiple documentation formats with a single invocation.
+You can also build the documentation without running CMake - this is faster if you only want to rebuild the documentation regardless of any code changes. The "docs/build.py" script will build the documentation in any specified formats (HTML only by default) using the same command that CMake runs when building the docs. Run the script with "--help" to see additional options.
 
 Examples:
 
@@ -405,78 +415,29 @@ Examples:
 * "docs/build.py --clean"
      Build HTML and force a clean build (all source files are re-read)
 
-* "docs/build.py --help"
-     Display a full list of available options
+The resulting documentation will be stored in "docs/html" and/or "docs/text".
 
-The resulting documentation will be stored in "docs/html" and/or "docs/text" (or generally, a subfolder of "docs/" named after the requested output format(s)).
+Alternatively, you can run Sphinx manually with:
+
+   sphinx-build . docs/html
+
+or, to build plain-text output:
+
+   sphinx-build -b text . docs/text
+
+Sphinx has many options to enable clean builds, parallel builds, logging, and more - run "sphinx-build --help" for details. If you specify a different output path, be warned that Sphinx may overwrite existing files in the output folder. Also be aware that when running "sphinx-build" directly, the "docs/html" folder may be polluted with intermediate build files that normally get written in the cmake "build" directory.
 
 
 Building a PDF version
 ~~~~~~~~~~~~~~~~~~~~~~
 
-ReadTheDocs automatically builds a PDF version of the documentation (available under the "Downloads" section when clicking on the release selector). If you want to build a PDF version locally, you will need the "pdflatex" command, which is part of a TeX distribution. The following command will then build a PDF, located in "docs/pdf/latex/DFHack.pdf", with default options:
+ReadTheDocs automatically builds a PDF version of the documentation (available under the "Downloads" section when clicking on the release selector). If you want to build a PDF version locally, you will need "pdflatex", which is part of a TeX distribution. The following command will then build a PDF, located in "docs/pdf/latex/DFHack.pdf", with default options:
 
    docs/build.py pdf
 
+Alternatively, you can run Sphinx manually with:
 
-Running Sphinx manually
-~~~~~~~~~~~~~~~~~~~~~~~
-
-If "docs/build.py" does not support what you need, you can also run Sphinx manually. This is primarily useful for low-level debugging.
-
-For a good starting point, add the "--debug" argument to your call to "docs/build.py". This will cause the script to print out the Sphinx command(s) that it is running.
-
-Some examples:
-
-* "sphinx-build . docs/html"
-     Build the HTML docs (equivalent to "docs/build.py")
-
-* "sphinx-build -b text . docs/text"
-     Build the plain text docs (equivalent to "docs/build.py text")
-
-* "sphinx-build -M latexpdf . docs/pdf"
-     Build the PDF docs
-
-Sphinx has many options to enable clean builds, parallel builds, logging, and more - run "sphinx-build --help" for details. If you specify a different output path, be warned that Sphinx may overwrite existing files in the output folder. Also be aware that when running "sphinx-build" directly, the "docs/html" folder may be polluted with intermediate build files that normally get written in the cmake "build" directory.
-
-
-Troubleshooting
----------------
-
-Sphinx errors are typically printed by Sphinx, so ensure that you are not silencing Sphinx output.
-
-When built with "docs/build.py" or CMake, errors are also logged to "build/docs/<format>/sphinx-warnings.txt" (for instance, if you are building the HTML docs, "build/docs/html/sphinx-warnings.txt").
-
-
-"undefined label"
-~~~~~~~~~~~~~~~~~
-
-Typical causes:
-
-* You have used single backticks for an inline code snippet, where double backticks should be used instead (see Links):
-
-     `this is an invalid inline code snippet (actually a link)`
-     ``this is a valid inline code snippet``
-
-* You are attempting to link to a section/label, but either it does not have a label defined or you have spelled it incorrectly:
-
-     .. my-label:
-
-     This is where the link should go to.
-
-     ...
-
-     This is `a valid link to the earlier label <my-label>`. So is `my-label`.
-
-
-"toctree contains reference to document that doesn't have a title"
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Due to the nature of our autogenerated documentation, this can sometimes occur when switching between branches that have different autogenerated files, and can result in autogenerated documentation (e.g. for individual tools) being missing from the table of contents, or links failing to generate.
-
-The quickest resolution is a clean docs build:
-
-   docs/build.py --clean
+   sphinx-build -M latexpdf . docs/pdf
 
 
 Building the changelogs
@@ -492,35 +453,33 @@ Changelog entries are obtained from "changelog.txt" files in multiple repos. Thi
 
 * "library/xml/changelog.txt" for changes made in the "df-structures" repo
 
-* "plugins/stonesense/changelog.txt" for changes made in the "stonesense" repo
-
 Building the changelogs generates two files: "docs/changelogs/news.rst" and "docs/changelogs/news-dev.rst". These correspond to Changelog and Development changelog and contain changes organized by stable and development DFHack releases, respectively. For example, an entry listed under "0.44.05-alpha1" in changelog.txt will be listed under that version in the development changelog as well, but under "0.44.05-r1" in the stable changelog (assuming that is the closest stable release after 0.44.05-alpha1). An entry listed under a stable release like "0.44.05-r1" in changelog.txt will be listed under that release in both the stable changelog and the development changelog.
 
 
 Changelog syntax
 ~~~~~~~~~~~~~~~~
 
-The changelogs use a syntax similar to RST, with a few special sequences:
+changelog.txt uses a syntax similar to RST, with a few special sequences:
 
 * "===" indicates the start of a comment
 
 * "#" indicates the start of a release name (do not include "DFHack")
 
-* "##" indicates the start of a section name (which must be listed in "docs/sphinx_extensions/dfhack/changelog.py")
+* "##" indicates the start of a section name (this must be listed in "gen_changelog.py")
 
 * "-" indicates the start of a changelog entry. **Note:** an entry currently must be only one line.
 
-* ":" (followed by space) separates the name of a feature from a description of a change to that feature.
-     * Changes made to the same feature are grouped if they end up in the same section.
+* ":" (colon followed by space) separates the name of a feature from a description of a change to that feature.
+     Changes made to the same feature are grouped if they end up in the same section.
 
-* ":\" (followed by space) avoids the above behavior
+* ":\" (colon, backslash, space) avoids the above behavior
 
-* "- @" (the space is optional) indicates the start of an entry that should only be displayed in "NEWS-dev.rst".
-     * Use this sparingly, e.g. for immediate fixes to one development build in another development build that are not of interest to users of stable builds only.
+* "- @" (the space is optional) indicates the start of an entry that should only be displayed in NEWS-dev.rst.
+     Use this sparingly, e.g. for immediate fixes to one development build in another development build that are not of interest to users of stable builds only.
 
 * Three "[" characters indicate the start of a block (possibly a comment) that spans multiple lines. Three "]" characters indicate the end of such a block.
 
-* "!" immediately before a configured replacement (see "docs/sphinx_extensions/dfhack/changelog.py") stops that occurrence from being replaced.
+* "!" immediately before a phrase set up to be replaced (see gen_changelog.py) stops that occurrence from being replaced.
 
 
 GitHub Actions

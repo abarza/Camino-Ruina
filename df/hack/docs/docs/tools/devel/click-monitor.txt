@@ -13,4 +13,5 @@ This tool will watch for mouse activity and print relevant information to the co
 Usage
 -----
 
+::
    enable devel/click-monitor

@@ -1,7 +1,7 @@
 setfps
 ======
 
-Tags: dfhack | fps
+Tags: fps
 
 Command: "setfps"
 

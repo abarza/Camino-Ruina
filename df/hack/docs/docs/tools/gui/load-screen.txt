@@ -1,7 +1,7 @@
 gui/load-screen
 ===============
 
-Tags: unavailable
+Tags: dfhack
 
 Command: "gui/load-screen"
 

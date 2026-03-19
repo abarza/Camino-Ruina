@@ -1,7 +1,7 @@
 devel/spawn-unit-helper
 =======================
 
-Tags: dev
+Tags: dev | fort
 
 Command: "devel/spawn-unit-helper"
 
@@ -16,9 +16,9 @@ Usage
 1. Enter the "k" menu and change mode using
       "rb_eval df.gametype = :DWARF_ARENA"
 
-2. Spawn creatures with the normal arena mode UI ("c" in-game)
+2. Spawn creatures with the normal arena mode UI ("c" ingame)
 
-3. Revert to fortress mode using
+3. Revert to forgress mode using
       "rb_eval df.gametype = #{df.gametype.inspect}"
 
 4. To convert spawned creatures to livestock, select each one with the "v"

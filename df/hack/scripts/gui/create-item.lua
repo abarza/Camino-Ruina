@@ -1,303 +1,267 @@
 -- A gui-based item creation script.
 -- author Putnam
 -- edited by expwnent
+--@module = true
 
-local argparse = require('argparse')
-local createitem = reqscript('modtools/create-item')
-local eventful = require('plugins.eventful')
-local script = require('gui.script')
-
-local function getGenderString(gender)
-    local sym = df.pronoun_type.attrs[gender].symbol
-    if not sym then return '' end
-    return '(' .. sym .. ')'
+function getGenderString(gender)
+  local sym = df.pronoun_type.attrs[gender].symbol
+  if not sym then
+    return ""
+  end
+  return "("..sym..")"
 end
 
-local function usesCreature(itemtype)
-    local typesThatUseCreatures = {
-        REMAINS = true,
-        FISH = true,
-        FISH_RAW = true,
-        VERMIN = true,
-        PET = true,
-        EGG = true,
-        CORPSE = true,
-        CORPSEPIECE = true,
-    }
-    return typesThatUseCreatures[df.item_type[itemtype]]
+function getCreatureList()
+ local crList={}
+ for k,cr in ipairs(df.global.world.raws.creatures.alphabetic) do
+  for kk,ca in ipairs(cr.caste) do
+   local str=ca.caste_name[0]
+   str=str..' '..getGenderString(ca.sex)
+   table.insert(crList,{str,nil,ca})
+  end
+ end
+ return crList
 end
 
-local function getCreatureList()
-    local crList = {}
-    for k, cr in ipairs(df.global.world.raws.creatures.alphabetic) do
-        for kk, ca in ipairs(cr.caste) do
-            local str = ca.caste_name[0]
-            str = str .. ' ' .. getGenderString(ca.sex)
-            table.insert(crList, { str, nil, ca })
-        end
-    end
-    return crList
+function getRestrictiveMatFilter(itemType)
+ if args.unrestricted then return nil end
+ local itemTypes={
+   WEAPON=function(mat,parent,typ,idx)
+    return (mat.flags.ITEMS_WEAPON or mat.flags.ITEMS_WEAPON_RANGED)
+   end,
+   AMMO=function(mat,parent,typ,idx)
+    return (mat.flags.ITEMS_AMMO)
+   end,
+   ARMOR=function(mat,parent,typ,idx)
+    return (mat.flags.ITEMS_ARMOR)
+   end,
+   INSTRUMENT=function(mat,parent,typ,idx)
+    return (mat.flags.ITEMS_HARD)
+   end,
+   AMULET=function(mat,parent,typ,idx)
+    return (mat.flags.ITEMS_SOFT or mat.flags.ITEMS_HARD)
+   end,
+   ROCK=function(mat,parent,typ,idx)
+    return (mat.flags.IS_STONE)
+   end,
+   BOULDER=ROCK,
+   BAR=function(mat,parent,typ,idx)
+    return (mat.flags.IS_METAL or mat.flags.SOAP or mat.id==COAL)
+   end
+
+  }
+ for k,v in ipairs({'GOBLET','FLASK','TOY','RING','CROWN','SCEPTER','FIGURINE','TOOL'}) do
+  itemTypes[v]=itemTypes.INSTRUMENT
+ end
+ for k,v in ipairs({'SHOES','SHIELD','HELM','GLOVES'}) do
+    itemTypes[v]=itemTypes.ARMOR
+ end
+ for k,v in ipairs({'EARRING','BRACELET'}) do
+    itemTypes[v]=itemTypes.AMULET
+ end
+ itemTypes.BOULDER=itemTypes.ROCK
+ return itemTypes[df.item_type[itemType]]
 end
 
-local function getCreaturePartList(creatureID, casteID)
-    local crpList = { { 'generic' } }
-    for k, crp in ipairs(df.global.world.raws.creatures.all[creatureID].caste[casteID].body_info.body_parts) do
-        local str = crp.name_singular[0][0]
-        table.insert(crpList, { str })
-    end
-    return crpList
+function getMatFilter(itemtype)
+  local itemTypes={
+   SEEDS=function(mat,parent,typ,idx)
+    return mat.flags.SEED_MAT
+   end,
+   PLANT=function(mat,parent,typ,idx)
+    return mat.flags.STRUCTURAL_PLANT_MAT
+   end,
+   LEAVES=function(mat,parent,typ,idx)
+    return mat.flags.LEAF_MAT
+   end,
+   MEAT=function(mat,parent,typ,idx)
+    return mat.flags.MEAT
+   end,
+   CHEESE=function(mat,parent,typ,idx)
+    return (mat.flags.CHEESE_PLANT or mat.flags.CHEESE_CREATURE)
+   end,
+   LIQUID_MISC=function(mat,parent,typ,idx)
+    return (mat.flags.LIQUID_MISC_PLANT or mat.flags.LIQUID_MISC_CREATURE or mat.flags.LIQUID_MISC_OTHER)
+   end,
+   POWDER_MISC=function(mat,parent,typ,idx)
+    return (mat.flags.POWDER_MISC_PLANT or mat.flags.POWDER_MISC_CREATURE)
+   end,
+   DRINK=function(mat,parent,typ,idx)
+    return (mat.flags.ALCOHOL_PLANT or mat.flags.ALCOHOL_CREATURE)
+   end,
+   GLOB=function(mat,parent,typ,idx)
+    return (mat.flags.STOCKPILE_GLOB)
+   end,
+   WOOD=function(mat,parent,typ,idx)
+    return (mat.flags.WOOD)
+   end,
+   THREAD=function(mat,parent,typ,idx)
+    return (mat.flags.THREAD_PLANT)
+   end,
+   LEATHER=function(mat,parent,typ,idx)
+    return (mat.flags.LEATHER)
+   end
+  }
+  return itemTypes[df.item_type[itemtype]] or getRestrictiveMatFilter(itemtype)
 end
 
-local function getCreaturePartLayerList(creatureID, casteID, partID)
-    local crplList = { { 'whole' } }
-    for k, crpl in ipairs(df.global.world.raws.creatures.all[creatureID].caste[casteID].body_info.body_parts[partID].layers) do
-        local str = crpl.layer_name
-        table.insert(crplList, { str })
-    end
-    return crplList
+function createItem(mat,itemType,quality,creator,description,amount)
+ local item=df.item.find(dfhack.items.createItem(itemType[1], itemType[2], mat[1], mat[2], creator))
+ local item2=nil
+ assert(item, 'failed to create item')
+ quality = math.max(0, math.min(5, quality - 1))
+ item:setQuality(quality)
+ if df.item_type[itemType[1]]=='SLAB' then
+  item.description=description
+ end
+ if df.item_type[itemType[1]]=='GLOVES' then
+  --create matching gloves
+  item:setGloveHandedness(1)
+  item2=df.item.find(dfhack.items.createItem(itemType[1], itemType[2], mat[1], mat[2], creator))
+  assert(item2, 'failed to create item')
+  item2:setQuality(quality)
+  item2:setGloveHandedness(2)
+ end
+ if df.item_type[itemType[1]]=='SHOES' then
+  --create matching shoes
+  item2=df.item.find(dfhack.items.createItem(itemType[1], itemType[2], mat[1], mat[2], creator))
+  assert(item2, 'failed to create item')
+  item2:setQuality(quality)
+ end
+ if tonumber(amount) > 1 then
+  item:setStackSize(amount)
+  if item2 then item2:setStackSize(amount) end
+ end
 end
 
-local function getCreatureMaterialList(creatureID, casteID)
-    local crmList = {}
-    for k, crm in ipairs(df.global.world.raws.creatures.all[creatureID].material) do
-        local str = crm.id
-        table.insert(crmList, { str })
-    end
-    return crmList
+function qualityTable()
+ return {{'None'},
+ {'-Well-crafted-'},
+ {'+Finely-crafted+'},
+ {'*Superior*'},
+ {string.char(240)..'Exceptional'..string.char(240)},
+ {string.char(15)..'Masterwork'..string.char(15)}
+ }
+end
+
+local script=require('gui.script')
+
+function showItemPrompt(text,item_filter,hide_none)
+ require('gui.materials').ItemTypeDialog{
+  prompt=text,
+  item_filter=item_filter,
+  hide_none=hide_none,
+  on_select=script.mkresume(true),
+  on_cancel=script.mkresume(false),
+  on_close=script.qresume(nil)
+ }:show()
+
+ return script.wait()
+end
+
+function showMaterialPrompt(title, prompt, filter, inorganic, creature, plant) --the one included with DFHack doesn't have a filter or the inorganic, creature, plant things available
+ require('gui.materials').MaterialDialog{
+  frame_title = title,
+  prompt = prompt,
+  mat_filter = filter,
+  use_inorganic = inorganic,
+  use_creature = creature,
+  use_plant = plant,
+  on_select = script.mkresume(true),
+  on_cancel = script.mkresume(false),
+  on_close = script.qresume(nil)
+ }:show()
+
+ return script.wait()
+end
+
+function usesCreature(itemtype)
+ typesThatUseCreatures={REMAINS=true,FISH=true,FISH_RAW=true,VERMIN=true,PET=true,EGG=true,CORPSE=true,CORPSEPIECE=true}
+ return typesThatUseCreatures[df.item_type[itemtype]]
 end
 
 local function getCreatureRaceAndCaste(caste)
-    return df.global.world.raws.creatures.list_creature[caste.index],
-        df.global.world.raws.creatures.list_caste[caste.index]
+ return df.global.world.raws.creatures.list_creature[caste.index],df.global.world.raws.creatures.list_caste[caste.index]
 end
 
-local function getRestrictiveMatFilter(itemType, opts)
-    if opts.unrestricted then return nil end
-    local itemTypes = {
-        WEAPON = function(mat, parent, typ, idx)
-            return (mat.flags.ITEMS_WEAPON or mat.flags.ITEMS_WEAPON_RANGED)
-        end,
-        AMMO = function(mat, parent, typ, idx)
-            return (mat.flags.ITEMS_AMMO)
-        end,
-        ARMOR = function(mat, parent, typ, idx)
-            return (mat.flags.ITEMS_ARMOR or mat.flags.LEATHER)
-        end,
-        INSTRUMENT = function(mat, parent, typ, idx)
-            return (mat.flags.ITEMS_HARD)
-        end,
-        AMULET = function(mat, parent, typ, idx)
-            return (mat.flags.ITEMS_SOFT or mat.flags.ITEMS_HARD)
-        end,
-        ROCK = function(mat, parent, typ, idx)
-            return (mat.flags.IS_STONE)
-        end,
-        BAR = function(mat, parent, typ, idx)
-            return (mat.flags.IS_METAL or mat.flags.SOAP or mat.id == 'COAL' or
-                mat.id == 'POTASH' or mat.id == 'ASH' or mat.id == 'PEARLASH')
-        end,
-        BLOCKS = function(mat, parent, typ, idx)
-            return mat.flags.IS_STONE or mat.flags.IS_METAL or mat.flags.IS_GLASS or mat.flags.WOOD
-        end,
-        BAG = function(mat, parent, typ, idx)
-            return mat.flags.SILK or mat.flags.THREAD_PLANT or mat.flags.YARN
-        end,
-    }
-    for k, v in ipairs { 'GOBLET', 'FLASK', 'TOY', 'RING', 'CROWN', 'SCEPTER', 'FIGURINE', 'TOOL' } do
-        itemTypes[v] = itemTypes.INSTRUMENT
+function hackWish(unit)
+ script.start(function()
+  local amountok, amount
+  local matok,mattype,matindex,matFilter
+  local itemok,itemtype,itemsubtype=showItemPrompt('What item do you want?',function(itype) return df.item_type[itype]~='CORPSE' and df.item_type[itype]~='FOOD' end ,true)
+  if not itemok then return end
+  if not args.notRestrictive then
+   matFilter=getMatFilter(itemtype)
+  end
+  if not usesCreature(itemtype) then
+   matok,mattype,matindex=showMaterialPrompt('Wish','And what material should it be made of?',matFilter)
+   if not matok then return end
+  else
+   local creatureok,useless,creatureTable=script.showListPrompt('Wish','What creature should it be?',COLOR_LIGHTGREEN,getCreatureList())
+   if not creatureok then return end
+   mattype,matindex=getCreatureRaceAndCaste(creatureTable[3])
+  end
+  local qualityok,quality=script.showListPrompt('Wish','What quality should it be?',COLOR_LIGHTGREEN,qualityTable())
+  if not qualityok then return end
+  local description
+  if df.item_type[itemtype]=='SLAB' then
+   local descriptionok
+   descriptionok,description=script.showInputPrompt('Slab','What should the slab say?',COLOR_WHITE)
+   if not descriptionok then return end
+  end
+  if args.multi then
+   repeat amountok,amount=script.showInputPrompt('Wish','How many do you want? (numbers only!)',COLOR_LIGHTGREEN) until tonumber(amount) or not amountok
+   if not amountok then return end
+   if mattype and itemtype then
+    if df.item_type.attrs[itemtype].is_stackable then
+     createItem({mattype,matindex},{itemtype,itemsubtype},quality,unit,description,amount)
+    else
+     for i=1,amount do
+      createItem({mattype,matindex},{itemtype,itemsubtype},quality,unit,description,1)
+     end
     end
-    for k, v in ipairs { 'SHIELD', 'HELM' } do
-        itemTypes[v] = itemTypes.ARMOR
-    end
-    for k, v in ipairs { 'SHOES', 'GLOVES' } do
-        itemTypes[v] = function(mat, parent, typ, idx)
-            return itemTypes.ARMOR(mat, parent, typ, idx) or itemTypes.BAG(mat, parent, typ, idx)
-        end
-    end
-    for k, v in ipairs { 'EARRING', 'BRACELET' } do
-        itemTypes[v] = itemTypes.AMULET
-    end
-    itemTypes.BOULDER = itemTypes.ROCK
-    return itemTypes[df.item_type[itemType]]
+    return true
+   end
+   return false
+  else
+   if mattype and itemtype then
+    createItem({mattype,matindex},{itemtype,itemsubtype},quality,unit,description,1)
+    return true
+   end
+   return false
+  end
+ end)
 end
 
-local function getMatFilter(itemtype, opts)
-    local itemTypes = {
-        SEEDS = function(mat, parent, typ, idx)
-            return mat.flags.SEED_MAT
-        end,
-        PLANT = function(mat, parent, typ, idx)
-            return mat.flags.STRUCTURAL_PLANT_MAT
-        end,
-        LEAVES = function(mat, parent, typ, idx)
-            return mat.flags.STOCKPILE_PLANT_GROWTH
-        end,
-        MEAT = function(mat, parent, typ, idx)
-            return mat.flags.MEAT
-        end,
-        CHEESE = function(mat, parent, typ, idx)
-            return (mat.flags.CHEESE_PLANT or mat.flags.CHEESE_CREATURE)
-        end,
-        LIQUID_MISC = function(mat, parent, typ, idx)
-            return mat.id == 'WATER' or mat.id == 'LYE' or mat.flags.LIQUID_MISC_PLANT or
-                mat.flags.LIQUID_MISC_CREATURE or mat.flags.LIQUID_MISC_OTHER
-        end,
-        POWDER_MISC = function(mat, parent, typ, idx)
-            return (mat.flags.POWDER_MISC_PLANT or mat.flags.POWDER_MISC_CREATURE)
-        end,
-        DRINK = function(mat, parent, typ, idx)
-            return (mat.flags.ALCOHOL_PLANT or mat.flags.ALCOHOL_CREATURE)
-        end,
-        GLOB = function(mat, parent, typ, idx)
-            return (mat.flags.STOCKPILE_GLOB)
-        end,
-        WOOD = function(mat, parent, typ, idx)
-            return (mat.flags.WOOD)
-        end,
-        THREAD = function(mat, parent, typ, idx)
-            return (mat.flags.THREAD_PLANT or mat.flags.SILK or mat.flags.YARN or mat.flags.STOCKPILE_THREAD_METAL)
-        end,
-        LEATHER = function(mat, parent, typ, idx)
-            return (mat.flags.LEATHER)
-        end,
-    }
-    return itemTypes[df.item_type[itemtype]] or getRestrictiveMatFilter(itemtype, opts)
-end
+scriptArgs={...}
 
-local function qualityTable()
-    return { { 'None' },
-        { '-Well-crafted-' },
-        { '+Finely-crafted+' },
-        { '*Superior*' },
-        { string.char(240) .. 'Exceptional' .. string.char(240) },
-        { string.char(15) .. 'Masterwork' .. string.char(15) },
-    }
-end
+utils=require('utils')
 
-local function showItemPrompt(text, item_filter, hide_none)
-    require('gui.materials').ItemTypeDialog {
-        prompt = text,
-        item_filter = item_filter,
-        hide_none = hide_none,
-        on_select = script.mkresume(true),
-        on_cancel = script.mkresume(false),
-        on_close = script.qresume(nil),
-    }:show()
-    return script.wait()
-end
-
-local function showMaterialPrompt(title, prompt, filter, inorganic, creature, plant)
-    require('gui.materials').MaterialDialog {
-        frame_title = title,
-        prompt = prompt,
-        mat_filter = filter,
-        use_inorganic = inorganic,
-        use_creature = creature,
-        use_plant = plant,
-        on_select = script.mkresume(true),
-        on_cancel = script.mkresume(false),
-        on_close = script.qresume(nil),
-    }:show()
-    return script.wait()
-end
-
-local default_accessors = {
-    get_unit = function(opts)
-        return tonumber(opts.unit) and df.unit.find(tonumber(opts.unit)) or
-            dfhack.gui.getSelectedUnit(true)
-    end,
-    get_item_type = function()
-        return showItemPrompt('What item do you want?',
-            function(itype) return df.item_type[itype] ~= 'FOOD' end, true)
-    end,
-    get_mat = function(itype, opts)
-        if not usesCreature(itype) then
-            return showMaterialPrompt('Wish', 'And what material should it be made of?',
-                not opts.unrestricted and getMatFilter(itype, opts) or nil)
-        end
-        local creatureok, _, creatureTable = script.showListPrompt('Wish', 'What creature should it be?',
-            COLOR_LIGHTGREEN, getCreatureList(), 1, true)
-        if not creatureok then return false end
-        local raceId, casteId = getCreatureRaceAndCaste(creatureTable[3])
-        if df.item_type[itype] ~= 'CORPSEPIECE' then
-            return true, -1, raceId, casteId, -1
-        end
-        local bodpartok, bodypart = script.showListPrompt('Wish', 'What body part should it be?',
-            COLOR_LIGHTGREEN, getCreaturePartList(raceId, casteId), 1, true)
-        if not bodpartok then return false end
-        local corpsepieceGeneric = false
-        local partlayerok, partlayerID
-        if bodypart == 1 then
-            corpsepieceGeneric = true
-            partlayerok, partlayerID = script.showListPrompt('Wish', 'What creature material should it be?',
-                COLOR_LIGHTGREEN, getCreatureMaterialList(raceId, casteId), 1, true)
-        else
-            --the offsets here are because indexes in lua are wonky (some start at 0, some start at 1), so we adjust for that,
-            --as well as the index offset created by inserting the "generic" option at the start of the body part selection prompt
-            bodypart = bodypart - 2
-            partlayerok, partlayerID = script.showListPrompt('Wish', 'What tissue layer should it be?',
-                COLOR_LIGHTGREEN, getCreaturePartLayerList(raceId, casteId, bodypart), 1, true)
-            partlayerID = partlayerID - 1
-        end
-        if not partlayerok then return end
-        return true, -1, raceId, casteId, bodypart, partlayerID - 1, corpsepieceGeneric
-    end,
-    get_quality = function()
-        return script.showListPrompt('Wish', 'What quality should it be?',
-            COLOR_LIGHTGREEN, qualityTable())
-    end,
-    get_description = function()
-        return script.showInputPrompt('Slab', 'What should the slab say?', COLOR_WHITE)
-    end,
-    get_count = function()
-        return script.showInputPrompt('Wish', 'How many do you want?',
-            COLOR_LIGHTGREEN)
-    end,
-}
-
-if not dfhack.isMapLoaded() then
-    qerror('create-item needs a loaded map to work')
-end
-
-local opts = {}
-local positionals = argparse.processArgsGetopt({ ... }, {
-    { nil, 'startup',      handler = function() opts.startup = true end },
-    { 'f', 'unrestricted', handler = function() opts.unrestricted = true end },
-    { 'h', 'help',         handler = function() opts.help = true end },
-    {
-        'u',
-        'unit',
-        hasArg = true,
-        handler = function(arg) opts.unit = argparse.nonnegativeInt(arg, 'unit') end,
-    },
-    {
-        'c',
-        'count',
-        hasArg = true,
-        handler = function(arg) opts.count = argparse.nonnegativeInt(arg, 'count') end,
-    },
-    {
-        'p',
-        'pos',
-        hasArg = true,
-        handler = function(arg) opts.pos = argparse.coords(arg, 'pos') end,
-    },
+validArgs = utils.invert({
+ 'startup',
+ 'unrestricted',
+ 'unit',
+ 'multi'
 })
 
-if positionals[1] == 'help' then opts.help = true end
-if opts.help then
-    print(dfhack.script_help())
-    return
+if moduleMode then
+  return
 end
 
-if opts.startup then
-    eventful.onReactionComplete.hackWishP = function(reaction, unit)
-        if not reaction.code:find('DFHACK_WISH') then return end
-        local accessors = copyall(default_accessors)
-        accessors.get_unit = function() return unit end
-        script.start(createitem.hackWish, accessors, { count = 1 })
-    end
-    return
-end
+args = utils.processArgs({...}, validArgs)
 
-script.start(createitem.hackWish, default_accessors, opts)
+eventful=require('plugins.eventful')
+
+if not args.startup then
+ local unit=tonumber(args.unit) and df.unit.find(tonumber(args.unit)) or dfhack.gui.getSelectedUnit(true)
+ if unit then
+  hackWish(unit)
+ else
+  qerror('A unit needs to be selected to use gui/create-item.')
+ end
+else
+ eventful.onReactionComplete.hackWishP=function(reaction,unit,input_items,input_reagents,output_items,call_native)
+  if not reaction.code:find('DFHACK_WISH') then return nil end
+  hackWish(unit)
+ end
+end

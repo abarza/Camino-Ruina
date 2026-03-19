@@ -6,7 +6,7 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
-from scripts.xvfb_io import capture_screenshot, send_keys as xvfb_send_keys
+from scripts.tmux_io import TmuxTarget, send_raw_keys
 
 USE_LLM_INTENTIONS = os.getenv("USE_LLM_INTENTIONS", "0") == "1"
 
@@ -111,7 +111,8 @@ def main() -> int:
                 print(f"[agente] decisor LLM falló: {exc}", file=sys.stderr)
                 teclas_a_enviar = teclas
 
-        xvfb_send_keys(teclas_a_enviar)
+        target = TmuxTarget.from_env()
+        send_raw_keys(target, teclas_a_enviar)
         time.sleep(delay_por_contexto(contexto))
 
         # Capturar estado después de actuar.

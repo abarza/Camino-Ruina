@@ -1,7 +1,7 @@
 modtools/change-build-menu
 ==========================
 
-Tags: unavailable
+Tags: dev
 
 Command: "modtools/change-build-menu"
 
@@ -15,9 +15,7 @@ Changes made with this script do not survive a save/load. You will need to redo 
 
 Just to be clear: You CANNOT use this script AT ALL if there is no world loaded!
 
-
-Usage
------
+**Usage:**
 
 "enable modtools/change-build-menu":
 
@@ -121,9 +119,7 @@ Usage
 
    Revert an earlier remove or add operation. It is NOT safe to "remove" an "add"ed building or vice versa, use this option to reverse any changes you no longer want/need.
 
-
-Module Usage
-------------
+**Module Usage:**
 
 To use this script as a module put the following somewhere in your own script:
 

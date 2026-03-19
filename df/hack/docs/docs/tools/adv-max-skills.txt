@@ -1,7 +1,7 @@
 adv-max-skills
 ==============
 
-Tags: unavailable
+Tags: adventure | embark | armok
 
 Command: "adv-max-skills"
 

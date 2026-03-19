@@ -12,7 +12,6 @@
 #include <cstdlib>
 #include <fstream>
 #include <zlib.h>
-#include "../zlib/contrib/minizip/unzip.h"
 
 #include "svector.h"
 using std::string;
@@ -104,6 +103,7 @@ void command_linest::handle_arg(string &arg)
 				dest+=(*s);
 				}
 			pos+=(int32_t)dest.length();
+
 
 			if(!dest.empty())
 				{

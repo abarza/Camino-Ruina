@@ -1,7 +1,7 @@
 devel/visualize-structure
 =========================
 
-Tags: dev
+Tags: dev | inspection | dfhack
 
 Command: "devel/visualize-structure"
 

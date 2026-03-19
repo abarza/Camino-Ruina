@@ -1,7 +1,7 @@
 devel/unit-path
 ===============
 
-Tags: unavailable
+Tags: dev | inspection
 
 Command: "devel/unit-path"
 

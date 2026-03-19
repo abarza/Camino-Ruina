@@ -1,10 +1,15 @@
 -- Stop traders bringing blood, ichor, or goo
 --author Urist Da Vinci; edited by expwnent, scamtank
+--[====[
 
-local my_entity=df.historical_entity.find(df.global.plotinfo.civ_id)
+fix/blood-del
+=============
+Makes it so that future caravans won't bring barrels full of blood, ichor, or goo.
+
+]====]
+local my_entity=df.historical_entity.find(df.global.ui.civ_id)
 local k=0
 local v=1
-local count = 0
 
 for x,y in pairs(df.global.world.entities.all) do
  my_entity=y
@@ -17,37 +22,31 @@ for x,y in pairs(df.global.world.entities.all) do
    my_entity.resources.misc_mat.extracts.mat_type:erase(k)
    my_entity.resources.misc_mat.extracts.mat_index:erase(k)
    k=k-1
-   count=count+1
   else
    if(mat.material.id=="BLOOD") then
     my_entity.resources.misc_mat.extracts.mat_type:erase(k)
     my_entity.resources.misc_mat.extracts.mat_index:erase(k)
     k=k-1
-    count=count+1
    end
    if(mat.material.id=="ICHOR") then
     my_entity.resources.misc_mat.extracts.mat_type:erase(k)
     my_entity.resources.misc_mat.extracts.mat_index:erase(k)
     k=k-1
-    count=count+1
    end
    if(mat.material.id=="GOO") then
     my_entity.resources.misc_mat.extracts.mat_type:erase(k)
     my_entity.resources.misc_mat.extracts.mat_index:erase(k)
     k=k-1
-    count=count+1
    end
    if(mat.material.id=="SWEAT") then
     my_entity.resources.misc_mat.extracts.mat_type:erase(k)
     my_entity.resources.misc_mat.extracts.mat_index:erase(k)
     k=k-1
-    count=count+1
    end
    if(mat.material.id=="TEARS") then
     my_entity.resources.misc_mat.extracts.mat_type:erase(k)
     my_entity.resources.misc_mat.extracts.mat_index:erase(k)
     k=k-1
-    count=count+1
    end
    --VENOM
    --POISON
@@ -58,8 +57,4 @@ for x,y in pairs(df.global.world.entities.all) do
   end
   k=k+1
  end
-end
-
-if count > 0 then
-    print(('removed %d types of unusable trade goods'):format(count))
 end

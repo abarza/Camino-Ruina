@@ -15,7 +15,7 @@ orders.name = {
     key = function(unit)
         local name = dfhack.units.getVisibleName(unit)
         if name and name.has_name then
-            return dfhack.translation.translateName(name)
+            return dfhack.TranslateName(name)
         end
     end,
     compare = utils.compare_name

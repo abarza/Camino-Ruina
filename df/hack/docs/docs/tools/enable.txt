@@ -11,8 +11,6 @@ Many plugins and scripts can be in a distinct enabled or disabled state. Some of
 
 Most such plugins or scripts support the built-in "enable" and disable commands. Calling them at any time without arguments prints a list of enabled and disabled plugins, and shows whether that can be changed through the same commands. Passing plugin names to these commands will enable or disable the specified plugins.
 
-If you are a script developer, see Enabling and disabling scripts for how to expose whether your script is currently enabled or disabled.
-
 
 Usage
 -----

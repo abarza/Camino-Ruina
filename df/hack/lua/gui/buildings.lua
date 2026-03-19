@@ -4,6 +4,8 @@ local _ENV = mkmodule('gui.buildings')
 
 local gui = require('gui')
 local widgets = require('gui.widgets')
+local dlg = require('gui.dialogs')
+local utils = require('utils')
 
 ARROW = string.char(26)
 
@@ -256,8 +258,8 @@ function BuildingDialog:onSubmitItem(idx, item)
 end
 
 function BuildingDialog:onInput(keys)
-    if keys.LEAVESCREEN then
-        if self.subviews.back.visible then
+    if keys.LEAVESCREEN or keys.LEAVESCREEN_ALL then
+        if self.subviews.back.visible and not keys.LEAVESCREEN_ALL then
             self:onGoBack()
         else
             self:dismiss()
@@ -265,10 +267,9 @@ function BuildingDialog:onInput(keys)
                 self.on_cancel()
             end
         end
-        return true
+    else
+        self:inputToSubviews(keys)
     end
-    self:inputToSubviews(keys)
-    return true
 end
 
 function showBuildingPrompt(title, prompt, on_select, on_cancel, build_filter)

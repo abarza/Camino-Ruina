@@ -7,7 +7,7 @@ Command: "overlay"
 
   Manage on-screen overlay widgets.
 
-The overlay framework manages the on-screen widgets that other tools (including 3rd party plugins and scripts) can register for display. For a graphical configuration interface, please see gui/control-panel. If you are a developer who wants to write an overlay widget, please see the DFHack overlay dev guide.
+The overlay framework manages the on-screen widgets that other tools (including 3rd party plugins and scripts) can register for display. For a graphical configuration interface, please see gui/overlay. If you are a developer who wants to write an overlay widget, please see the DFHack overlay dev guide.
 
 
 Usage
@@ -47,9 +47,6 @@ Examples
 "overlay trigger hotkeys.menu"
    Trigger the hotkeys menu widget so that it shows its popup menu. This is what is run when you hit "Ctrl""Shift""C".
 
-"overlay trigger notes.map_notes add Kitchen"
-   Trigger the notes overlay widget so that it shows its new note popup with given title.
-
 
 Widget position
 ---------------
@@ -69,9 +66,3 @@ For easy reference, the corners can be found at the following coordinates:
 
 (-1, -1):
    lower right corner
-
-
-Overlay
--------
-
-The overlay plugin also provides a standard overlay itself: "title_version", which displays the DFHack version on the DF title screen, along with quick links to quickstart-guide and gui/control-panel.

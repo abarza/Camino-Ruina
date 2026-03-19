@@ -45,8 +45,8 @@ function list_features()
         if feat:isChasm() then
             tags = tags .. ' [chasm]'
         end
-        if feat:isUnderworld() then
-            tags = tags .. ' [underworld]'
+        if feat:isLayer() then
+            tags = tags .. ' [layer]'
         end
         feat:getName(name)
         print(('Feature #%i is %s: "%s", type %s%s'):format(

@@ -10,17 +10,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
     python3-venv \
     tmux \
-    xvfb \
-    libsdl2-2.0-0 \
-    libsdl2-image-2.0-0 \
-    libsdl2-ttf-2.0-0 \
-    libsdl2-mixer-2.0-0 \
+    libncursesw6 \
+    libsdl1.2debian \
+    libsdl-image1.2 \
+    libsdl-ttf2.0-0 \
+    libsndfile1 \
     libopenal1 \
-    imagemagick \
-    x11vnc \
-    xdotool \
-    openbox \
-    && rm -rf /var/lib/apt/lists/*
+    libgtk2.0-0 \
+    libglu1-mesa \
+    && rm -rf /var/lib/apt/lists/* \
+    && ln -sf /usr/lib/x86_64-linux-gnu/libncursesw.so.6 /usr/lib/x86_64-linux-gnu/libncursesw.so.5
 
 WORKDIR /gonzalo
 
@@ -41,7 +40,6 @@ RUN chmod 0644 /etc/cron.d/cron_narrador && crontab /etc/cron.d/cron_narrador
 
 COPY scripts /gonzalo/scripts
 
-ENV DISPLAY=:99
 ENV MUNDO_DIR=/gonzalo/mundo
 ENV TMUX_SESSION=df
 ENV TMUX_PANE=0

@@ -1,43 +1,35 @@
 -- Automatically boost the priority of selected job types.
 --@module = true
---@enable = true
 
 local argparse = require('argparse')
 local eventful = require('plugins.eventful')
-local gui = require('gui')
-local overlay = require('plugins.overlay')
-local utils = require('utils')
-local widgets = require('gui.widgets')
-
-local GLOBAL_KEY = 'prioritize' -- used for state change hooks and persistence
 
 local DEFAULT_HAUL_LABORS = {'Food', 'Body', 'Animals'}
-local DEFAULT_REACTION_NAMES = {'TAN_A_HIDE', 'ADAMANTINE_WAFERS'}
+local DEFAULT_REACTION_NAMES = {'TAN_A_HIDE'}
 local DEFAULT_JOB_TYPES = {
     -- take care of rottables before they rot
-    'StoreItemInStockpile', 'CustomReaction', 'StoreItemInBarrel',
-    'PrepareRawFish', 'PlaceItemInTomb',
+    'StoreItemInStockpile', 'CustomReaction', 'PrepareRawFish',
     -- ensure medical, hygiene, and hospice tasks get done
-    'ApplyCast', 'BringCrutch', 'CleanPatient', 'CleanSelf',
-    'DiagnosePatient', 'DressWound', 'GiveFood', 'GiveWater',
-    'ImmobilizeBreak', 'PlaceInTraction', 'RecoverWounded',
-    'SeekInfant', 'SetBone', 'Surgery', 'Suture',
+    'CleanSelf', 'RecoverWounded', 'ApplyCast', 'BringCrutch', 'CleanPatient',
+    'DiagnosePatient', 'DressWound', 'GiveFood', 'GiveWater', 'ImmobilizeBreak',
+    'PlaceInTraction', 'SetBone', 'Surgery', 'Suture',
+    -- organize items efficiently so new items can be brought to the stockpiles
+    'StoreItemInVehicle', 'StoreItemInBag', 'StoreItemInBarrel',
+    'StoreItemInLocation', 'StoreItemInHospital', 'StoreItemInBin',
     -- ensure prisoners and animals are tended to quickly
-    -- (Animal/prisoner storage already covered by 'StoreItemInStockpile' above)
-    'SlaughterAnimal', 'ButcherAnimal', 'PenLargeAnimal', 'ChainAnimal', 'LoadCageTrap',
-    -- ensure noble tasks never get starved
-    'InterrogateSubject', 'ManageWorkOrders', 'ReportCrime', 'TradeAtDepot',
-    -- get tasks done quickly that might block the player from getting on to
-    -- the next thing they want to do
-    'BringItemToDepot', 'DestroyBuilding', 'DumpItem', 'FellTree',
-    'RemoveConstruction', 'PullLever', 'FillPond', 'PutItemOnDisplay',
+    'TameAnimal', 'TrainAnimal', 'TrainHuntingAnimal', 'TrainWarAnimal',
+    'PenLargeAnimal', 'PitLargeAnimal', 'SlaughterAnimal',
+    -- when these things come up, get them done ASAP
+    'ManageWorkOrders', 'TradeAtDepot', 'BringItemToDepot', 'DumpItem',
+    'DestroyBuilding', 'RemoveConstruction', 'PullLever', 'FellTree',
+    'FireBallista', 'FireCatapult', 'OperatePump', 'CollectSand', 'MakeArmor',
+    'MakeWeapon',
 }
 
 -- set of job types that we are watching. maps job_type (as a number) to
--- {
---   hauler_matchers=map of type to num_prioritized,
---   reaction_matchers=map of string to num_prioritized,
--- }
+-- {num_prioritized=number,
+--  hauler_matchers=map of type to num_prioritized,
+--  reaction_matchers=map of string to num_prioritized}
 -- this needs to be global so we don't lose player-set state when the script is
 -- reparsed. Also a getter function that can be mocked out by unit tests.
 g_watched_job_matchers = g_watched_job_matchers or {}
@@ -46,33 +38,20 @@ function get_watched_job_matchers() return g_watched_job_matchers end
 eventful.enableEvent(eventful.eventType.UNLOAD, 1)
 eventful.enableEvent(eventful.eventType.JOB_INITIATED, 5)
 
-function isEnabled()
-    return next(get_watched_job_matchers())
-end
-
-local function persist_state()
-    local data_to_persist = {}
-    -- convert enum keys into strings so json doesn't get confused and think the map is a sparse list
-    for k, v in pairs(get_watched_job_matchers()) do
-        data_to_persist[tostring(k)] = v
-    end
-    dfhack.persistent.saveSiteData(GLOBAL_KEY, data_to_persist)
-end
-
 local function make_matcher_map(keys)
     if not keys then return nil end
     local t = {}
     for _,key in ipairs(keys) do
-        t[key] = true
+        t[key] = 0
     end
     return t
 end
 
 local function make_job_matcher(unit_labors, reaction_names)
-    return {
-        hauler_matchers=make_matcher_map(unit_labors),
-        reaction_matchers=make_matcher_map(reaction_names),
-    }
+    local matcher = {num_prioritized=0}
+    matcher.hauler_matchers = make_matcher_map(unit_labors)
+    matcher.reaction_matchers = make_matcher_map(reaction_names)
+    return matcher
 end
 
 local function matches(job_matcher, job)
@@ -88,9 +67,9 @@ local function matches(job_matcher, job)
     return true
 end
 
--- returns true if the job is matched
+-- returns true if the job is matched and it is not already high priority
 local function boost_job_if_matches(job, job_matchers)
-    if matches(job_matchers[job.job_type], job) then
+    if matches(job_matchers[job.job_type], job) and not job.flags.do_now then
         job.flags.do_now = true
         return true
     end
@@ -98,11 +77,31 @@ local function boost_job_if_matches(job, job_matchers)
 end
 
 local function on_new_job(job)
-    boost_job_if_matches(job, get_watched_job_matchers())
+    local watched_job_matchers = get_watched_job_matchers()
+    if boost_job_if_matches(job, watched_job_matchers) then
+        jm = watched_job_matchers[job.job_type]
+        jm.num_prioritized = jm.num_prioritized + 1
+        if jm.hauler_matchers then
+            local hms = jm.hauler_matchers
+            hms[job.item_subtype] = hms[job.item_subtype] + 1
+        end
+        if jm.reaction_matchers then
+            local rms = jm.reaction_matchers
+            rms[job.reaction_name] = rms[job.reaction_name] + 1
+        end
+    end
+end
+
+local function has_elements(collection)
+    for _,_ in pairs(collection) do return true end
+    return false
 end
 
 local function clear_watched_job_matchers()
     local watched_job_matchers = get_watched_job_matchers()
+    if has_elements(watched_job_matchers) then
+        print('map unloaded: cleared watched job types for prioritize script')
+    end
     for job_type in pairs(watched_job_matchers) do
         watched_job_matchers[job_type] = nil
     end
@@ -111,12 +110,17 @@ local function clear_watched_job_matchers()
 end
 
 local function update_handlers()
-    if next(get_watched_job_matchers()) then
+    local watched_job_matchers = get_watched_job_matchers()
+    if has_elements(watched_job_matchers) then
         eventful.onUnload.prioritize = clear_watched_job_matchers
         eventful.onJobInitiated.prioritize = on_new_job
     else
         clear_watched_job_matchers()
     end
+end
+
+local function get_annotation_str(annotation)
+    return (' (%s)'):format(annotation)
 end
 
 local function get_unit_labor_str(unit_labor)
@@ -125,43 +129,35 @@ local function get_unit_labor_str(unit_labor)
 end
 
 local function get_unit_labor_annotation_str(unit_labor)
-    return (' --haul-labor %s'):format(get_unit_labor_str(unit_labor))
+    return get_annotation_str(get_unit_labor_str(unit_labor))
 end
 
-local function get_reaction_annotation_str(reaction)
-    return (' --reaction-name %s'):format(reaction)
-end
-
-local function get_status_line(job_type, annotation)
+local function print_status_line(num_jobs, job_type, annotation)
     annotation = annotation or ''
-    return ('  %s%s'):format(df.job_type[job_type], annotation)
+    print(('%d\t%s%s'):format(num_jobs, df.job_type[job_type], annotation))
 end
 
 local function status()
-    local lines = {}
+    local first = true
     local watched_job_matchers = get_watched_job_matchers()
     for k,v in pairs(watched_job_matchers) do
+        if first then
+            print('Automatically prioritized jobs:')
+            first = false
+        end
         if v.hauler_matchers then
-            for hk in pairs(v.hauler_matchers) do
-                table.insert(lines, get_status_line(k, get_unit_labor_annotation_str(hk)))
+            for hk,hv in pairs(v.hauler_matchers) do
+                print_status_line(hv, k, get_unit_labor_annotation_str(hk))
             end
         elseif v.reaction_matchers then
-            for rk in pairs(v.reaction_matchers) do
-                table.insert(lines, get_status_line(k, get_reaction_annotation_str(rk)))
+            for rk,rv in pairs(v.reaction_matchers) do
+                print_status_line(rv, k, get_annotation_str(rk))
             end
         else
-            table.insert(lines, get_status_line(k))
+            print_status_line(v.num_prioritized, k)
         end
     end
-    if not next(lines) then
-        print('Not automatically prioritizing any jobs.')
-        return
-    end
-    table.sort(lines)
-    print('Automatically prioritized jobs:')
-    for _, line in ipairs(lines) do
-        print(line)
-    end
+    if first then print('Not automatically prioritizing any jobs.') end
 end
 
 -- encapsulate df state in functions so unit tests can mock them out
@@ -170,9 +166,6 @@ function get_postings()
 end
 function get_reactions()
     return df.global.world.raws.reactions.reactions
-end
-function get_job_list()
-    return df.global.world.jobs.list
 end
 
 local function for_all_live_postings(cb)
@@ -183,32 +176,16 @@ local function for_all_live_postings(cb)
     end
 end
 
-local function for_all_jobs(cb)
-    for _,job in utils.listpairs(get_job_list()) do
-        if not job.flags.special then
-            cb(job)
-        end
-    end
-end
-
 local function boost(job_matchers, opts)
-    local count, already_prioritized = 0, 0
-    for_all_jobs(
-        function(job)
-            local was_prioritized = job.flags.do_now
-            if boost_job_if_matches(job, job_matchers) then
-                if was_prioritized then
-                    already_prioritized = already_prioritized + 1
-                else
-                    count = count + 1
-                end
+    local count = 0
+    for_all_live_postings(
+        function(posting)
+            if boost_job_if_matches(posting.job, job_matchers) then
+                count = count + 1
             end
         end)
     if not opts.quiet then
         print(('Prioritized %d job%s.'):format(count, count == 1 and '' or 's'))
-        if already_prioritized > 0 then
-            print(('%d job%s already prioritized.'):format(already_prioritized, already_prioritized == 1 and '' or 's'))
-        end
     end
 end
 
@@ -281,27 +258,6 @@ local function boost_and_watch_special(job_type, job_matcher,
     end
 end
 
-local JOB_TYPES_DENYLIST = utils.invert{
-    df.job_type.CarveFortification,
-    df.job_type.SmoothWall,
-    df.job_type.SmoothFloor,
-    df.job_type.DetailWall,
-    df.job_type.DetailFloor,
-    df.job_type.Dig,
-    df.job_type.CarveUpwardStaircase,
-    df.job_type.CarveDownwardStaircase,
-    df.job_type.CarveUpDownStaircase,
-    df.job_type.CarveRamp,
-    df.job_type.DigChannel,
-}
-
-local DIG_SMOOTH_WARNING = {
-    'Priortizing current jobs, but skipping automatic boosting of dig and',
-    'smooth/engrave job types. Automatic priority boosting of these types of jobs',
-    'will overwhelm the DF job scheduler. Instead, consider specializing units for',
-    'mining and related work details, and using vanilla designation priorities.',
-}
-
 local function boost_and_watch(job_matchers, opts)
     local quiet = opts.quiet
     boost(job_matchers, opts)
@@ -316,11 +272,7 @@ local function boost_and_watch(job_matchers, opts)
             boost_and_watch_special(job_type, job_matcher,
                 function(jm) return jm.reaction_matchers end,
                 function(jm) jm.reaction_matchers = nil end,
-                get_reaction_annotation_str, quiet)
-        elseif JOB_TYPES_DENYLIST[job_type] then
-            for _,msg in ipairs(DIG_SMOOTH_WARNING) do
-                dfhack.printerr(msg)
-            end
+                get_annotation_str, quiet)
         elseif watched_job_matchers[job_type] then
             if not quiet then
                 print_skip_add_message(job_type)
@@ -375,7 +327,7 @@ local function remove_watch_special(job_type, job_matcher,
             end
         end
     end
-    if not next(wspecial_matchers) then
+    if not has_elements(wspecial_matchers) then
         watched_job_matchers[job_type] = nil
     end
 end
@@ -421,7 +373,7 @@ local function remove_watch(job_matchers, opts)
                     end
                     return jm.reaction_matchers
                 end,
-                get_reaction_annotation_str, quiet)
+                get_annotation_str, quiet)
         else
             error('unhandled case') -- should not ever happen
         end
@@ -437,35 +389,34 @@ local function get_job_type_str(job)
                                get_unit_labor_annotation_str(job.item_subtype))
     elseif job_type == df.job_type.CustomReaction then
         return ('%s%s'):format(job_type_str,
-                               get_reaction_annotation_str(job.reaction_name))
+                               get_annotation_str(job.reaction_name))
     else
         return job_type_str
     end
 end
 
 local function print_current_jobs(job_matchers, opts)
-    local all_jobs, unclaimed_jobs = {}, {}
-    local filtered = next(job_matchers)
-    local function count_job(jobs, job)
-        if filtered and not job_matchers[job.job_type] then return end
-        if job.flags.do_now then return end
-        local job_type = get_job_type_str(job)
-        jobs[job_type] = (jobs[job_type] or 0) + 1
-    end
-    for_all_jobs(curry(count_job, all_jobs))
-    for_all_live_postings(function(posting) count_job(unclaimed_jobs, posting.job) end)
+    local job_counts_by_type = {}
+    local filtered = has_elements(job_matchers)
+    for_all_live_postings(
+        function(posting)
+            local job = posting.job
+            if filtered and not job_matchers[job.job_type] then return end
+            local job_type = get_job_type_str(job)
+            if not job_counts_by_type[job_type] then
+                job_counts_by_type[job_type] = 0
+            end
+            job_counts_by_type[job_type] = job_counts_by_type[job_type] + 1
+        end)
     local first = true
-    for k,v in pairs(all_jobs) do
+    for k,v in pairs(job_counts_by_type) do
         if first then
-            print('Current prioritizable jobs:')
-            print()
-            print(('unclaimed  total  job type'))
-            print(('---------  -----  --------'))
+            print('Current unclaimed jobs:')
             first = false
         end
-        print(('%9d  %5d  %s'):format(unclaimed_jobs[k] or 0, v, k))
+        print(('%d\t%s'):format(v, k))
     end
-    if first then print('No current prioritizable jobs.') end
+    if first then print('No current unclaimed jobs.') end
 end
 
 local function print_registry_section(header, t)
@@ -508,7 +459,7 @@ local function print_registry()
             table.insert(t, v.code)
         end
     end
-    if not next(t) then
+    if not has_elements(t) then
         t = {'Load a game to see reactions'}
     end
     print_registry_section('Reaction names (for CustomReaction jobs)', t)
@@ -613,7 +564,7 @@ local function parse_commandline(args)
     end
     opts.job_matchers = job_matchers
 
-    if action == status and next(job_matchers) then
+    if action == status and has_elements(job_matchers) then
         action = boost
     end
     opts.action = action
@@ -621,23 +572,12 @@ local function parse_commandline(args)
     return opts
 end
 
-dfhack.onStateChange[GLOBAL_KEY] = function(sc)
-    if sc ~= SC_MAP_LOADED or df.global.gamemode ~= df.game_mode.DWARF then
-        return
-    end
-    local persisted_data = dfhack.persistent.getSiteData(GLOBAL_KEY, {})
-    -- convert the string keys back into enum values
-    g_watched_job_matchers = {}
-    for k,v in pairs(persisted_data) do
-        -- very old saves may still have numbers in the persisted table
-        if type(k) ~= 'number' then
-            k = tonumber(k)
-        end
-        if k then
-            g_watched_job_matchers[k] = v
-        end
-    end
-    update_handlers()
+if not dfhack_flags.module then
+    -- main script
+    local opts = parse_commandline({...})
+    if opts.help then print(dfhack.script_help()) return end
+
+    opts.action(opts.job_matchers, opts)
 end
 
 if dfhack.internal.IN_TEST then
@@ -653,126 +593,3 @@ if dfhack.internal.IN_TEST then
         parse_commandline=parse_commandline,
     }
 end
-
---------------------------------
--- EnRouteOverlay
---
-
---- Return the selected active construction or destruction job
-local function getSelectedActiveBuildingJob()
-    -- This is not relying on dfhack.gui.getSelectedJob() because we don't want
-    -- the job of a selected or followed unit, only of a selected building
-    local building = dfhack.gui.getSelectedBuilding(true)
-    if not building then
-        return nil
-    end
-
-    -- Find if the building is being constructed
-    for _, job in ipairs(building.jobs) do
-        if not job.flags.suspend and (job.job_type == df.job_type.ConstructBuilding or job.job_type == df.job_type.ConstructBuilding) then
-            return job
-        end
-    end
-
-    return nil
-end
-
-
-local function is_visible()
-    return getSelectedActiveBuildingJob() ~= nil
-end
-
-EnRouteOverlay = defclass(EnRouteOverlay, overlay.OverlayWidget)
-EnRouteOverlay.ATTRS{
-    desc='Adds a panel to unbuilt buildings indicating whether a dwarf is on their way to build.',
-    default_pos={x=-40, y=26},
-    default_enabled=true,
-    viewscreens='dwarfmode/ViewSheets/BUILDING',
-    frame={w=57, h=5},
-    frame_style=gui.FRAME_MEDIUM,
-    frame_background=gui.CLEAR_PEN,
-    visible=is_visible,
-}
-
-function EnRouteOverlay:init()
-    self:addviews{
-        widgets.Label{
-            frame={t=0, l=0},
-            text={
-                'Job taken by:',
-                {gap=1, text=self:callback('get_builder_name'), pen=self:callback('get_builder_name_pen')}
-            },
-            on_click=self:callback('zoom_to_builder'),
-        },
-        widgets.ToggleHotkeyLabel{
-            view_id='do_now',
-            frame={t=2, l=0},
-            label='Make top priority:',
-            key='CUSTOM_CTRL_T',
-            on_change=function(val)
-                local job = getSelectedActiveBuildingJob()
-                if not job then return end
-                job.flags.do_now = val
-            end,
-        },
-    }
-end
-
-function EnRouteOverlay:get_builder_name()
-    if not self.builder then return 'N/A' end
-    return dfhack.units.getReadableName(self.builder, true)
-end
-
-function EnRouteOverlay:get_builder_name_pen()
-    if not self.builder then return COLOR_DARKGRAY end
-    return COLOR_GREEN
-end
-
-function EnRouteOverlay:zoom_to_builder()
-    local job = getSelectedActiveBuildingJob()
-    if not job then return end
-    local builder = dfhack.job.getWorker(job)
-    if builder then
-        dfhack.gui.revealInDwarfmodeMap(xyz2pos(dfhack.units.getPosition(builder)), true, true)
-    end
-end
-
-function EnRouteOverlay:render(dc)
-    local job = getSelectedActiveBuildingJob()
-    self.builder = dfhack.job.getWorker(job)
-    self.subviews.do_now:setOption(job.flags.do_now)
-    EnRouteOverlay.super.render(self, dc)
-    self.builder = nil
-end
-
-OVERLAY_WIDGETS = {enroute=EnRouteOverlay}
-
-if dfhack_flags.module then
-    return
-end
-
-if df.global.gamemode ~= df.game_mode.DWARF or not dfhack.isMapLoaded() then
-    dfhack.printerr('prioritize needs a loaded fortress map to work')
-    return
-end
-
---------------------------------
--- main
---
-
-local args = {...}
-
-if dfhack_flags.enable then
-    if dfhack_flags.enable_state then
-        args = {'-aq', 'defaults'}
-    else
-        clear_watched_job_matchers()
-        persist_state()
-        return
-    end
-end
-
-local opts = parse_commandline(args)
-if opts.help then print(dfhack.script_help()) return end
-opts.action(opts.job_matchers, opts)
-persist_state()

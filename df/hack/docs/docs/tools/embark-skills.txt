@@ -1,7 +1,7 @@
 embark-skills
 =============
 
-Tags: embark | armok | units
+Tags: embark | fort | armok | units
 
 Command: "embark-skills"
 

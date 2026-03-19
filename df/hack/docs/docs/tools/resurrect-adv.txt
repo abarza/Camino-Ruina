@@ -1,7 +1,7 @@
 resurrect-adv
 =============
 
-Tags: adventure | armok | units
+Tags: adventure | armok
 
 Command: "resurrect-adv"
 

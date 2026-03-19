@@ -1,7 +1,7 @@
 mode
 ====
 
-Tags: unavailable
+Tags: armok | dev | gameplay
 
 Command: "mode"
 

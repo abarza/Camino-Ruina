@@ -50,7 +50,7 @@ function createUnit(raceStr, casteStr, pos, locationRange, locationType, age, do
 
   if entityRawName and entityRawName~="" then
     local isValidRawName
-    for k,v in ipairs(df.global.world.raws.entities.all) do
+    for k,v in ipairs(df.global.world.raws.entities) do
       if v.code == entityRawName then
         isValidRawName = true
         break
@@ -130,7 +130,7 @@ end
 
 function createUnitBase(...)
   local old_gametype = df.global.gametype
-  local old_mode = df.global.plotinfo.main.mode
+  local old_mode = df.global.ui.main.mode
   local old_popups = {} --as:df.popup_message[]
   for _, popup in pairs(df.global.world.status.popups) do
     table.insert(old_popups, popup)
@@ -140,7 +140,7 @@ function createUnitBase(...)
   local ok, ret = dfhack.pcall(createUnitInner, ...)
 
   df.global.gametype = old_gametype
-  df.global.plotinfo.main.mode = old_mode
+  df.global.ui.main.mode = old_mode
   for _, popup in pairs(old_popups) do
     df.global.world.status.popups:insert('#', popup)
   end
@@ -235,7 +235,7 @@ function createUnitInner(race_id, caste_id, caste_id_choices, pos, locationChoic
   local dwarfmodeScreen = df.viewscreen_dwarfmodest:new() -- the viewscreen present in arena "overseer" mode
   curViewscreen.child = dwarfmodeScreen
   dwarfmodeScreen.parent = curViewscreen
-  df.global.plotinfo.main.mode = df.ui_sidebar_mode.LookAround -- produce the cursor
+  df.global.ui.main.mode = df.ui_sidebar_mode.LookAround -- produce the cursor
 
   df.global.gametype = df.game_type.DWARF_ARENA
 
@@ -396,7 +396,7 @@ function isValidSpawnLocation(pos, locationType)
     end
     return false
   elseif locationType == 'Walkable' then
-    if tileShapeAttrs.walkable then
+    if tileShapeAttrs.walkable and tileShapeAttrs.basic_shape ~= df.tiletype_shape_basic.Open then
       return true
     end
     return false
@@ -517,8 +517,10 @@ function createFigure(unit,he_civ,he_group)
 
   df.global.world.history.figures:insert("#", hf)
 
-  hf.info = {new=true}
-  hf.info.whereabouts = {new=true}
+  hf.info = df.historical_figure_info:new()
+  hf.info.whereabouts = df.historical_figure_info.T_whereabouts:new()
+  hf.info.whereabouts.death_condition_parameter_1 = -1
+  hf.info.whereabouts.death_condition_parameter_2 = -1
   -- set values that seem related to state and do event
   --change_state(hf, dfg.ui.site_id, region_pos)
 
@@ -601,7 +603,7 @@ function nameUnit(unit, entityRawName)
   --choose three random words in the appropriate things
   local entity_raw
   if entityRawName and entityRawName~="" then
-    for k,v in ipairs(df.global.world.raws.entities.all) do
+    for k,v in ipairs(df.global.world.raws.entities) do
       if v.code == entityRawName then
         entity_raw = v
         break
@@ -903,7 +905,7 @@ function domesticateUnit(unit)
     unit.animal.population.region_y = -1
     unit.animal.population.unk_28 = -1
     unit.animal.population.population_idx = -1
-    unit.animal.population.layer_depth = -1
+    unit.animal.population.depth = -1
 
     -- And make them tame (from Dirst)
     unit.flags1.tame = true
@@ -913,18 +915,17 @@ end
 
 function wildUnit(unit)
   local casteFlags = unit.enemy.caste_flags
-  -- x = dfhack.world.getCurrentSite().pos.x
-  -- y = dfhack.world.getCurrentSite().pos.y
+  -- x = df.global.world.world_data.active_site[0].pos.x
+  -- y = df.global.world.world_data.active_site[0].pos.y
   -- region = df.global.map.map_blocks[df.global.map.x_count_block*x+y]
   if not(casteFlags.CAN_SPEAK or casteFlags.CAN_LEARN) then
-    if dfhack.isSiteLoaded() then
-      local site = dfhack.world.getCurrentSite()
-      unit.animal.population.region_x = site.pos.x
-      unit.animal.population.region_y = site.pos.y
+    if #df.global.world.world_data.active_site > 0 then -- empty in adventure mode
+      unit.animal.population.region_x = df.global.world.world_data.active_site[0].pos.x
+      unit.animal.population.region_y = df.global.world.world_data.active_site[0].pos.y
     end
     unit.animal.population.unk_28 = -1
     unit.animal.population.population_idx = -1  -- Eventually want to make a real population
-    unit.animal.population.layer_depth = -1  -- Eventually this should be a parameter
+    unit.animal.population.depth = -1  -- Eventually this should be a parameter
     unit.animal.leave_countdown = 99999  -- Eventually this should be a parameter
     unit.flags2.roaming_wilderness_population_source = true
     unit.flags2.roaming_wilderness_population_source_not_a_map_feature = true
@@ -956,6 +957,7 @@ function enableUnitLabors(unit, default, skilled)
       labors.HANDLE_VEHICLES = true
       labors.HAUL_TRADE = true
       labors.PULL_LEVER = true
+      labors.REMOVE_CONSTRUCTION = true
       labors.HAUL_WATER = true
       labors.BUILD_ROAD = true
       labors.BUILD_CONSTRUCTION = true
@@ -1088,7 +1090,7 @@ if args.setUnitToFort or args.civId == '\\LOCAL' then
   if not isFortressMode then
     qerror("The LOCAL civ cannot be specified outside of Fortress mode!")
   end
-  civ_id = df.global.plotinfo.civ_id
+  civ_id = df.global.ui.civ_id
 else
   civ_id = args.civId
 end
@@ -1098,7 +1100,7 @@ if args.setUnitToFort or args.groupId == '\\LOCAL' then
   if not isFortressMode then
     qerror("The LOCAL group cannot be specified outside of Fortress mode!")
   end
-  group_id = df.global.plotinfo.group_id
+  group_id = df.global.ui.group_id
 else
   group_id = args.groupId
 end
@@ -1110,7 +1112,7 @@ if args.name then
     if not isFortressMode then
       qerror("The LOCAL entityRawName cannot be specified outside of Fortress mode!")
     else
-      entityRawName = df.historical_entity.find(df.global.plotinfo.group_id).entity_raw.code
+      entityRawName = df.historical_entity.find(df.global.ui.group_id).entity_raw.code
     end
   end
 end

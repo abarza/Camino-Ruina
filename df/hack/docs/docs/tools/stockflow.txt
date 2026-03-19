@@ -1,7 +1,7 @@
 stockflow
 =========
 
-Tags: unavailable
+Tags: fort | auto | stockpiles | workorders
 
 Command: "stockflow"
 

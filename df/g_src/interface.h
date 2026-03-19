@@ -1,8 +1,6 @@
 #ifndef INTERFACE_H
 #define INTERFACE_H
 
-//#define CURSES_MOVIES
-
 #include <string>
 using std::string;
 #include <set>
@@ -12,7 +10,6 @@ using std::string;
 #include "enabler.h"
 #include "music_and_sound_g.h"
 
-#ifdef CURSES_MOVIES
 struct cursesmovie_headerst
 {
 	int dimx,dimy;
@@ -23,12 +20,15 @@ class viewscreen_movieplayerst : viewscreenst
 {
   	public:
 		static viewscreen_movieplayerst *create(char pushtype,viewscreenst *scr=NULL);
+		virtual void help();
 		virtual void feed(std::set<InterfaceKey> &events);
 		virtual void logic();
-		virtual void render(uint32_t curtick=0);
+		virtual void render();
 		virtual char movies_okay(){return 0;}
 		void clearfilelist();
 		void force_play(const string &file);
+
+		virtual char is_option_screen(){if(is_playing)return 2;else return 0;}
 
 	protected:
 		char saving;
@@ -56,7 +56,6 @@ class viewscreen_movieplayerst : viewscreenst
 		viewscreen_movieplayerst();
 		virtual ~viewscreen_movieplayerst(){clearfilelist();};
 };
-#endif
 
 enum InterfacePushType
 {
@@ -75,9 +74,8 @@ enum InterfacePushType
 class interfacest
 {
   int original_fps;
+  viewscreenst *grab_lastscreen();
 	friend class viewscreen_movieplayerst;
-
-	friend class widgets::textbox;
 
 	public:
 		viewscreenst view;
@@ -90,22 +88,17 @@ class interfacest
 		void remove_to_first();
 		void removescreen(viewscreenst *scr);
 		void addscreen(viewscreenst *scr,char pushtype,viewscreenst *relate);
-#ifdef CURSES_MOVIES
 		char is_supermovie_on()
 			{
 			return supermovie_on;
 			}
-#endif
 
 		void print_interface_token(InterfaceKey key,justification just=justify_left);
-		void print_interface_token_flag(InterfaceKey key,justification just,uint32_t sflag);
 
-	    viewscreenst *grab_lastscreen();
 		interfacest();
 		~interfacest();
 
 	protected:
-#ifdef CURSES_MOVIES
 		char supermovie_on;
 		int supermovie_pos;
 		int supermovie_delayrate;
@@ -120,20 +113,17 @@ class interfacest
 		int nextfilepos;
 		char first_movie_write;
 		string movie_file;
-#endif
-		widgets::textbox *cur_textbox;
+
 		void insertscreen_as_parent(viewscreenst *scr,viewscreenst *child);
 		void insertscreen_as_child(viewscreenst *scr,viewscreenst *parent);
 		void insertscreen_at_back(viewscreenst *scr);
 		void insertscreen_at_front(viewscreenst *scr);
-#ifdef CURSES_MOVIES
 		void handlemovie(char flushall);
 		void finish_movie();
 		void use_movie_input();
 
 		int write_movie_chunk();
 		void read_movie_chunk(int &maxmoviepos,char &is_playing);
-#endif
 };
 
 #define SCROLLING_NOSELECT BIT1
@@ -149,10 +139,7 @@ char secondaryscrolling(std::set<InterfaceKey> &events,int32_t &scroll,int32_t m
 #define STRINGENTRY_NUMBERS BIT3
 #define STRINGENTRY_CAPS BIT4
 #define STRINGENTRY_SYMBOLS BIT5
-#define STRINGENTRY_FILENAME BIT6
-#define STRINGENTRY_REMOVEKEYS BIT7
 char standardstringentry(char *str,int maxlen,unsigned int flag,std::set<InterfaceKey> &events);
-char standardstringentry(string& str, int maxlen, unsigned int flag, std::set<InterfaceKey>& events, const char* text_entry);
 char standardstringentry(string &str,int maxlen,unsigned int flag,std::set<InterfaceKey> &events);
 
 void drawborder(const char *str,char style=0,const char *colorstr=NULL);

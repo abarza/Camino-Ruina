@@ -1,11 +1,11 @@
 cannibalism
 ===========
 
-Tags: unavailable
+Tags: adventure | gameplay
 
 Command: "cannibalism"
 
-  Allows an adventurer to consume sapient corpses.
+  Allows a player character to consume sapient corpses.
 
 This tool clears the flag from items that mark them as being from a sapient creature. Use from an adventurer's inventory screen or an individual item's detail screen.
 

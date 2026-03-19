@@ -7,7 +7,7 @@ Command: "createitem"
 
   Create arbitrary items.
 
-You can create new items of any type and made of any material. By default, items created are spawned at the feet of the selected unit. If no unit is selected, the first citizen will be used as the creator unit and the items will be spawned at the location of the keyboard cursor.
+You can create new items of any type and made of any material. A unit must be selected in-game to use this command. By default, items created are spawned at the feet of the selected unit.
 
 Specify the item and material information as you would indicate them in custom reaction raws, with the following differences:
 
@@ -19,7 +19,7 @@ Specify the item and material information as you would indicate them in custom r
 
 * If the item is a "PLANT_GROWTH", specify a "PLANT_ID:GROWTH_ID" pair instead of a material token.
 
-Corpses, body parts, and prepared meals cannot be created using this tool. See gui/create-item for an interactive version of the tool.
+Corpses, body parts, and prepared meals cannot be created using this tool.
 
 
 Usage

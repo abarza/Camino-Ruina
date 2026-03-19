@@ -5,7 +5,7 @@ local widgets = require 'gui.widgets'
 local base_editor = reqscript("internal/gm-unit/base_editor")
 
 Editor_Prof = defclass(Editor_Prof, base_editor.Editor)
-Editor_Prof.ATTRS{
+Editor_Prof.ATTRS = {
     frame_title = "Profession editor"
 }
 
@@ -33,24 +33,23 @@ function Editor_Prof:init()
 
     self:addviews{
         widgets.FilteredList{
-            frame = {t=0, l=0, b=0},
+            frame = {t=1, l=1, b=2},
             choices = opts,
             view_id = 'professions',
             on_submit = self:callback('save_profession'),
         },
+        widgets.Label{
+            frame = {b=0,l=1},
+            text = {
+                {key = "LEAVESCREEN", text= ": exit editor ",
+                on_activate = self:callback("dismiss")},
+            }
+        }
     }
 end
 
 function Editor_Prof:save_profession(_, choice)
     self.target_unit.profession = choice.profession
     self.target_unit.profession2 = choice.profession
-    local hf = df.historical_figure.find(self.target_unit.hist_figure_id)
-    if hf then
-        hf.profession = choice.profession
-    end
-    self.target_unit.flags4.any_texture_must_be_refreshed = true
-end
-
-function Editor_Prof:onOpen()
-    self.subviews[1].edit:setFocus(true)
+    self:dismiss()
 end

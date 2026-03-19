@@ -1,7 +1,7 @@
 season-palette
 ==============
 
-Tags: unavailable
+Tags: fort | gameplay | graphics
 
 Command: "season-palette"
 

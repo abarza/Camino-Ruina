@@ -6,25 +6,9 @@
 -- preserved as a common denominator for all modules.
 -- This file uses it instead of the new default one.
 
----@class dfhack
----@field BASE_G _G Original Lua global environment
----@field is_core_context boolean
----@field is_interactive fun(): boolean
 local dfhack = dfhack
-
 local base_env = dfhack.BASE_G
 local _ENV = base_env
-
--- Types
-
----@alias dfhack.truthy
----| true
----| integer
----| string
----| table
----| function
----| userdata
----| fun(...): true|string|integer|table|function|userdata
 
 CR_LINK_FAILURE = -3
 CR_NEEDS_CONSOLE = -2
@@ -54,30 +38,6 @@ COLOR_LIGHTMAGENTA = 13
 COLOR_YELLOW = 14
 COLOR_WHITE = 15
 
-COLOR_GRAY = COLOR_GREY
-COLOR_DARKGRAY = COLOR_DARKGREY
-
----@alias dfhack.color
----| `COLOR_RESET`
----| `COLOR_BLACK`
----| `COLOR_BLUE`
----| `COLOR_GREEN`
----| `COLOR_CYAN`
----| `COLOR_RED`
----| `COLOR_MAGENTA`
----| `COLOR_BROWN`
----| `COLOR_GREY`
----| `COLOR_DARKGREY`
----| `COLOR_LIGHTBLUE`
----| `COLOR_LIGHTGREEN`
----| `COLOR_LIGHTCYAN`
----| `COLOR_LIGHTRED`
----| `COLOR_LIGHTMAGENTA`
----| `COLOR_YELLOW`
----| `COLOR_WHITE`
----| `COLOR_GRAY`
----| `COLOR_DARKGRAY`
-
 -- Events
 
 if dfhack.is_core_context then
@@ -91,45 +51,15 @@ if dfhack.is_core_context then
     SC_UNPAUSED = 8
 end
 
--- User-changeable options
-
-local HIDE_CONSOLE_ON_STARTUP = true
----@nodiscard
----@return boolean
-function dfhack.getHideConsoleOnStartup()
-    return HIDE_CONSOLE_ON_STARTUP
-end
-function dfhack.setHideConsoleOnStartup(value)
-    HIDE_CONSOLE_ON_STARTUP = value
-end
-
-local HIDE_ARMOK_TOOLS = false
----@nodiscard
----@return boolean
-function dfhack.getMortalMode()
-    return HIDE_ARMOK_TOOLS
-end
-function dfhack.setMortalMode(value)
-    HIDE_ARMOK_TOOLS = value
-    dfhack.internal.setMortalMode(value)
-end
-
 -- Error handling
 
 safecall = dfhack.safecall
 curry = dfhack.curry
 
----@generic T
----@param f fun(...): T
----@param ... any
----@return boolean success
----@return T|string ...
 function dfhack.pcall(f, ...)
     return xpcall(f, dfhack.onerror, ...)
 end
 
----@param msg string
----@param level? integer
 function qerror(msg, level)
     local name = dfhack.current_script_name()
     if name and not tostring(msg):match(name) then
@@ -138,34 +68,17 @@ function qerror(msg, level)
     dfhack.error(msg, (level or 1) + 1, false)
 end
 
----@generic T
----@param cleanup_fn function
----@param fn fun(...): T
----@param ... any
----@return T
-function dfhack.with_finalize(cleanup_fn,fn,...)
-    return dfhack.call_with_finalizer(0,true,cleanup_fn,fn,...)
+function dfhack.with_finalize(...)
+    return dfhack.call_with_finalizer(0,true,...)
+end
+function dfhack.with_onerror(...)
+    return dfhack.call_with_finalizer(0,false,...)
 end
 
----@generic T
----@param cleanup_fn function
----@param fn fun(...): T
----@param ... any
----@return T
-function dfhack.with_onerror(cleanup_fn,fn,...)
-    return dfhack.call_with_finalizer(0,false,cleanup_fn,fn,...)
-end
-
----@param obj DFObject
 local function call_delete(obj)
     if obj then obj:delete() end
 end
 
----@generic T
----@param obj DFObject
----@param fn fun(...):T
----@param ... any
----@return T ...
 function dfhack.with_temp_object(obj,fn,...)
     return dfhack.call_with_finalizer(1,true,call_delete,obj,fn,obj,...)
 end
@@ -185,10 +98,6 @@ local function find_required_module_arg()
     end
 end
 
----@nodiscard
----@param module string
----@param env? table|metatable
----@return _G pkg
 function mkmodule(module,env)
     -- Verify that the module name is correct
     local _, rq_modname = find_required_module_arg()
@@ -216,7 +125,6 @@ function mkmodule(module,env)
     return pkg
 end
 
----@param module string
 function reload(module)
     if type(package.loaded[module]) ~= 'table' then
         error("Module not loaded: "..module)
@@ -238,26 +146,14 @@ function rawset_default(target,source)
     end
 end
 
----@type any
 DEFAULT_NIL = DEFAULT_NIL or {} -- Unique token
 
--- Create or updates a class; a class has metamethods and thus own metatable.
----@nodiscard
----@generic T: dfhack.class
----@param class? T
----@param parent? table
----@return T
-function defclass(class,parent)
-    return require('class').defclass(class,parent)
+function defclass(...)
+    return require('class').defclass(...)
 end
 
--- An instance uses the class as metatable
----@generic T: dfhack.class
----@param class T
----@param table? table
----@return T
-function mkinstance(class,table)
-    return require('class').mkinstance(class,table)
+function mkinstance(...)
+    return require('class').mkinstance(...)
 end
 
 -- Misc functions
@@ -301,12 +197,10 @@ local function print_element(k, v)
     dfhack.println(string.format("%-23s\t = %s", tostring(k), tostring(v)))
 end
 
----@param table table
 function printall(table)
     safe_iterate(table, pairs, print_element)
 end
 
----@param table table
 function printall_ipairs(table)
     safe_iterate(table, ipairs, print_element)
 end
@@ -418,33 +312,21 @@ function printall_recurse(value, seen)
     do_print_recurse(dfhack.println, value, seen, 0)
 end
 
----@generic T
----@param table T
----@return T
 function copyall(table)
     local rv = {}
     for k,v in pairs(table) do rv[k] = v end
     return rv
 end
 
----@param pos df.coord
----@return number? x
----@return number? y
----@return number? z
 function pos2xyz(pos)
     if pos then
         local x = pos.x
-        if x and x >= 0 then
+        if x and x ~= -30000 then
             return x, pos.y, pos.z
         end
     end
 end
 
----@nodiscard
----@param x number
----@param y number
----@param z number
----@return df.coord
 function xyz2pos(x,y,z)
     if x then
         return {x=x,y=y,z=z}
@@ -453,41 +335,23 @@ function xyz2pos(x,y,z)
     end
 end
 
----@nodiscard
----@param a df.coord
----@param b df.coord
----@return boolean
 function same_xyz(a,b)
     return a and b and a.x == b.x and a.y == b.y and a.z == b.z
 end
 
----@nodiscard
----@param path df.coord_path
----@param i number
----@return number x
----@return number y
----@return number z
 function get_path_xyz(path,i)
     return path.x[i], path.y[i], path.z[i]
 end
 
----@nodiscard
----@param pos df.coord|df.coord2d
----@return number? x
----@return number? y
 function pos2xy(pos)
     if pos then
         local x = pos.x
-        if x and x >= 0 then
+        if x and x ~= -30000 then
             return x, pos.y
         end
     end
 end
 
----@nodiscard
----@param x number
----@param y number
----@return df.coord2d
 function xy2pos(x,y)
     if x then
         return {x=x,y=y}
@@ -496,39 +360,21 @@ function xy2pos(x,y)
     end
 end
 
----@nodiscard
----@param a df.coord|df.coord2d
----@param b df.coord|df.coord2d
----@return boolean
 function same_xy(a,b)
     return a and b and a.x == b.x and a.y == b.y
 end
 
----@nodiscard
----@param path df.coord_path|df.coord2d_path
----@param i number
----@return integer x
----@return integer y
 function get_path_xy(path,i)
     return path.x[i], path.y[i]
 end
 
--- Walks a sequence of dereferences, which may be represented by numbers or
--- strings. Returns nil if any of obj or indices is nil, or a numeric index is
--- out of array bounds.
----@param obj table
----@param idx number|string
----@param ... number|string
----@return any obj
 function safe_index(obj,idx,...)
-    local obj_type = type(obj)
-    if obj == nil or idx == nil or (obj_type ~= "table" and obj_type ~= "userdata") then
+    if obj == nil or idx == nil then
         return nil
     end
     if type(idx) == 'number' and
-            obj_type == 'userdata' and -- this check is only relevant for c++
-            (idx < 0 or idx >= #obj)
-    then
+            type(obj) == 'userdata' and -- this check is only relevant for c++
+            (idx < 0 or idx >= #obj) then
         return nil
     end
     obj = obj[idx]
@@ -539,10 +385,6 @@ function safe_index(obj,idx,...)
     end
 end
 
----@param t table
----@param key integer|string
----@param default_value? any
----@return any
 function ensure_key(t, key, default_value)
     if t[key] == nil then
         t[key] = (default_value ~= nil) and default_value or {}
@@ -550,34 +392,14 @@ function ensure_key(t, key, default_value)
     return t[key]
 end
 
----@param t table
----@param key integer|string
----@param ... integer|string
----@return table
-function ensure_keys(t, key, ...)
-    t = ensure_key(t, key)
-    if select('#', ...) > 0 then
-        return ensure_keys(t, ...)
-    end
-    return t
-end
-
 -- String class extentions
 
 -- prefix is a literal string, not a pattern
----@nodiscard
----@param self string
----@param prefix string
----@return boolean
 function string:startswith(prefix)
     return self:sub(1, #prefix) == prefix
 end
 
 -- suffix is a literal string, not a pattern
----@nodiscrd
----@param self string
----@param suffix string
----@return boolean
 function string:endswith(suffix)
     return self:sub(-#suffix) == suffix or #suffix == 0
 end
@@ -588,11 +410,6 @@ end
 -- as a single delimiter, e.g. to avoid getting empty string elements, pass a
 -- pattern like ' +'. Be aware that passing patterns that match empty strings
 -- (like ' *') will result in improper string splits.
----@nodiscard
----@param self string
----@param delimiter? string
----@param plain? boolean
----@return string[]
 function string:split(delimiter, plain)
     delimiter = delimiter or ' '
     local result = {}
@@ -611,153 +428,94 @@ end
 
 -- Removes spaces (i.e. everything that matches '%s') from the start and end of
 -- a string. Spaces between non-space characters are left untouched.
----@nodiscard
----@param self string
----@return string
 function string:trim()
-    return self:match('^%s*(.-)%s*$')
-end
-
-local function insert_wrapped_line(wrapped_text, words, opts)
-    local wrapped_line = table.concat(words, '')
-    if not opts.keep_trailing_spaces then
-        local content, eol = wrapped_line:match('(.-)%s*(\n?)$')
-        wrapped_line = content .. eol
-    end
-    table.insert(wrapped_text, wrapped_line)
-end
-
-local function wrap_word(word, width, wrapped_text, words, cur_line_len, opts)
-    local word_len = #word
-    -- word fits within the current line
-    if cur_line_len + word_len <= width then
-        table.insert(words, word)
-        cur_line_len = cur_line_len + word_len
-        return words, cur_line_len
-    end
-    local trimmed_word = word
-    if not opts.keep_trailing_spaces then
-        trimmed_word = word:trim()
-        -- trimmed word fits on the current line and ends it
-        if cur_line_len + #trimmed_word <= width then
-            table.insert(words, trimmed_word)
-            insert_wrapped_line(wrapped_text, words, opts)
-            return {}, 0
-        end
-    end
-    -- word needs to go on the next line, but is not itself longer
-    -- than the specified width
-    if word_len <= width then
-        insert_wrapped_line(wrapped_text, words, opts)
-        return {word}, word_len
-    end
-    -- word is too long to fit on one line and needs to be split up
-    local emitted_chars, trimmed_word_len = 0, #trimmed_word
-    repeat
-        if #words > 0 then
-            insert_wrapped_line(wrapped_text, words, opts)
-        end
-        local word_frag = word:sub(emitted_chars + 1, emitted_chars + width)
-        words, cur_line_len = {word_frag}, #word_frag
-        emitted_chars = emitted_chars + cur_line_len
-    until emitted_chars >= trimmed_word_len
-    return words, cur_line_len
+    local _, _, content = self:find('^%s*(.-)%s*$')
+    return content
 end
 
 -- Inserts newlines into a string so no individual line exceeds the given width.
----@nodiscard
----@param self string
----@param width number
----@param opts {return_as_table:boolean, keep_trailing_spaces:boolean, keep_original_newlines:boolean}
----@return string|string[]
-function string:wrap(width, opts)
-    width, opts = width or 72, opts or {}
+-- Lines are split at space-separated word boundaries. Any existing newlines are
+-- kept in place. If a single word is longer than width, it is split over
+-- multiple lines. If width is not specified, 72 is used.
+function string:wrap(width)
+    width = width or 72
     if width <= 0 then error('expected width > 0; got: '..tostring(width)) end
     local wrapped_text = {}
-    for line in self:gmatch('[^\n]*'..(opts.keep_original_newlines and '\n?' or '')) do
-        local prespace = line:match('^(%s*)')
-        local words, cur_line_len = {}, 0
-        if #prespace > 0 then
-            words, cur_line_len = wrap_word(prespace, width, wrapped_text, words, cur_line_len, opts)
-        end
-        for word in line:gmatch('%S+%s*') do
-            words, cur_line_len = wrap_word(word, width, wrapped_text, words, cur_line_len, opts)
-        end
-        insert_wrapped_line(wrapped_text, words, opts)
+    for line in self:gmatch('[^\n]*') do
+        local line_start_pos = 1
+        local wrapped_line = line:gsub(
+            '%s*()(%S+)()',
+            function(start_pos, word, end_pos)
+                -- word fits within the current line
+                if end_pos - line_start_pos <= width then return end
+                -- word needs to go on the next line, but is not itself longer
+                -- than the specified width
+                if #word <= width then
+                    line_start_pos = start_pos
+                    return '\n' .. word
+                end
+                -- word is too long to fit on one line and needs to be split up
+                local num_chars, str = 0, start_pos == 1 and '' or '\n'
+                repeat
+                    local word_frag = word:sub(num_chars + 1, num_chars + width)
+                    str = str .. word_frag
+                    num_chars = num_chars + #word_frag
+                    if num_chars < #word then
+                        str = str .. '\n'
+                    end
+                    line_start_pos = start_pos + num_chars
+                until end_pos - line_start_pos <= width
+                return str .. word:sub(num_chars + 1)
+            end)
+        table.insert(wrapped_text, wrapped_line)
     end
-    if self:sub(#self) == '\n' then
-        table.insert(wrapped_text, '')
-    end
-    return opts.return_as_table and wrapped_text or table.concat(wrapped_text, '\n')
+    return table.concat(wrapped_text, '\n')
 end
 
 -- Escapes regex special chars in a string. E.g. "a+b" -> "a%+b"
 local regex_chars_pattern = '(['..('%^$()[].*+-?'):gsub('(.)', '%%%1')..'])'
----@nodiscard
----@param self string
----@return string
 function string:escape_pattern()
     return self:gsub(regex_chars_pattern, '%%%1')
 end
 
 -- String conversions
 
----@nodiscard
----@param self self
----@return string
+function dfhack.persistent:__tostring()
+    return "<persistent "..self.entry_id..":"..self.key.."=\""
+           ..self.value.."\":"..table.concat(self.ints,",")..">"
+end
+
 function dfhack.matinfo:__tostring()
     return "<material "..self.type..":"..self.index.." "..self:getToken()..">"
 end
 
 dfhack.random.__index = dfhack.random
 
----@nodiscard
----@param self self
----@return string
 function dfhack.random:__tostring()
     return "<random generator>"
 end
 
 dfhack.penarray.__index = dfhack.penarray
 
----@nodiscard
----@return string
 function dfhack.penarray.__tostring()
     return "<penarray>"
 end
 
----@nodiscard
----@return number x
----@return number y
----@return number z
 function dfhack.maps.getSize()
     local map = df.global.world.map
     return map.x_count_block, map.y_count_block, map.z_count_block
 end
 
----@nodiscard
----@return number x
----@return number y
----@return number z
 function dfhack.maps.getTileSize()
     local map = df.global.world.map
     return map.x_count, map.y_count, map.z_count
 end
 
----@param bld building
----@return number width
----@return number height
----@return number centerx
----@return number centery
 function dfhack.buildings.getSize(bld)
     local x, y = bld.x1, bld.y1
     return bld.x2+1-x, bld.y2+1-y, bld.centerx-x, bld.centery-y
 end
 
----@nodiscard
----@param scr_type _viewscreen
----@param n? number
----@return viewscreen|nil
 function dfhack.gui.getViewscreenByType(scr_type, n)
     -- translated from modules/Gui.cpp
     if n == nil then
@@ -779,92 +537,25 @@ function dfhack.gui.getViewscreenByType(scr_type, n)
     end
 end
 
----@nodiscard
----@return world_site|nil
-function dfhack.world.getCurrentSite()
-    return df.world_site.find(dfhack.world.GetCurrentSiteId())
-end
-
----@nodiscard
----@param which string
----@param key string
----@param default? any
----@return any
-local function persistent_getData(which, key, default)
-    local serialized = dfhack.persistent['get'..which..'DataString'](key)
-    if not serialized then return default end
-    return require('json').decode(serialized) or default
-end
-
----@param which string
----@param key string
----@param data any
-local function persistent_saveData(which, key, data)
-    local serialized = require('json').encode(data)
-    dfhack.persistent['save'..which..'DataString'](key, serialized)
-end
-
----@nodiscard
----@param key string
----@param default? any
----@return any
-function dfhack.persistent.getSiteData(key, default)
-    return persistent_getData('Site', key, default)
-end
-
----@param key string
----@param data any
-function dfhack.persistent.saveSiteData(key, data)
-    persistent_saveData('Site', key, data)
-end
-
----@param key string
----@param default? any
----@return any
-function dfhack.persistent.getWorldData(key, default)
-    return persistent_getData('World', key, default)
-end
-
----@param key string
----@param data any
-function dfhack.persistent.saveWorldData(key, data)
-    persistent_saveData('World', key, data)
-end
-
 -- Interactive
 
 local print_banner = true
 
----@param prompt? string
----@param hfile? string
----@param env? table|metatable
----@return boolean|nil
----@return string|nil
 function dfhack.interpreter(prompt,hfile,env)
     if not dfhack.is_interactive() then
         return nil, 'not interactive'
     end
 
-    local function print_keyword(pre, keyword, post)
-        dfhack.color(COLOR_RESET)
-        if pre ~= nil then dfhack.print(pre) end
-        dfhack.color(COLOR_YELLOW)
-        dfhack.print(keyword)
-        dfhack.color(COLOR_RESET)
-        if post ~= nil then print(post) end
-    end
-    print_keyword("Type ", "quit", " to exit interactive lua interpreter.")
+    print("Type quit to exit interactive lua interpreter.")
 
     if print_banner then
-        print("Shortcuts:")
-        print_keyword(" '", "= foo", "' => '_1,_2,... = foo'")
-        print_keyword(" '", "! foo", "' => 'print(foo)'")
-        print_keyword(" '", "~ foo", "' => 'printall(foo)'")
-        print_keyword(" '", "^ foo", "' => 'printall_recurse(foo)'")
-        print_keyword(" '", "@ foo", "' => 'printall_ipairs(foo)'")
-        print_keyword("All of these save the first result as '", "_", "'.")
-        print("These keywords refer to the currently-selected object in the game:")
-        print_keyword(" ", "unit item plant building bld job workshop_job wsjob screen scr", "")
+        print("Shortcuts:\n"..
+              " '= foo' => '_1,_2,... = foo'\n"..
+              " '! foo' => 'print(foo)'\n"..
+              " '~ foo' => 'printall(foo)'\n"..
+              " '^ foo' => 'printall_recurse(foo)'\n"..
+              " '@ foo' => 'printall_ipairs(foo)'\n"..
+              "All of these save the first result as '_'.")
         print_banner = false
     end
 
@@ -966,23 +657,23 @@ function Script:get_flags()
         self.flags_mtime = mtime
         self._flags = {}
         local f = io.open(self.path)
-        for line in f:lines() do
-            local at_tag = line:match('^%-%-@(.+)')
-            if not at_tag then goto continue end
-            local chunk = load(at_tag, self.path, 't', self._flags)
+        local contents = f:read('*all')
+        f:close()
+        for line in contents:gmatch('%-%-@([^\n]+)') do
+            local chunk = load(line, self.path, 't', self._flags)
             if chunk then
                 chunk()
             else
                 dfhack.printerr('Parse error: ' .. line)
             end
-            ::continue::
         end
-        f:close()
     end
     return self._flags
 end
 
 internal.scripts = internal.scripts or {}
+
+local hack_path = dfhack.getHackPath()
 
 function dfhack.findScript(name)
     return dfhack.internal.findScript(name .. '.lua')
@@ -1004,19 +695,7 @@ local valid_script_flags = {
     scripts = {required = false},
 }
 
-local checked_scripts = {}
-
 function dfhack.run_script(name,...)
-    if not checked_scripts[name] then
-        checked_scripts[name] = true
-        local helpdb = require('helpdb')
-        if helpdb.has_tag(name, 'unavailable') then
-            dfhack.printerr(('UNTESTED WARNING: the "%s" script has not been validated to work well with this version of DF.'):format(name))
-            dfhack.printerr('It may not work as expected, or it may corrupt your game.')
-            qerror('Please run the command again to ignore this warning and proceed.')
-        end
-    end
-
     return dfhack.run_script_with_env(nil, name, nil, ...)
 end
 
@@ -1077,7 +756,7 @@ function dfhack.run_script_with_env(envVars, name, flags, ...)
             elseif ((type(v.required) == 'boolean' and v.required) or
                     (type(v.required) == 'function' and v.required(flags))) then
                 if not script_flags[flag] then
-                    local msg = v.error or ('Flag "' .. flag .. '" not recognized')
+                    local msg = v.error or 'Flag "' .. flag .. '" not recognized'
                     error(name .. ': ' .. msg)
                 end
             end
@@ -1180,7 +859,7 @@ end
 
 function dfhack.getSavePath()
     if dfhack.isWorldLoaded() then
-        return dfhack.getDFPath() .. '/save/' .. df.global.world.cur_savegame.save_dir
+        return dfhack.getDFPath() .. '/data/save/' .. df.global.world.cur_savegame.save_dir
     end
 end
 
@@ -1214,14 +893,14 @@ if dfhack.is_core_context then
             local path = dfhack.getSavePath()
 
             if path and op == SC_WORLD_LOADED then
-                loadInitFile(path, path..'/init.lua')
+                loadInitFile(path, path..'/raw/init.lua')
 
-                local dirlist = dfhack.internal.getDir(path..'/init.d/')
+                local dirlist = dfhack.internal.getDir(path..'/raw/init.d/')
                 if dirlist then
                     table.sort(dirlist)
                     for i,name in ipairs(dirlist) do
                         if string.match(name,'%.lua$') then
-                            loadInitFile(path, path..'/init.d/'..name)
+                            loadInitFile(path, path..'/raw/init.d/'..name)
                         end
                     end
                 end

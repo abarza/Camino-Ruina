@@ -1,7 +1,15 @@
 -- Interface powered, user friendly, unit editor
 
-local gui = require('gui')
-local widgets = require('gui.widgets')
+--[====[
+
+gui/gm-unit
+===========
+An editor for various unit attributes.
+
+]====]
+
+local widgets = require 'gui.widgets'
+local base_editor = reqscript("internal/gm-unit/base_editor")
 local args = {...}
 
 rng = rng or dfhack.random.new(nil, 10)
@@ -9,17 +17,20 @@ rng = rng or dfhack.random.new(nil, 10)
 local target
 --TODO: add more ways to guess what unit you want to edit
 if args[1] ~= nil then
-    target = df.unit.find(args[1])
+    target = df.units.find(args[1])
 else
     target = dfhack.gui.getSelectedUnit(true)
 end
 
 if target == nil then
-    qerror("Please select a unit to edit in the game UI")
+    qerror("No unit to edit") --TODO: better error message
 end
 local editors = {}
 function add_editor(editor_class)
-    table.insert(editors, editor_class)
+    local title = editor_class.ATTRS.frame_title
+    table.insert(editors, {text=title, search_key=title:lower(), on_submit=function(unit)
+        editor_class{target_unit=unit}:show()
+    end})
 end
 
 function weightedRoll(weightedTable)
@@ -90,88 +101,32 @@ local editor_personality = reqscript("internal/gm-unit/editor_personality")
 add_editor(editor_personality.Editor_Personality)
 
 -------------------------------main window----------------
-local MAIN_TITLE = "GameMaster's unit editor"
-
-Editor_Unit = defclass(Editor_Unit, widgets.Window)
-Editor_Unit.ATTRS{
-    frame_title=MAIN_TITLE,
-    frame={t=20, r=3, w=50, h=30},
-    resizable=true,
-    target_unit = DEFAULT_NIL,
+Editor_Unit = defclass(Editor_Unit, base_editor.Editor)
+Editor_Unit.ATTRS = {
+    frame_title = "GameMaster's unit editor"
 }
 
-function Editor_Unit:init()
-    local main = widgets.FilteredList{
-            view_id='main_list',
-            choices=self:make_choices(),
-            on_submit=function(_,choice) choice.on_submit() end
-        }
-
-    local pages = {main}
-    for _,editor in ipairs(editors) do
-        table.insert(pages,
-                editor{view_id=editor.ATTRS.frame_title,
-                    target_unit=self.target_unit})
-    end
-
+function Editor_Unit:init(args)
     self:addviews{
-        widgets.Pages{
-            view_id='pages',
-            frame={t=0, l=0, b=2},
-            subviews=pages,
+        widgets.FilteredList{
+            frame = {l=1, t=1},
+            choices=editors,
+            on_submit=function (idx,choice)
+                if choice.on_submit then
+                    choice.on_submit(self.target_unit)
+                end
+            end
         },
-        widgets.HotkeyLabel{
-            frame={b=0, l=0},
-            label='Back',
-            key='LEAVESCREEN',
-        },
+        widgets.Label{
+            frame = { b=0,l=1},
+            text = {{
+                text = ": exit editor",
+                key = "LEAVESCREEN",
+                on_activate = self:callback("dismiss")
+            }},
+        }
     }
 end
 
-function Editor_Unit:make_choices()
-    local choices = {}
-    for _,editor in ipairs(editors) do
-        local title = editor.ATTRS.frame_title
-        table.insert(choices, {text=title, search_key=title:lower(),
-                on_submit=function()
-                    self.frame_title = title
-                    local pages = self.subviews.pages
-                    pages:setSelected(title)
-                    local page = pages:getSelectedPage()
-                    if page.onOpen then page:onOpen() end
-                end})
-    end
-    return choices
-end
 
-function Editor_Unit:onInput(keys)
-    local pages = self.subviews.pages
-    if pages:getSelected() == 1 or
-            (not keys.LEAVESCREEN and not keys._MOUSE_R) then
-        return Editor_Unit.super.onInput(self, keys)
-    end
-    local page = pages:getSelectedPage()
-    if page.onClose then page:onClose() end
-    self.frame_title = MAIN_TITLE
-    pages:setSelected(1)
-    self.subviews.main_list.edit:setFocus(true)
-    return true
-end
-
--------------------------------screen management----------------
-
-Editor_Screen = defclass(Editor_Screen, gui.ZScreen)
-Editor_Screen.ATTRS {
-    focus_path='gm-unit',
-    target_unit=DEFAULT_NIL,
-}
-
-function Editor_Screen:init()
-    self:addviews{Editor_Unit{target_unit=self.target_unit}}
-end
-
-function Editor_Screen:onDismiss()
-    view = nil
-end
-
-view = view and view:raise() or Editor_Screen{target_unit=target}:show()
+Editor_Unit{target_unit=target}:show()

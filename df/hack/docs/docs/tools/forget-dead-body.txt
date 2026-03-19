@@ -1,7 +1,7 @@
 forget-dead-body
 ================
 
-Tags: unavailable
+Tags: fort | armok | units
 
 Command: "forget-dead-body"
 

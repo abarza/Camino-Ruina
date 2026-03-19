@@ -1,4 +1,23 @@
 -- load a save non-interactively - intended to be run on startup
+--[====[
+
+load-save
+=========
+
+When run on the title screen or "load game" screen, loads the save with the
+given folder name without requiring interaction. Note that inactive saves (i.e.
+saves under the "start game" menu) are currently not supported.
+
+Example::
+
+    load-save region1
+
+This can also be run when starting DFHack from the command line. For example,
+on Linux/macOS::
+
+    ./dfhack +load-save region1
+
+]====]
 
 local gui = require 'gui'
 
@@ -12,7 +31,7 @@ if not loadgame_screen then
     end
     local found = false
     for idx, item in ipairs(title_screen.menu_line_id) do
-        if item == df.main_choice_type.Continue then
+        if item == df.viewscreen_titlest.T_menu_line_id.Continue then
             found = true
             title_screen.sel_menu_line = idx
             break

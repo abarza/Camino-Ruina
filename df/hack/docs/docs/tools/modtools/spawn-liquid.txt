@@ -5,7 +5,7 @@ Tags: dev
 
 Command: "modtools/spawn-liquid"
 
-  Spawn a liquid at a given position.
+  Spawn water or lava.
 
 This script spawns liquid at the given coordinates.
 
@@ -13,25 +13,17 @@ This script spawns liquid at the given coordinates.
 Usage
 -----
 
-   modtools/spawn-liquid --type <type> --level <level> --position <x>,<y>,<z>
+   modtools/spawn-liquid <height> water|magma <x> <y> <z> [<xOff> <yOff> <zOff>]
 
 
 Options
 -------
 
-"--type <type>"
-   Liquid tile type:
-      Water Magma
+"<height>"
+   The height of the water/magma (1 to 7)
 
-"--level <level>"
-   The amount of liquid units to spawn from 1-7.
+"<x>", "<y>", "<z>"
+   The location to spawn liquid at (replacing any preexisting liquid).
 
-"--position <x>,<y>,<z>"
-   The position at which to spawn the liquid.
-
-
-Examples
---------
-
-"modtools/spawn-liquid --type Water --level 7 --position 60,60,143"
-   Spawn 7/7 Water on tile coordinates 60, 60, 143
+"<xOff>", "<yOff>", "<zOff>"
+   Optional convenience offsets, added to "<x>", "<y>", and "<z>".

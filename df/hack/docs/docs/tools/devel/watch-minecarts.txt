@@ -1,7 +1,7 @@
 devel/watch-minecarts
 =====================
 
-Tags: unavailable
+Tags: dev | inspection
 
 Command: "devel/watch-minecarts"
 

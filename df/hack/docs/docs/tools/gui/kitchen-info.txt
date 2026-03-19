@@ -1,7 +1,7 @@
 gui/kitchen-info
 ================
 
-Tags: unavailable
+Tags: fort | inspection
 
 Command: "gui/kitchen-info"
 

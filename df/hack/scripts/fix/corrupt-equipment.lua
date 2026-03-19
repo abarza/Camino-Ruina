@@ -74,18 +74,18 @@ function fix_equipment ()
     QUIVER = df.item_quiverst,
   }
 
-  for category in pairs(df.global.plotinfo.equipment.items_unmanifested) do
-    fix_vector(df.global.plotinfo.equipment.items_unmanifested[category], valid_items,
+  for category in pairs(df.global.ui.equipment.items_unmanifested) do
+    fix_vector(df.global.ui.equipment.items_unmanifested[category], valid_items,
       valid_types[category], "unmanifested " .. category)
-    fix_vector(df.global.plotinfo.equipment.items_unassigned[category], valid_items,
+    fix_vector(df.global.ui.equipment.items_unassigned[category], valid_items,
       valid_types[category], "unassigned " .. category)
-    fix_vector(df.global.plotinfo.equipment.items_assigned[category], valid_items,
+    fix_vector(df.global.ui.equipment.items_assigned[category], valid_items,
       valid_types[category], "assigned " .. category)
   end
 
   for i, squad in ipairs (df.global.world.squads.all) do
-    if squad.entity_id == df.global.plotinfo.group_id then
-      local squad_name = dfhack.translation.translateName(squad.name, true)
+    if squad.entity_id == df.global.ui.group_id then
+      local squad_name = dfhack.TranslateName(squad.name, true)
       if squad.alias ~= "" then
         squad_name = squad.alias
       end

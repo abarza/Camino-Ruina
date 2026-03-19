@@ -1,7 +1,7 @@
 modtools/random-trigger
 =======================
 
-Tags: unavailable
+Tags: dev
 
 Command: "modtools/random-trigger"
 

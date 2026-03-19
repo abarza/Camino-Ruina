@@ -1,25 +1,31 @@
+#ifdef __APPLE__
+# include "osx_messagebox.h"
+#elif defined(unix)
+# include <gtk/gtk.h>
+#endif
+
+#include "GL/glew.h"
+
 #ifndef INTEGER_TYPES
 
 #define INTEGER_TYPES
 
-#include <cstdint>
+#ifdef WIN32
+	typedef signed char int8_t;
+	typedef short int16_t;
+	typedef int int32_t;
+	typedef long long int64_t;
+	typedef unsigned char uint8_t;
+	typedef unsigned short uint16_t;
+	typedef unsigned int uint32_t;
+	typedef unsigned long long uint64_t;
+#endif
 
 typedef int32_t VIndex;
 typedef int32_t Ordinal;
 
 #endif
 
-#include "svector.h"
-	//#include "ttf_manager.hpp"
-	#include "random.h"
-	#include "endian.h"
-	#include "files.h"
-	#include "enabler.h"
-	#include "textlines.h"
-	#include "find_files.h"
-	#include "basics.h"
-	#include "g_basics.h"
-	#include "texture_handler.h"
 #include "graphics.h"
 #include "init.h"
 #include "keybindings.h"
@@ -52,7 +58,6 @@ const BindingGroup groups[] = {
   {"Text entry" , INTERFACEKEY_STRING_A000, INTERFACEKEY_STRING_A255}
 };
 
-#ifdef NEED_KEYBINDING_SCREEN
 KeybindingScreen::KeybindingScreen() {
   gview.addscreen(this, INTERFACE_PUSH_AT_BACK, NULL); // HACK
   mode = mode_main;
@@ -304,7 +309,7 @@ void KeybindingScreen::render_main() {
   main.render(6, init.display.grid_x - 3, 3, init.display.grid_y - 4);
 }
 
-void KeybindingScreen::render(uint32_t curtick) {
+void KeybindingScreen::render() {
   switch(mode) {
   case mode_main: render_main(); break;
   case mode_keyL: case mode_keyR: render_key(); break;
@@ -315,7 +320,10 @@ void KeybindingScreen::render(uint32_t curtick) {
     break;
   }
 }
-#endif
+
+void KeybindingScreen::help() {
+}
+
 
 MacroScreenLoad::MacroScreenLoad() {
   list<string> macros = enabler.list_macros();
@@ -324,10 +332,10 @@ MacroScreenLoad::MacroScreenLoad() {
     menu.add("No macros!", "");
     height = 1;
   } else
-    height = (int)macros.size();
+    height = macros.size();
 
   for (list<string>::iterator it = macros.begin(); it != macros.end(); ++it) {
-    if (it->length() > width) width = (int)it->length();
+    if (it->length() > width) width = it->length();
     menu.add(*it, *it);
   }
   enabler.flag |= ENABLERFLAG_RENDER;
@@ -356,8 +364,8 @@ void MacroScreenLoad::feed(set<InterfaceKey> &input) {
 void MacroScreenLoad::logic() {
 }
 
-void MacroScreenLoad::render(uint32_t curtick) {
-  if (parent) parent->render(curtick);
+void MacroScreenLoad::render() {
+  if (parent) parent->render();
   const int x1 = MAX(init.display.grid_x/2 - ((width + 2) / 2), 0);
   const int x2 = MIN(x1+width+1, init.display.grid_x-1);
   const int y1 = MAX(init.display.grid_y/2 - ((height + 2) / 2), 0);
@@ -368,41 +376,37 @@ void MacroScreenLoad::render(uint32_t curtick) {
   // gps.renewscreen();
 }
 
-MacroScreenSave::MacroScreenSave() : id(48, 0) {
+MacroScreenSave::MacroScreenSave() {
   enabler.flag |= ENABLERFLAG_RENDER;
-  id.textbox_type=widgets::TextboxType::NAME;
-  id.take_focus();
-  id.set_parent(this);
 }
 
 void MacroScreenSave::logic() {
-    if (parent) parent->logic();
-    id.logic();
 }
 
 void MacroScreenSave::feed(set<InterfaceKey> &input) {
   enabler.flag|=ENABLERFLAG_RENDER;
-  if (input.count(INTERFACEKEY_SELECT))
-      {
-      string n=id.get_text();
-      if (n.length())
-          enabler.save_macro(n);
-      breakdownlevel=INTERFACE_BREAKDOWN_STOPSCREEN;
-      return;
-      }
-  if (input.count(INTERFACEKEY_OPTIONS))
-      {
-      breakdownlevel=INTERFACE_BREAKDOWN_STOPSCREEN;
-      }
   id.feed(input);
+  if (input.count(INTERFACEKEY_SELECT)) {
+    string n = id.get_text();
+    if (n.length())
+      enabler.save_macro(n);
+    breakdownlevel = INTERFACE_BREAKDOWN_STOPSCREEN;
+    return;
+  }
+  if (input.count(INTERFACEKEY_OPTIONS)) {
+    breakdownlevel = INTERFACE_BREAKDOWN_STOPSCREEN;
+  }
 }
 
-void MacroScreenSave::render(uint32_t curtick) {
-  if (parent) parent->render(curtick);
-  id.set_anchors(0.5,0.5,0.0,1.0);
-  id.set_offsets(-1,1,3,-7);
-  id.move_to_anchor();
-  id.arrange();
-  id.render(curtick);
+void MacroScreenSave::render() {
+  if (parent) parent->render();
+  const int x1 = 3,
+    x2 = init.display.grid_x-4,
+    y1 = init.display.grid_y/2-1,
+    y2 = init.display.grid_y/2+1;
+  gps.changecolor(0,3,1);
+  gps.draw_border(x1, x2, y1, y2);
+  id.render(x1+1,x2-1,y1+1,y2-1);
   // gps.renewscreen();
 }
+

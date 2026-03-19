@@ -1,7 +1,7 @@
 modtools/set-belief
 ===================
 
-Tags: unavailable
+Tags: dev
 
 Command: "modtools/set-belief"
 

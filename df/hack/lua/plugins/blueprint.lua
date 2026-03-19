@@ -1,7 +1,6 @@
 local _ENV = mkmodule('plugins.blueprint')
 
 local argparse = require('argparse')
-local logistics = require('plugins.logistics')
 local utils = require('utils')
 
 local valid_phase_list = {
@@ -11,6 +10,8 @@ local valid_phase_list = {
     'build',
     'place',
     'zone',
+    'query',
+    'rooms',
 }
 valid_phases = utils.invert(valid_phase_list)
 
@@ -18,6 +19,7 @@ local meta_phase_list = {
     'build',
     'place',
     'zone',
+    'query',
 }
 meta_phases = utils.invert(meta_phase_list)
 
@@ -163,9 +165,9 @@ local function is_bad_dim(dim, negative_ok)
             (not negative_ok and dim < 1 or dim == 0)
 end
 
-function parse_commandline(opts, args)
-    local positionals = process_args(opts, args)
-    if not positionals or opts.help then return end
+function parse_commandline(opts, ...)
+    local positionals = process_args(opts, {...})
+    if opts.help then return end
 
     local width, height = tonumber(positionals[1]), tonumber(positionals[2])
     if is_bad_dim(width) or is_bad_dim(height) then
@@ -204,8 +206,8 @@ end
 
 -- returns the name of the output file for the given context
 function get_filename(opts, phase, ordinal)
-    local fullname = 'dfhack-config/blueprints/' .. opts.name
-    local _,_,basename = opts.name:find('([^/]+)/*$')
+    local fullname = 'blueprints/' .. opts.name
+    local _,_,basename = fullname:find('/([^/]+)/?$')
     if not basename then
         -- should not happen since opts.name should already be validated
         error(('could not parse basename out of "%s"'):format(fullname))
@@ -220,21 +222,6 @@ function get_filename(opts, phase, ordinal)
         phase = 'meta'
     end
     return ('%s-%d-%s.csv'):format(fullname, ordinal, phase)
-end
-
-function get_logistics_settings(stockpile_number)
-    local automelt, autotrade, autodump, autotrain, autoforbid, autoclaim = false, false, false, false, false, false
-    local configs = logistics.logistics_getStockpileConfigs(stockpile_number)
-    if configs and #configs == 1 then
-        local config = configs[1]
-        automelt = config.melt ~= 0
-        autotrade = config.trade ~= 0
-        autodump = config.dump ~= 0
-        autotrain = config.train ~= 0
-        autoforbid = config.forbid == 1
-        autoclaim = config.forbid == 2
-    end
-    return automelt, autotrade, autodump, autotrain, autoforbid, autoclaim
 end
 
 -- compatibility with old exported API.

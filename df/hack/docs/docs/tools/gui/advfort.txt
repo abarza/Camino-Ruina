@@ -1,11 +1,13 @@
 gui/advfort
 ===========
 
-Tags: unavailable
+Tags: adventure | gameplay
 
 Command: "gui/advfort"
 
   Perform fort-like jobs in adventure mode.
+
+Keybinding: [Ctrl][T] in "dungeonmode"
 
 This script allows performing jobs in adventure mode. For interactive help, press "?" while the script is running.
 

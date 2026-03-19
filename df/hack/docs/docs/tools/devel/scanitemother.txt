@@ -1,7 +1,7 @@
 devel/scanitemother
 ===================
 
-Tags: dev
+Tags: dev | inspection
 
 Command: "devel/scanitemother"
 

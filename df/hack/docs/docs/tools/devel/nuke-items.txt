@@ -1,7 +1,7 @@
 devel/nuke-items
 ================
 
-Tags: unavailable
+Tags: dev | fps | items
 
 Command: "devel/nuke-items"
 

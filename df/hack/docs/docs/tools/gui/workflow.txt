@@ -1,11 +1,17 @@
 gui/workflow
 ============
 
-Tags: unavailable
+Tags: fort | auto | jobs
 
 Command: "gui/workflow"
 
   Manage automated item production rules.
+
+Keybinding: [Alt][W] in "dwarfmode/QueryBuilding/Some/Workshop/Job"
+
+Keybinding: [Alt][W] -> ""gui/workflow status"" in "overallstatus"
+
+Keybinding: [Alt][W] -> ""gui/workflow status"" in "dfhack/lua/status_overlay"
 
 This tool provides a simple interface to item production constraints managed by workflow. When a workshop job is selected in "q" mode and this tool is invoked, it displays the constraints applicable to the current job and their current status. It also allows you to modify existing constraints or add new ones.
 

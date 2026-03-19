@@ -1,11 +1,13 @@
 forum-dwarves
 =============
 
-Tags: unavailable
+Tags: dfhack
 
 Command: "forum-dwarves"
 
   Exports the text you see on the screen for posting to the forums.
+
+Keybinding: [Ctrl][Shift][F] in "textviewer"
 
 This tool saves a copy of a text screen, formatted in BBcode for posting to the Bay12 Forums. Text color and layout is preserved. See markdown if you want to export for posting to Reddit or other places.
 

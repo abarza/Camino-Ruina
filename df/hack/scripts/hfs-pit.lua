@@ -27,7 +27,6 @@ Examples::
 
 ]====]
 
-local guidm = require('gui.dwarfmode')
 local args={...}
 
 if args[1] == '?' or args[1] == 'help' then
@@ -35,7 +34,7 @@ if args[1] == '?' or args[1] == 'help' then
     return
 end
 
-local pos = guidm.getCursorPos()
+local pos = copyall(df.global.cursor)
 local size = tonumber(args[1])
 if size == nil or size < 1 then size = 1 end
 
@@ -50,7 +49,7 @@ for index, feature in ipairs(df.global.world.features.map_features) do
     end
 end
 
-if not pos then
+if pos.x==-30000 then
     qerror("Select a location by placing the cursor")
 end
 local x = 0
@@ -63,40 +62,41 @@ for x=pos.x-size,pos.x+size,1 do
         while z <= pos.z do
             local block = dfhack.maps.ensureTileBlock(x,y,z)
             if block then
-                local old_tt = block.tiletype[x%16][y%16]
-                if not hitAir and old_tt ~= df.tiletype.FeatureWall and old_tt ~= df.tiletype.EeriePit then
+                if block.tiletype[x%16][y%16] ~= 335 then
                     hitAir = true
                 end
-                if hitAir then
+                if hitAir == true then
                     if not hitCeiling then
                         if block.global_feature ~= underworldLayer or z > 10 then hitCeiling = true end
                         if stairs == 1 and x == pos.x and y == pos.y then
-                            if old_tt == df.tiletype.OpenSpace or old_tt == df.tiletype.RampTop then
+                            if block.tiletype[x%16][y%16] == 32 then
                                 if z == pos.z then
-                                    block.tiletype[x%16][y%16] = df.tiletype.StoneStairD
+                                    block.tiletype[x%16][y%16] = 56
                                 else
-                                    block.tiletype[x%16][y%16] = df.tiletype.StoneStairUD
+                                    block.tiletype[x%16][y%16] = 55
                                 end
                             else
-                                block.tiletype[x%16][y%16] = df.tiletype.StoneStairU
+                                block.tiletype[x%16][y%16] = 57
                             end
                         end
                     end
-                    if hitCeiling then
+                    if hitCeiling == true then
                         local needsWall = block.designation[x%16][y%16].flow_size > 0 or wallOff == 1
                         if (x == pos.x-size or x == pos.x+size or y == pos.y-size or y == pos.y+size) and z==pos.z then
                             --Do nothing, this is the lip of the hole
-                        elseif x == pos.x-size and y == pos.y-size then if needsWall then block.tiletype[x%16][y%16]=df.tiletype.StoneWallSmoothRD end
-                            elseif x == pos.x-size and y == pos.y+size then if needsWall then block.tiletype[x%16][y%16]=df.tiletype.StoneWallSmoothRU end
-                            elseif x == pos.x+size and y == pos.y+size then if needsWall then block.tiletype[x%16][y%16]=df.tiletype.StoneWallSmoothLU end
-                            elseif x == pos.x+size and y == pos.y-size then if needsWall then block.tiletype[x%16][y%16]=df.tiletype.StoneWallSmoothLD end
-                            elseif x == pos.x-size or x == pos.x+size then if needsWall then block.tiletype[x%16][y%16]=df.tiletype.StoneWallSmoothUD end
-                            elseif y == pos.y-size or y == pos.y+size then if needsWall then block.tiletype[x%16][y%16]=df.tiletype.StoneWallSmoothLR end
+                        elseif x == pos.x-size and y == pos.y-size then if needsWall == true then block.tiletype[x%16][y%16]=320 end
+                            elseif x == pos.x-size and y == pos.y+size then if needsWall == true then block.tiletype[x%16][y%16]=321 end
+                            elseif x == pos.x+size and y == pos.y+size then if needsWall == true then block.tiletype[x%16][y%16]=322 end
+                            elseif x == pos.x+size and y == pos.y-size then if needsWall == true then block.tiletype[x%16][y%16]=323 end
+                            elseif x == pos.x-size or x == pos.x+size then if needsWall == true then block.tiletype[x%16][y%16]=324 end
+                            elseif y == pos.y-size or y == pos.y+size then if needsWall == true then block.tiletype[x%16][y%16]=325 end
                             elseif stairs == 1 and x == pos.x and y == pos.y then
-                                if z == pos.z then block.tiletype[x%16][y%16]=df.tiletype.StoneStairD
-                                else block.tiletype[x%16][y%16]=df.tiletype.StoneStairUD end
-                            else block.tiletype[x%16][y%16]=df.tiletype.OpenSpace
+                                if z == pos.z then block.tiletype[x%16][y%16]=56
+                                else block.tiletype[x%16][y%16]=55 end
+                            else block.tiletype[x%16][y%16]=32
                         end
+                        block.designation[x%16][y%16].hidden = false
+                        --block.designation[x%16][y%16].liquid_type = true -- if true, magma.  if false, water.
                         block.designation[x%16][y%16].flow_size = 0
                         dfhack.maps.enableBlockUpdates(block)
                         block.designation[x%16][y%16].flow_forbid = false

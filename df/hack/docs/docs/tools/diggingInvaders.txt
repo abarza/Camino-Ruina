@@ -1,7 +1,7 @@
 diggingInvaders
 ===============
 
-Tags: unavailable
+Tags: fort | gameplay | military | units
 
 Command: "diggingInvaders"
 

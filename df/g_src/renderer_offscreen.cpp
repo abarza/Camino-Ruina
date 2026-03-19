@@ -2,47 +2,30 @@
 
 
 bool renderer_offscreen::init_video(int w, int h) {
+  if (screen) SDL_FreeSurface(screen);
   // Create an offscreen buffer
+  screen = SDL_CreateRGBSurface(SDL_SWSURFACE, w, h, 32, 0, 0, 0, 0);
+  assert(screen);
   return true;
 }
 
 renderer_offscreen::~renderer_offscreen() {
   //ASSUMES renderer_offscreen IS NEVER gps_allocate()'d THROUGH reshape()/grid_resize()
 		//to-do: flag for those calls on the renderer to control this behavior?
-  	//*************************** OFFSCREEN RENDER
-		//will probably need to watch out for this behavior vs. viewports
   renderer::screen = NULL;
   renderer::screentexpos = NULL;
-  renderer::screentexpos_lower = NULL;
-  renderer::screentexpos_anchored = NULL;
-  renderer::screentexpos_anchored_x = NULL;
-  renderer::screentexpos_anchored_y = NULL;
-  renderer::screentexpos_flag = NULL;
+  renderer::screentexpos_addcolor = NULL;
+  renderer::screentexpos_grayscale = NULL;
+  renderer::screentexpos_cf = NULL;
+  renderer::screentexpos_cbr = NULL;
   renderer::screen_old = NULL;
   renderer::screentexpos_old = NULL;
-  renderer::screentexpos_lower_old = NULL;
-  renderer::screentexpos_anchored_old = NULL;
-  renderer::screentexpos_anchored_x_old = NULL;
-  renderer::screentexpos_anchored_y_old = NULL;
-  renderer::screentexpos_flag_old = NULL;
+  renderer::screentexpos_addcolor_old = NULL;
+  renderer::screentexpos_grayscale_old = NULL;
+  renderer::screentexpos_cf_old = NULL;
+  renderer::screentexpos_cbr_old = NULL;
 
-  renderer::screen_top = NULL;
-  renderer::screentexpos_top = NULL;
-  renderer::screentexpos_top_lower = NULL;
-  renderer::screentexpos_top_anchored = NULL;
-  renderer::screentexpos_top_anchored_x = NULL;
-  renderer::screentexpos_top_anchored_y = NULL;
-  renderer::screentexpos_top_flag = NULL;
-  renderer::screen_top_old = NULL;
-  renderer::screentexpos_top_old = NULL;
-  renderer::screentexpos_top_lower_old = NULL;
-  renderer::screentexpos_top_anchored_old = NULL;
-  renderer::screentexpos_top_anchored_x_old = NULL;
-  renderer::screentexpos_top_anchored_y_old = NULL;
-  renderer::screentexpos_top_flag_old = NULL;
-
-  renderer::screentexpos_refresh_buffer = NULL;
-
+  SDL_FreeSurface(screen);
 }
 
 // Create an offscreen renderer of a given grid-size
@@ -66,19 +49,10 @@ renderer_offscreen::renderer_offscreen(int grid_x, int grid_y) {
   // Copy the GPS pointers here
   renderer::screen = gps.screen;
   renderer::screentexpos = gps.screentexpos;
-  renderer::screentexpos_lower = gps.screentexpos_lower;
-  renderer::screentexpos_anchored = gps.screentexpos_anchored;
-  renderer::screentexpos_anchored_x = gps.screentexpos_anchored_x;
-  renderer::screentexpos_anchored_y = gps.screentexpos_anchored_y;
-  renderer::screentexpos_flag = gps.screentexpos_flag;
-  renderer::screen_top = gps.screen_top;
-  renderer::screentexpos_top = gps.screentexpos_top;
-  renderer::screentexpos_top_lower = gps.screentexpos_top_lower;
-  renderer::screentexpos_top_anchored = gps.screentexpos_top_anchored;
-  renderer::screentexpos_top_anchored_x = gps.screentexpos_top_anchored_x;
-  renderer::screentexpos_top_anchored_y = gps.screentexpos_top_anchored_y;
-  renderer::screentexpos_top_flag = gps.screentexpos_top_flag;
-  renderer::screentexpos_refresh_buffer = gps.screentexpos_refresh_buffer;
+  renderer::screentexpos_addcolor = gps.screentexpos_addcolor;
+  renderer::screentexpos_grayscale = gps.screentexpos_grayscale;
+  renderer::screentexpos_cf = gps.screentexpos_cf;
+  renderer::screentexpos_cbr = gps.screentexpos_cbr;
 }
 
 // Slurp the entire gps content into the renderer at some given offset
@@ -86,23 +60,21 @@ void renderer_offscreen::update_all(int offset_x, int offset_y) {
   for (int x = 0; x < gps.dimx; x++) {
     for (int y = 0; y < gps.dimy; y++) {
       // Read tiles from gps, create cached texture
-      Either<texture_fullid,int32_t/*texture_ttfid*/> id = screen_to_texid(x, y);
-      SDL_Texture *tex = //id.isL ?
-        tile_cache_lookup(id.left) /*:
-        ttf_manager.get_texture(id.right)*/;
+      Either<texture_fullid,texture_ttfid> id = screen_to_texid(x, y);
+      SDL_Surface *tex = id.isL ?
+        tile_cache_lookup(id.left, false) :
+        ttf_manager.get_texture(id.right);
       if (id.isL) {
-  		id.left.flag|=TEXTURE_FULLID_FLAG_DO_RECOLOR;
-        id.left.flag|=TEXTURE_FULLID_FLAG_CONVERT;
         tex = tile_cache_lookup(id.left);
-      }/* else {
+      } else {
         tex = enabler.textures.get_texture_data(id.right);
-      }*/
+      }
       // Figure out where to blit
       SDL_Rect dst;
       dst.x = dispx * (x+offset_x);
       dst.y = dispy * (y+offset_y);
       // And blit.
-      //if(tex!=NULL)SDL_RenderCopy(renderer_sdl, tex, NULL, &dst);
+      SDL_BlitSurface(tex, NULL, screen, &dst);
     }
   }
 }
@@ -110,4 +82,5 @@ void renderer_offscreen::update_all(int offset_x, int offset_y) {
 // Save the image to some file
 void renderer_offscreen::save_to_file(const string &file) {
   // TODO: Support png, etc.
+  SDL_SaveBMP(screen, file.c_str());
 }

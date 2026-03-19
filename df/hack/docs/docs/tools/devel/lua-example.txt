@@ -1,7 +1,7 @@
 devel/lua-example
 =================
 
-Tags: unavailable
+Tags: dev
 
 Command: "devel/lua-example"
 

@@ -54,7 +54,7 @@ end
 
 local function dump(name)
     local out = {}
-    for i,v in ipairs(df.global.buildreq.requirements) do
+    for i,v in ipairs(df.global.ui_build_selector.requirements) do
         out[#out+1] = clone_filter(v.filter, v.count_required)
     end
 
@@ -64,8 +64,8 @@ local function dump(name)
     print(fmt)
 end
 
-local itype = df.global.buildreq.building_type
-local stype = df.global.buildreq.building_subtype
+local itype = df.global.ui_build_selector.building_type
+local stype = df.global.ui_build_selector.building_subtype
 
 if itype == df.building_type.Workshop then
     dump('    [df.workshop_type.'..df.workshop_type[stype]..'] = ')

@@ -1,110 +1,140 @@
 -- Make a skill or skills of a unit Legendary +5
+-- by vjek
+local help = [====[
 
-local utils = require('utils')
+make-legendary
+==============
+Makes the selected dwarf legendary in one skill, a group of skills, or all
+skills.  View groups with ``make-legendary classes``, or all skills with
+``make-legendary list``.  Use ``make-legendary MINING`` when you need something
+dug up, or ``make-legendary all`` when only perfection will do.
 
-function getName(unit)
-    return dfhack.df2console(dfhack.units.getReadableName(unit))
+]====]
+
+-- this function will return the number of elements, starting at zero.
+-- useful for counting things where #foo doesn't work
+function count_this(to_be_counted)
+    local count = -1
+    local var1 = ""
+    while var1 ~= nil do
+        count = count + 1
+        var1 = (to_be_counted[count])
+    end
+    count=count-1
+    return count
 end
 
-function legendize(unit, skill_idx)
-    if skill_idx >= 0 and skill_idx <= df.job_skill._last_item then
-        utils.insert_or_update(unit.status.current_soul.skills,
-            {new=true, id=skill_idx, rating=df.skill_rating.Legendary5},
-            'id')
-    end
+function getName(unit)
+    return dfhack.df2console(dfhack.TranslateName(dfhack.units.getVisibleName(unit)))
 end
 
 function make_legendary(skillname)
-    local unit = dfhack.gui.getSelectedUnit()
-    if not unit then
+    local skillnamenoun,skillnum
+    local unit=dfhack.gui.getSelectedUnit()
+
+    if unit==nil then
+        print ("No unit under cursor!  Aborting with extreme prejudice.")
         return
     end
 
-    local skillnum = df.job_skill[skillname]
-    if not skillnum then
-        qerror('The skill name provided is not in the list')
+    if (df.job_skill[skillname]) then
+        skillnamenoun = df.job_skill.attrs[df.job_skill[skillname]].caption_noun
+    else
+        print ("The skill name provided is not in the list.")
+        return
     end
 
-    local skillnamenoun = df.job_skill.attrs[skillnum].caption_noun
-    if not skillnamenoun then
-        qerror('skill name noun not found')
+    if skillnamenoun ~= nil then
+        local utils = require 'utils'
+        skillnum = df.job_skill[skillname]
+        utils.insert_or_update(unit.status.current_soul.skills, { new = true, id = skillnum, rating = 20 }, 'id')
+        print (getName(unit) .. " is now a Legendary "..skillnamenoun)
+    else
+        print ("Empty skill name noun, bailing out!")
+        return
     end
-
-    legendize(unit, skillnum)
-    print(getName(unit) .. ' is now a legendary ' .. skillnamenoun)
 end
 
 function PrintSkillList()
-    for i, name in ipairs(df.job_skill) do
-        local attr = df.job_skill.attrs[i]
-        if attr.caption then
-            print(('%s (%s), Type: %s'):format(
-                name, attr.caption, df.job_skill_class[attr.type]))
-        end
+    local count_max = count_this(df.job_skill)
+    local i
+    for i=0, count_max do
+        print("'"..df.job_skill.attrs[i].caption.."' "..df.job_skill[i].." Type: "..df.job_skill_class[df.job_skill.attrs[i].type])
     end
-    print()
-    print('Provide the UPPER_CASE argument, for example: ENGRAVE_STONE rather than Engraving.')
+    print ("Provide the UPPER CASE argument, for example: PROCESSPLANTS rather than Threshing")
 end
 
 function BreathOfArmok()
-    local unit = dfhack.gui.getSelectedUnit()
-    if not unit then
+    local unit=dfhack.gui.getSelectedUnit()
+    if unit==nil then
+        print ("No unit under cursor!  Aborting with extreme prejudice.")
         return
     end
-    for i in ipairs(df.job_skill) do
-        if i >= 0 then
-            legendize(unit, i)
-        end
+    local i
+    local count_max = count_this(df.job_skill)
+    local utils = require 'utils'
+    for i=0, count_max do
+        utils.insert_or_update(unit.status.current_soul.skills, { new = true, id = i, rating = 20 }, 'id')
     end
-    print('The breath of Armok has engulfed ' .. getName(unit))
+    print ("The breath of Armok has engulfed "..getName(unit))
 end
 
 function LegendaryByClass(skilltype)
-    local unit = dfhack.gui.getSelectedUnit()
-    if not unit then
+    local unit=dfhack.gui.getSelectedUnit()
+    if unit==nil then
+        print ("No unit under cursor!  Aborting with extreme prejudice.")
         return
     end
-    for i in ipairs(df.job_skill) do
-        local attr = df.job_skill.attrs[i]
-        if skilltype == df.job_skill_class[attr.type] then
-            print(('%s skill %s is now legendary for %s'):format(
-                skilltype, attr.caption, getName(unit)))
-            legendize(unit, i)
+
+    local utils = require 'utils'
+    local i
+    local skillclass
+    local count_max = count_this(df.job_skill)
+    for i=0, count_max do
+        skillclass = df.job_skill_class[df.job_skill.attrs[i].type]
+        if skilltype == skillclass then
+            print ("Skill "..df.job_skill.attrs[i].caption.." is type: "..skillclass.." and is now Legendary for "..getName(unit))
+            utils.insert_or_update(unit.status.current_soul.skills, { new = true, id = i, rating = 20 }, 'id')
         end
     end
 end
 
 function PrintSkillClassList()
-    print('Skill class names:')
-    for _, name in ipairs(df.job_skill_class) do
-        print('  ' .. name)
+    local i
+    local count_max = count_this(df.job_skill_class)
+    for i=0, count_max do
+        print(df.job_skill_class[i])
     end
-    print()
-    print('Provide one of these arguments, and all skills of that type will be made Legendary')
-    print('For example: Medical will make all medical skills legendary')
+    print ("Provide one of these arguments, and all skills of that type will be made Legendary")
+    print ("For example: Medical will make all medical skills legendary")
 end
 
 --main script operation starts here
 ----
 local opt = ...
+local skillname
 
-if not opt then
-    print(dfhack.script_help())
-    return
-end
-
-if opt == 'list' then
-    PrintSkillList()
-    return
-elseif opt == 'classes' then
-    PrintSkillClassList()
-    return
-elseif opt == 'all' then
-    BreathOfArmok()
-    return
-elseif df.job_skill_class[opt] then
-    LegendaryByClass(opt)
-    return
+if opt then
+    if opt=="list" then
+        PrintSkillList()
+        return
+    end
+    if opt=="classes" then
+        PrintSkillClassList()
+        return
+    end
+    if opt=="all" then
+        BreathOfArmok()
+        return
+    end
+    if opt=="Normal" or opt=="Medical" or opt=="Personal" or opt=="Social" or opt=="Cultural" or opt=="MilitaryWeapon" or opt=="MilitaryAttack" or opt=="MilitaryDefense" or opt=="MilitaryMisc" then
+        LegendaryByClass(opt)
+        return
+    end
+    skillname = opt
 else
-    make_legendary(opt)
+    print(help)
+    return
 end
+
+make_legendary(skillname)

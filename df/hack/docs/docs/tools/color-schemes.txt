@@ -1,7 +1,7 @@
 color-schemes
 =============
 
-Tags: unavailable
+Tags: fort | gameplay | graphics
 
 Command: "color-schemes"
 

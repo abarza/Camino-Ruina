@@ -18,9 +18,6 @@
 #include <queue>
 #include <set>
 #include <functional>
-#include <array>
-#include <atomic>
-#include <semaphore>
 
 using std::vector;
 using std::pair;
@@ -30,15 +27,17 @@ using std::list;
 using std::stack;
 using std::queue;
 
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_thread.h>
+#include <SDL/SDL.h>
+#include <SDL/SDL_thread.h>
 #ifdef __APPLE__
 # include <SDL_ttf/SDL_ttf.h>
 # include <SDL_image/SDL_image.h>
 #else
-# include <SDL2/SDL_ttf.h>
-# include <SDL2/SDL_image.h>
+# include <SDL/SDL_ttf.h>
+# include <SDL/SDL_image.h>
 #endif
+
+#include "GL/glew.h"
 
 #include "basics.h"
 #include "svector.h"
@@ -48,9 +47,6 @@ using std::queue;
 #include "mail.hpp"
 
 #define ENABLER
-
-#define MINIMUM_WINDOW_WIDTH 912
-#define MINIMUM_WINDOW_HEIGHT 552
 
 #ifndef BITS
 
@@ -140,10 +136,6 @@ class stringvectst
 			else str.push_back(newp);
 			}
 
-		stringvectst() {
-			str.clear();
-			}
-
 		~stringvectst()
 			{
 			clean();
@@ -183,7 +175,7 @@ class stringvectst
 				}
 			}
 
-		void copy_from(const stringvectst &src)
+		void copy_from(stringvectst &src)
 			{
 			clean();
 
@@ -242,8 +234,7 @@ class flagarrayst
 			{
 			if(flagnum<=0)return;
 
-			const long newsize=((flagnum-1)>>3)+1;
-			set_size(newsize<=0 ? 1 : newsize);
+			set_size(((flagnum-1)>>3)+1);
 			}
 
 		void set_size(long newsize)
@@ -275,7 +266,7 @@ class flagarrayst
 				}
 			}
 
-		bool has_flag(long checkflag) const
+		bool has_flag(long checkflag)
 			{
 			if(checkflag<0)return false;
 			long slot=checkflag>>3;
@@ -403,7 +394,7 @@ enum render_phase {
   complete,
   phase_count
 };
-/*
+
 class texture_bo {
   GLuint bo, tbo;
  public:
@@ -432,6 +423,7 @@ class texture_bo {
   }
   GLuint texnum() { return tbo; }
 };
+
 
 class shader {
   string filename;
@@ -485,7 +477,212 @@ class shader {
     return shader;
   }
 };
-*/
+
+
+class text_info_elementst
+{
+ public:
+  virtual string get_string()
+  {
+    string empty;
+    return empty;
+  }
+  virtual long get_long()
+  {
+    return 0;
+  }
+
+  virtual ~text_info_elementst(){}
+};
+
+class text_info_element_stringst : public text_info_elementst
+{
+ public:
+  virtual string get_string()
+  {
+    return str;
+  }
+  text_info_element_stringst(const string &newstr)
+    {
+      str=newstr;
+    }
+
+ protected:
+  string str;
+};
+
+class text_info_element_longst : public text_info_elementst
+{
+ public:
+  virtual long get_long()
+  {
+    return val;
+  }
+  text_info_element_longst(long nval)
+    {
+      val=nval;
+    }
+
+ protected:
+  long val;
+};
+
+class text_infost
+{
+ public:
+  svector<text_info_elementst *> element;
+
+  void clean()
+  {
+    while(element.size()>0)
+      {
+	delete element[0];
+	element.erase(0);
+      }
+  }
+
+  string get_string(int e)
+  {
+    if(e<0||e>=element.size())
+      {
+	string empty;
+	return empty;
+      }
+    if(element[e]==NULL)
+      {
+	string empty;
+	return empty;
+      }
+    return element[e]->get_string();
+  }
+
+  long get_long(int e)
+  {
+    if(e<0||e>=element.size())
+      {
+	return 0;
+      }
+    if(element[e]==NULL)
+      {
+	return 0;
+      }
+    return element[e]->get_long();
+  }
+
+  ~text_infost()
+    {
+      clean();
+    }
+};
+
+class text_system_file_infost
+{
+ public:
+  long index;
+  string filename;
+
+  static text_system_file_infost *add_file_info(const string &newf,long newi,char newft)
+  {
+    return new text_system_file_infost(newf,newi,newft);
+  }
+
+  void initialize_info();
+  void get_text(text_infost &text);
+  void get_specific_text(text_infost &text,long num);
+
+ protected:
+  char file_token;
+  long number;
+
+  text_system_file_infost(const string &newf,long newi,char newft)
+    {
+      filename=newf;
+      file_token=newft;
+      index=newi;
+      number=0;
+    }
+};
+
+class text_systemst
+{
+ public:
+  void register_file_fixed(const string &file_name,int32_t index,char token,char initialize)
+  {
+    text_system_file_infost *tsfi=text_system_file_infost::add_file_info(file_name,index,token);
+    if(initialize)tsfi->initialize_info();
+    file_info.push_back(tsfi);
+  }
+  void register_file(const string &file_name,int32_t &index,char token,char initialize)
+  {
+    int32_t t;
+    for(t=(int32_t)file_info.size()-1;t>=0;t--)
+      {
+	if(file_info[t]->filename==file_name)
+	  {
+	    //RESET CALLING INDEX AND BAIL IF THIS FILE IS ALREADY IN THE SYSTEM
+	    index=file_info[t]->index;
+	    return;
+	  }
+      }
+
+    text_system_file_infost *tsfi=text_system_file_infost::add_file_info(file_name,index,token);
+    if(initialize)tsfi->initialize_info();
+    file_info.push_back(tsfi);
+  }
+  void initialize_system()
+  {
+    int32_t t;
+    for(t=(int32_t)file_info.size()-1;t>=0;t--)file_info[t]->initialize_info();
+  }
+  void get_text(int32_t index,text_infost &text)
+  {
+    int32_t t;
+    for(t=(int32_t)file_info.size()-1;t>=0;t--)
+      {
+	if(file_info[t]->index==index)
+	  {
+	    file_info[t]->get_text(text);
+	    return;
+	  }
+      }
+  }
+  void get_text(const string &file_name,text_infost &text)
+  {
+    int32_t t;
+    for(t=(int32_t)file_info.size()-1;t>=0;t--)
+      {
+	if(file_info[t]->filename==file_name)
+	  {
+	    file_info[t]->get_text(text);
+	    return;
+	  }
+      }
+  }
+  void get_specific_text(int32_t index,text_infost &text,int32_t num)
+  {
+    int32_t t;
+    for(t=(int32_t)file_info.size()-1;t>=0;t--)
+      {
+	if(file_info[t]->index==index)
+	  {
+	    file_info[t]->get_specific_text(text,num);
+	    return;
+	  }
+      }
+  }
+
+  ~text_systemst()
+    {
+      while(file_info.size()>0)
+	{
+	  delete file_info[0];
+	  file_info.erase(0);
+	}
+    }
+
+ protected:
+  svector<text_system_file_infost *> file_info;
+};
 
 class curses_text_boxst
 {
@@ -514,12 +711,11 @@ class curses_text_boxst
 
 #define ENABLERFLAG_RENDER BIT1
 #define ENABLERFLAG_MAXFPS BIT2
-#define ENABLERFLAG_BASIC_TEXT BIT3
 
 // GL texture positions
-/*struct gl_texpos {
+struct gl_texpos {
   GLfloat left, right, top, bottom;
-};*/
+};
 
 // Covers every allowed permutation of text
 struct ttf_id {
@@ -547,12 +743,6 @@ namespace std {
   };
 };
 
-inline SDL_Surface *IMG_Loadfile(const filest &f) {
-	auto path=f.any_location_unchecked(); // IMG_Load will just return NULL if the file is not found
-	auto str=path.string();
-	return IMG_Load(str.c_str());
-	}
-
 // Being a texture catalog interface, with opengl, sdl and truetype capability
 class textures
 {
@@ -560,18 +750,16 @@ class textures
   friend class renderer_opengl;
  private:
   vector<SDL_Surface *> raws;
-  vector<int32_t> free_spaces;
-  int32_t init_texture_size;
   bool uploaded;
   long add_texture(SDL_Surface*);
  protected:
-/*  GLuint gl_catalog; // texture catalog gennum
-  struct gl_texpos *gl_texpos; // Texture positions in the GL catalog, if any*/
+  GLuint gl_catalog; // texture catalog gennum
+  struct gl_texpos *gl_texpos; // Texture positions in the GL catalog, if any
  public:
   // Initialize state variables
   textures() {
     uploaded = false;
-    //gl_texpos = NULL;
+    gl_texpos = NULL;
   }
   ~textures() {
   	for (auto it = raws.cbegin(); it != raws.cend(); ++it)
@@ -580,17 +768,16 @@ class textures
   int textureCount() {
     return (int)raws.size();
   }
-  // opengl textures were here--they're in the git history, circa february 1 2023
+  // Upload in-memory textures to the GPU
+  // When textures are uploaded, any alteration to a texture
+  // is automatically reflected in the uploaded copy - eg. it's replaced.
+  // This is very expensive in opengl mode. Don't do it often.
+  void upload_textures();
+  // Also, you really should try to remove uploaded textures before
+  // deleting a window, in case of driver memory leaks.
+  void remove_uploaded_textures();
   // Returns the most recent texture data
   SDL_Surface *get_texture_data(long pos);
-
-  //create a texture
-  long create_texture(long dimx,long dimy);
-
-  void set_init_texture_size()
-	{
-	init_texture_size=(int32_t)raws.size();
-	}
   // Clone a texture
   long clone_texture(long src);
   // Remove all color, but not transparency
@@ -601,21 +788,13 @@ class textures
   // If convert_magenta is true and the file does not have built-in transparency,
   // any magenta (255,0,255 RGB) is converted to full transparency
   // The calculated size of individual tiles is saved to disp_x, disp_y
-  void load_multi_pdim(const std::filesystem::path &filename,svector<long> &tex_pos,long dimx,long dimy,
+  void load_multi_pdim(const string &filename,long *tex_pos,long dimx,long dimy,
 		       bool convert_magenta,
 		       long *disp_x, long *disp_y);
-  void load_multi_pdim(const std::filesystem::path &filename,long *tex_pos,long dimx,long dimy,
-		       bool convert_magenta,
-		       long *disp_x, long *disp_y);
-  void refresh_multi_pdim(const std::filesystem::path &filename,svector<long> &tex_pos,long dimx,long dimy,
-		       bool convert_magenta);
   // Loads a single texture from a file, returning the handle
-  cached_texturest load(const std::filesystem::path &filename, bool convert_magenta);
+  long load(const string &filename, bool convert_magenta);
   // To delete a texture..
-  void delete_texture(int32_t pos);
-  void delete_texture(SDL_Surface *srf);
-
-  void delete_all_post_init_textures();
+  void delete_texture(long pos);
 };
 
 struct tile {
@@ -638,203 +817,73 @@ typedef struct {									// Contains Information Vital To A Window
 
 enum zoom_commands { zoom_in, zoom_out, zoom_reset, zoom_fullscreen, zoom_resetgrid };
 
-#define TEXTURE_FULLID_FLAG_TRANSPARENT_BACKGROUND BIT1
-#define TEXTURE_FULLID_FLAG_DO_RECOLOR BIT2
-#define TEXTURE_FULLID_FLAG_CONVERT BIT3
 
-#ifdef WIN32
 struct texture_fullid {
   int texpos;
   float r, g, b;
   float br, bg, bb;
-  uint32_t flag;
-  texture_fullid()=default;
-  texture_fullid(int texpos, float r, float g, float b, float br, float bg, float bb, uint32_t flag) : texpos(texpos), r(r), g(g), b(b), br(br), bg(bg), bb(bb), flag(flag) {}
-  auto operator<=> (const struct texture_fullid &other) const=default;
+
+  bool operator< (const struct texture_fullid &other) const {
+    if (texpos != other.texpos) return texpos < other.texpos;
+    if (r != other.r) return r < other.r;
+    if (g != other.g) return g < other.g;
+    if (b != other.b) return b < other.b;
+    if (br != other.br) return br < other.br;
+    if (bg != other.bg) return bg < other.bg;
+    return bb < other.bb;
+  }
 };
 
-template<>
-struct std::hash<texture_fullid>
-	{
-	size_t operator()(texture_fullid const &t) const noexcept
-		{
-		size_t h=std::hash<int>{}(t.texpos);
-		auto u_hash=std::hash<uint64_t>{};
-		h^=u_hash(std::bit_cast<uint64_t>(std::make_pair(t.r, t.g)));
-		h^=u_hash(std::bit_cast<uint64_t>(std::make_pair(t.b, t.br)))<<1;
-		h^=u_hash(std::bit_cast<uint64_t>(std::make_pair(t.bg, t.bb)))<<2;
-		h^=std::hash<uint32_t>{}(t.flag);
-		return h;
-		}
-	};
-#else
-struct texture_fullid {
-  int texpos;
-  float r, g, b;
-  float br, bg, bb;
-  uint32_t flag;
-  texture_fullid()=default;
-  texture_fullid(int texpos,float r,float g,float b,float br,float bg,float bb,uint32_t flag) : texpos(texpos),r(r),g(g),b(b),br(br),bg(bg),bb(bb),flag(flag) {}
-
-  auto operator<=> (const struct texture_fullid &other) const=default;
-};
-
-template<>
-struct std::hash<texture_fullid>
-	{
-	size_t operator()(texture_fullid const &t) const noexcept
-		{
-		size_t h=std::hash<float>{}(t.texpos);
-		auto u_hash=std::hash<uint64_t>{};
-		h^=u_hash(t.r);
-		h^=u_hash(t.g)<<1;
-		h^=u_hash(t.b)<<2;
-		h^=u_hash(t.br)<<3;
-		h^=u_hash(t.bg)<<4;
-		h^=u_hash(t.bb)<<5;
-		h^=std::hash<uint32_t>{}(t.flag)<<6;
-		return h;
-		}
-	};
-#endif
-
-struct benchmark_callbackst {
-	using clock=std::chrono::steady_clock;
-	using time_point=std::chrono::time_point<clock>;
-	benchmark_callbackst()=delete;
-	benchmark_callbackst(std::function<void(time_point)> cb) : callback(cb) {
-		initial=std::chrono::steady_clock::now();
-		}
-	~benchmark_callbackst() {
-		callback(initial);
-		}
-private:
-	std::chrono::time_point<std::chrono::steady_clock> initial;
-	std::function<void(time_point)> callback;
-	};
-
-template<typename clock=std::chrono::steady_clock>
-struct timerst {
-	using time_point=std::chrono::time_point<clock>;
-	timerst() {
-		initial=clock::now();
-		}
-	template<typename count>
-	int64_t elapsed() {
-		auto now=clock::now();
-		return std::chrono::duration_cast<count>(now-initial).count();
-		}
-private:
-	std::chrono::time_point<std::chrono::steady_clock> initial;
-	};
-
-//typedef int texture_ttfid; // Just the texpos
+typedef int texture_ttfid; // Just the texpos
 
 class renderer {
   void cleanup_arrays();
  protected:
   unsigned char *screen;
   long *screentexpos;
-  long *screentexpos_lower;
-  long *screentexpos_anchored;
-  long *screentexpos_anchored_x,*screentexpos_anchored_y;
-  uint32_t *screentexpos_flag;
-  unsigned char *screen_top;
-  long *screentexpos_top;
-  long *screentexpos_top_lower;
-  long *screentexpos_top_anchored;
-  long *screentexpos_top_anchored_x,*screentexpos_top_anchored_y;
-  uint32_t *screentexpos_top_flag;
-  uint8_t *directtexcopy;
+  char *screentexpos_addcolor;
+  unsigned char *screentexpos_grayscale;
+  unsigned char *screentexpos_cf;
+  unsigned char *screentexpos_cbr;
   // For partial printing:
   unsigned char *screen_old;
   long *screentexpos_old;
-  long *screentexpos_lower_old;
-  long *screentexpos_anchored_old;
-  long *screentexpos_anchored_x_old,*screentexpos_anchored_y_old;
-  uint32_t *screentexpos_flag_old;
-  unsigned char *screen_top_old;
-  long *screentexpos_top_old;
-  long *screentexpos_top_lower_old;
-  long *screentexpos_top_anchored_old;
-  long *screentexpos_top_anchored_x_old,*screentexpos_top_anchored_y_old;
-  uint32_t *screentexpos_top_flag_old;
+  char *screentexpos_addcolor_old;
+  unsigned char *screentexpos_grayscale_old;
+  unsigned char *screentexpos_cf_old;
+  unsigned char *screentexpos_cbr_old;
 
-  uint8_t* directtexcopy_old;
-
-  int32_t *screentexpos_refresh_buffer;
-
-
-  void gps_allocate(int x, int y,int screen_x,int screen_y,int tile_dim_x,int tile_dim_y);
-  Either<texture_fullid,int32_t/*texture_ttfid*/> screen_to_texid(int x, int y);
-  Either<texture_fullid,int32_t/*texture_ttfid*/> screen_top_to_texid(int x, int y);
+  void gps_allocate(int x, int y);
+  Either<texture_fullid,texture_ttfid> screen_to_texid(int x, int y);
  public:
   void display();
   virtual void update_tile(int x, int y) = 0;
-  virtual void update_anchor_tile(int x, int y) = 0;
-  virtual void update_top_tile(int x, int y) = 0;
-  virtual void update_top_anchor_tile(int x, int y) = 0;
-  virtual void update_viewport_tile(graphic_viewportst *vp,int32_t x,int32_t y) = 0;
-  virtual void update_map_port_tile(graphic_map_portst *vp,int32_t x,int32_t y) = 0;
   virtual void update_all() = 0;
-  virtual void do_blank_screen_fill() = 0;
-  virtual void update_full_viewport(graphic_viewportst *vp) = 0;
-  virtual void update_full_map_port(graphic_map_portst *vp) = 0;
-  virtual void clean_tile_cache() = 0;
-  virtual void tidy_tile_cache()=0;
-  virtual void clean_cached_tile(int32_t texpos,float r,float g,float b,float br,float bg,float bb,uint32_t flag)=0;
   virtual void render() = 0;
   virtual void set_fullscreen() {} // Should read from enabler.is_fullscreen()
   virtual void zoom(zoom_commands cmd) {};
   virtual void resize(int w, int h) = 0;
   virtual void grid_resize(int w, int h) = 0;
-  virtual void set_viewport_zoom_factor(int32_t nfactor) = 0;
-  virtual SDL_Renderer* get_renderer() = 0;
-  virtual SDL_Window* get_window() = 0;
   void swap_arrays();
   renderer() {
     screen = NULL;
     screentexpos = NULL;
-    screentexpos_lower = NULL;
-    screentexpos_anchored = NULL;
-    screentexpos_anchored_x = NULL;
-    screentexpos_anchored_y = NULL;
-    screentexpos_flag = NULL;
-    screen_top = NULL;
-    screentexpos_top = NULL;
-    screentexpos_top_lower = NULL;
-    screentexpos_top_anchored = NULL;
-    screentexpos_top_anchored_x = NULL;
-    screentexpos_top_anchored_y = NULL;
-    screentexpos_top_flag = NULL;
+    screentexpos_addcolor = NULL;
+    screentexpos_grayscale = NULL;
+    screentexpos_cf = NULL;
+    screentexpos_cbr = NULL;
     screen_old = NULL;
     screentexpos_old = NULL;
-    screentexpos_lower_old = NULL;
-    screentexpos_anchored_old = NULL;
-    screentexpos_anchored_x_old = NULL;
-    screentexpos_anchored_y_old = NULL;
-    screentexpos_flag_old = NULL;
-    screen_top_old = NULL;
-    screentexpos_top_old = NULL;
-    screentexpos_top_lower_old = NULL;
-    screentexpos_top_anchored_old = NULL;
-    screentexpos_top_anchored_x_old = NULL;
-    screentexpos_top_anchored_y_old = NULL;
-    screentexpos_top_flag_old = NULL;
-
-	screentexpos_refresh_buffer=NULL;
+    screentexpos_addcolor_old = NULL;
+    screentexpos_grayscale_old = NULL;
+    screentexpos_cf_old = NULL;
+    screentexpos_cbr_old = NULL;
   }
   virtual ~renderer() {
     cleanup_arrays();
   }
-  virtual bool get_precise_mouse_coords(int &px, int &py, int &x, int &y) = 0;
-  virtual void get_current_interface_tile_dims(int32_t &cur_tx,int32_t &cur_ty) = 0;
+  virtual bool get_mouse_coords(int &x, int &y) = 0;
   virtual bool uses_opengl() { return false; };
-};
-
-enum FullscreenState : uint8_t {
-	FULLSCREEN = BIT1,
-	EXCLUSIVE = BIT2
 };
 
 class enablerst : public enabler_inputst
@@ -845,7 +894,7 @@ class enablerst : public enabler_inputst
   friend class renderer_opengl;
   friend class renderer_curses;
 
-  uint8_t fullscreen_state;
+  bool fullscreen;
   stack<pair<int,int> > overridden_grid_sizes;
 
   class renderer *renderer;
@@ -882,17 +931,12 @@ class enablerst : public enabler_inputst
   };
 
   struct async_msg {
-    enum msg_t { quit, complete, set_fps, set_gfps, push_resize, pop_resize, reset_textures, show_message } msg;
+    enum msg_t { quit, complete, set_fps, set_gfps, push_resize, pop_resize, reset_textures } msg;
     union {
       int fps; // set_fps, set_gfps
       struct { // push_resize
         int x, y;
       };
-	  struct {
-		  const wchar_t *text;
-		  const wchar_t *caption;
-		  UINT type;
-		  };
     };
     async_msg() {}
     async_msg(msg_t m) { msg = m; }
@@ -903,12 +947,11 @@ class enablerst : public enabler_inputst
   Chan<async_cmd> async_tobox;    // Messages to the simulation thread
   Chan<async_msg> async_frombox;  // Messages from the simulation thread, and acknowledgements of those to
   Chan<zoom_commands> async_zoom; // Zoom commands (from the simulation thread)
-  std::binary_semaphore async_fromcomplete;  // Barrier for async_msg requests that require acknowledgement
+  Chan<void> async_fromcomplete;  // Barrier for async_msg requests that require acknowledgement
  public:
-  SDL_threadID renderer_threadid;
-	bool must_do_render_things_before_display;
+  Uint32 renderer_threadid;
  private:
-	 
+
   void pause_async_loop();
   void async_wait();
   void unpause_async_loop() {
@@ -921,7 +964,8 @@ class enablerst : public enabler_inputst
 
   string command_line;
 
-
+  float ccolor[16][3]; // The curses-RGB mapping used for non-curses display modes
+  
   enablerst();
   unsigned long flag; // ENABLERFLAG_RENDER, ENABLERFLAG_MAXFPS
 
@@ -939,14 +983,11 @@ class enablerst : public enabler_inputst
 
   // Mouse interface, such as it is
   char mouse_lbut,mouse_rbut,mouse_lbut_down,mouse_rbut_down,mouse_lbut_lift,mouse_rbut_lift;
-  char mouse_mbut,mouse_mbut_down,mouse_mbut_lift;
   char tracking_on;   // Whether we're tracking the mouse or not
 
   // OpenGL state (wrappers)
   class textures textures; // Font/graphics texture catalog
-  SDL_Renderer* main_renderer() {
-	  return renderer ? renderer->get_renderer() : NULL;
-  }
+  GLsync sync; // Rendering barrier
   void reset_textures() {
     async_frombox.write(async_msg(async_msg::reset_textures));
   }
@@ -959,56 +1000,21 @@ class enablerst : public enabler_inputst
   void override_grid_size(int w, int h); // Pick a /particular/ grid-size
   void release_grid_size(); // Undoes override_grid_size
   void zoom_display(zoom_commands command);
-
-	void get_current_interface_tile_dims(int32_t &cur_tx,int32_t &cur_ty)
-		{
-		if(renderer==NULL)return;
-		renderer->get_current_interface_tile_dims(cur_tx,cur_ty);
-		}
-
   
   
   // Window management
-  uint8_t get_fullscreen() { return fullscreen_state;  }
-  bool is_fullscreen() { return fullscreen_state & FULLSCREEN; }
-  void set_fullscreen(uint8_t new_state) {
-	  fullscreen_state = new_state;
+  bool is_fullscreen() { return fullscreen; }
+  void toggle_fullscreen() {
+    fullscreen = !fullscreen;
     async_zoom.write(zoom_fullscreen);
   }
-  void toggle_fullscreen() {
-	  fullscreen_state ^= FULLSCREEN;
-	  async_zoom.write(zoom_fullscreen);
-  }
-  void wants_to_resize_fullscreen() {
-	  if (!(fullscreen_state & FULLSCREEN)) {
-		  fullscreen_state |= FULLSCREEN;
-		  async_zoom.write(zoom_fullscreen);
-		}
-  }
-  void clean_cached_tile(int32_t texpos,float r,float g,float b,float br,float bg,float bb,uint32_t flag)
-	  {
-	  renderer->clean_cached_tile(texpos, r, g, b, br, bg, bb, flag);
-	  }
+
+  // Conversations
+  text_systemst text_system;
 
   // TOADY: MOVE THESE TO "FRAMERATE INTERFACE"
-  int simticks, gputicks;
+  MVar<int> simticks, gputicks;
   Uint32 clock; // An *approximation* of the current time for use in garbage collection thingies, updated every frame or so.
-  bool mouse_focus;
-  std::array<char, 32> last_text_input;
-  bool listening_to_text;
-  inline const char* get_text_input() { return last_text_input.data(); }
-  std::atomic_int last_message_result=-1;
-  void set_listen_to_text(bool listening);
-  void set_text_input(SDL_Event ev);
-  void clear_text_input();
-  void show_message_box(const wchar_t *text, const wchar_t *caption = L"Alert", UINT type = MB_OK) {
-	async_msg msg(async_msg::show_message);
-	msg.text = text;
-	msg.caption = caption;
-	msg.type = type;
-	async_frombox.write(msg);
-	async_fromcomplete.acquire();
-	}
 };
 #endif
 

@@ -1,11 +1,13 @@
 gui/clone-uniform
 =================
 
-Tags: unavailable
+Tags: fort | productivity | military
 
 Command: "gui/clone-uniform"
 
   Duplicate an existing military uniform.
+
+Keybinding: [Ctrl][C] in "layer_military/Uniforms"
 
 When invoked, this tool duplicates the currently selected uniform template and selects the newly created copy. Activate in the Uniforms page of the military screen with the cursor in the leftmost list.
 

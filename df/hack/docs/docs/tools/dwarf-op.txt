@@ -1,7 +1,7 @@
 dwarf-op
 ========
 
-Tags: unavailable
+Tags: fort | armok | units
 
 Command: "dwarf-op"
 

@@ -1,11 +1,15 @@
 gui/stockpiles
 ==============
 
-Tags: unavailable
+Tags: fort | design | stockpiles
 
 Command: "gui/stockpiles"
 
   Import and export stockpile settings.
+
+Keybinding: [Alt][L] -> ""gui/stockpiles -load"" in "dwarfmode/QueryBuilding/Some/Stockpile"
+
+Keybinding: [Alt][S] -> ""gui/stockpiles -save"" in "dwarfmode/QueryBuilding/Some/Stockpile"
 
 With a stockpile selected in "q" mode, you can use this tool to load stockpile settings from a file or save them to a file for later loading, in this fort or any other.
 

@@ -7,7 +7,7 @@ local base_editor = reqscript("internal/gm-unit/base_editor")
 
 
 Editor_Attrs = defclass(Editor_Attrs, base_editor.Editor)
-Editor_Attrs.ATTRS{
+Editor_Attrs.ATTRS = {
     frame_title = "Attributes editor"
 }
 function format_attr( name ,max_len)
@@ -75,13 +75,26 @@ function Editor_Attrs:init( args )
     self:addviews{
         widgets.FilteredList{
             choices=attr_list,
-            frame = {t=0, b=2,l=0},
+            frame = {t=0, b=1,l=1},
             view_id="attributes",
-            edit_ignore_keys={'STRING_A047'}
         },
         widgets.Label{
-            frame = { b=0,l=0},
-            text = {
+            frame = { b=0,l=1},
+            text ={{text= ": exit editor ",
+                key  = "LEAVESCREEN",
+                on_activate= self:callback("dismiss")
+                },
+                {text=": set max attribute ",
+                key = "SEC_SELECT",
+                on_activate= function (  )
+                    local a,a_name=self:get_cur_attr()
+                    dialog.showInputPrompt(a_name,"Enter new max value:",COLOR_WHITE,
+                    tostring(a.max_value),function(new_value)
+                        a.max_value=new_value
+                        self:update_list()
+                    end)
+                end
+                },
                 {text=": set attribute ",
                 key = "SELECT",
                 on_activate= function (  )
@@ -92,24 +105,10 @@ function Editor_Attrs:init( args )
                         self:update_list()
                     end)
                 end
-                },
-                {text=": set max attribute ",
-                key = "STRING_A047",
-                on_activate= function (  )
-                    local a,a_name=self:get_cur_attr()
-                    dialog.showInputPrompt(a_name,"Enter new max value:",COLOR_WHITE,
-                    tostring(a.max_value),function(new_value)
-                        a.max_value=new_value
-                        self:update_list()
-                    end)
-                end
-                },
+                }
             }
         },
     }
-end
-function Editor_Attrs:onOpen()
-    self.subviews[1].edit:setFocus(true)
 end
 function Editor_Attrs:get_cur_attr()
     local list_wid=self.subviews.attributes

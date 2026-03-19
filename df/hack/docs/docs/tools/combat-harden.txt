@@ -1,7 +1,7 @@
 combat-harden
 =============
 
-Tags: fort | armok | units
+Tags: fort | armok | military | units
 
 Command: "combat-harden"
 
@@ -13,7 +13,7 @@ This tool can make a unit care more/less about seeing corpses.
 Usage
 -----
 
-   combat-harden [<unit option>] [<hardness option>]
+   combat-harden [<unit>] [<hardness>]
 
 
 Examples
@@ -33,7 +33,7 @@ Unit options
    All active units will be affected.
 
 "--citizens"
-   All citizens and residents of your fort will be affected. Will do nothing in adventure mode.
+   All (sane) citizens of your fort will be affected. Will do nothing in adventure mode.
 
 "--unit <id>"
    The given unit will be affected.

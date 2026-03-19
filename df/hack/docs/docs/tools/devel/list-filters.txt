@@ -1,7 +1,7 @@
 devel/list-filters
 ==================
 
-Tags: unavailable
+Tags: dev
 
 Command: "devel/list-filters"
 

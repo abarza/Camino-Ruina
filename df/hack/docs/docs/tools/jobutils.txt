@@ -1,7 +1,7 @@
 jobutils
 ========
 
-Tags: unavailable
+Tags: fort | inspection | jobs
 
   Provides commands for interacting with jobs.
 
@@ -13,9 +13,29 @@ Command: "job-duplicate"
 
   Duplicates the highlighted job.
 
+Keybinding: [Ctrl][D]
+
 Command: "job-material"
 
   Alters the material of the selected job.
+
+Keybinding: [Shift][A] -> ""job-material ALUNITE""
+
+Keybinding: [Shift][M] -> ""job-material MICROCLINE""
+
+Keybinding: [Shift][D] -> ""job-material DACITE""
+
+Keybinding: [Shift][R] -> ""job-material RHYOLITE""
+
+Keybinding: [Shift][I] -> ""job-material CINNABAR""
+
+Keybinding: [Shift][B] -> ""job-material COBALTITE""
+
+Keybinding: [Shift][O] -> ""job-material OBSIDIAN""
+
+Keybinding: [Shift][T] -> ""job-material ORTHOCLASE""
+
+Keybinding: [Shift][G] -> ""job-material GLASS_GREEN""
 
 
 Usage

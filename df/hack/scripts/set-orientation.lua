@@ -1,4 +1,34 @@
+-- Edit a unit's orientation
+-- Not to be confused with kane_t's script of the same name
 --@ module = true
+local help = [====[
+
+set-orientation
+===============
+Edit a unit's orientation.
+Interest levels are 0 for Uninterested, 1 for Romance, 2 for Marry.
+
+:unit <UNIT ID>:
+    The given unit will be affected.
+    If not found/provided, the script will try defaulting to the currently selected unit.
+:male <INTEREST>:
+    Set the interest level towards male sexes
+:female <INTEREST>:
+    Set the interest level towards female sexes
+:opposite <INTEREST>:
+    Set the interest level towards the opposite sex to the unit
+:same <INTEREST>:
+    Set the interest level towards the same sex as the unit
+:random:
+    Randomise the unit's interest towards both sexes, respecting their ORIENTATION token odds.
+
+Other arguments:
+
+:help:
+    Shows this help page.
+:view:
+    Print the unit's orientation values in the console.
+]====]
 
 local utils = require 'utils'
 
@@ -18,7 +48,7 @@ rng = rng or dfhack.random.new(nil, 10)
 -- General function used for rolling weighted tables
 function weightedRoll(weightedTable)
   local maxWeight = 0
-  for _, result in ipairs(weightedTable) do
+  for index, result in ipairs(weightedTable) do
     maxWeight = maxWeight + result.weight
   end
 
@@ -155,7 +185,7 @@ function randomiseOrientation(unit, sex)
     return
   end
 
-  local caste = dfhack.units.getCasteRaw(unit)
+  local caste = df.creature_raw.find(unit.race).caste[unit.caste]
 
   -- Build a weighted table for use in the weighted roll function
   local sexname = getSexString(sex)
@@ -194,7 +224,7 @@ function main(...)
 
   -- Help
   if args.help then
-    print(dfhack.script_help())
+    print(help)
     return
   end
 
@@ -214,7 +244,7 @@ function main(...)
 
   -- View
   if args.view then
-    print("Orientation of " .. dfhack.df2console(dfhack.units.getReadableName(unit)) .. ":")
+    print("Orientation of " .. dfhack.TranslateName(unit.name) .. ":")
     print("Male: " .. getInterestString(getInterest(unit, "male")))
     print("Female: " .. getInterestString(getInterest(unit, "female")))
     return

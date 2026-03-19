@@ -1,7 +1,7 @@
 devel/light
 ===========
 
-Tags: unavailable
+Tags: dev | graphics
 
 Command: "devel/light"
 

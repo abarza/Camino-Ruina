@@ -1,9 +1,35 @@
 -- makes a job involving current selection high priority
 
-local utils = require('utils')
-
 local function print_help()
-    print(dfhack.script_help())
+    print [====[
+
+do-job-now
+==========
+
+The script will try its best to find a job related to the selected entity
+(which can be a job, dwarf, animal, item, building, plant or work order) and then
+mark this job as high priority. There is no visual indicator, please look
+at the dfhack console for output. If a work order is selected, every job
+currently present job from this work order is affected, but not the future ones.
+
+For best experience add the following to your ``dfhack*.init``::
+
+    keybinding add Alt-N do-job-now
+
+Also see ``do-job-now`` `tweak` and `prioritize`.
+]====]
+end
+
+local utils = require 'utils'
+
+local function getUnitName(unit)
+    local language_name = dfhack.units.getVisibleName(unit)
+    if language_name.has_name then
+        return dfhack.df2console(dfhack.TranslateName( language_name ))
+    end
+
+    -- animals
+    return dfhack.units.getProfessionName(unit)
 end
 
 local function doJobNow(job)
@@ -20,7 +46,7 @@ local function doJobNow(job)
     end
     local unit = dfhack.job.getWorker(job)
     if unit then
-        print("... by " .. dfhack.df2console(dfhack.units.getReadableName(unit)))
+        print("... by " .. getUnitName(unit) )
     end
 end
 
@@ -54,6 +80,7 @@ end
 
 local function doUnitJobNow(unit)
     if dfhack.units.isCitizen(unit) then
+        --print('This will attempt to make a job of ' .. getUnitName(unit) .. ' a top priority')
         local t_job = unit.job
         if t_job then
             local job = t_job.current_job
@@ -62,8 +89,10 @@ local function doUnitJobNow(unit)
                 return
             end
         end
-        print("Couldn't find any job for " .. dfhack.df2console(dfhack.units.getReadableName(unit)))
+        print("Couldn't find any job for " .. getUnitName(unit) )
     else
+        --print('This will attempt to make a job with ' .. getUnitName(unit) .. ' a top priority')
+
         local needle = unit.id
         for _link, job in utils.listpairs(df.global.world.jobs.list) do
             if #job.general_refs > 0 then
@@ -79,7 +108,7 @@ local function doUnitJobNow(unit)
             end
         end
 
-        print("Couldn't find any job involving " .. dfhack.df2console(dfhack.units.getReadableName(unit)))
+        print("Couldn't find any job involving " .. getUnitName(unit) )
     end
 end
 
@@ -121,7 +150,7 @@ local function getSelectedWorkOrder()
     local orders
     local idx
     if df.viewscreen_jobmanagementst:is_instance(scr) then
-        orders = df.global.world.manager_orders.all
+        orders = df.global.world.manager_orders
         idx = scr.sel_idx
     elseif df.viewscreen_workshop_profilest:is_instance(scr)
         and scr.tab == df.viewscreen_workshop_profilest.T_tab.Orders

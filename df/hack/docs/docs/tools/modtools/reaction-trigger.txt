@@ -1,7 +1,7 @@
 modtools/reaction-trigger
 =========================
 
-Tags: unavailable
+Tags: dev
 
 Command: "modtools/reaction-trigger"
 

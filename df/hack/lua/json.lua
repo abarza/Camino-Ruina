@@ -1,6 +1,5 @@
 local _ENV = mkmodule('json')
-
-local internal = require('json.internal')
+local internal = require 'json.internal'
 local fs = dfhack.filesystem
 
 encode_defaults = {
@@ -40,7 +39,7 @@ function decode_file(path, ...)
     end
     local contents = f:read('*all')
     f:close()
-    return decode(contents, ...) or {}
+    return decode(contents, ...)
 end
 
 local _file = defclass()
@@ -60,13 +59,7 @@ function _file:read(strict)
         end
     else
         self.exists = true
-        local ok, err = pcall(function() self.data = decode_file(self.path) end)
-        if not ok then
-            if strict then
-                error(('cannot decode file: %s: %s'):format(self.path, err))
-            end
-            self.data = {}
-        end
+        self.data = decode_file(self.path)
     end
     return self.data
 end

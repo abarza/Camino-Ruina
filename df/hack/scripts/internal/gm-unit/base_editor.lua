@@ -1,10 +1,10 @@
 -- Editor base class for gui/gm-unit. Every other editor should inherit from this.
 --@ module = true
 
-local widgets = require('gui.widgets')
+local gui = require 'gui'
 
-Editor = defclass(Editor, widgets.Panel)
-Editor.ATTRS{
-    target_unit = DEFAULT_NIL,
-    frame_title = DEFAULT_NIL,
+Editor = defclass(Editor, gui.FramedScreen)
+Editor.ATTRS = {
+    frame_style = gui.GREY_LINE_FRAME,
+    target_unit = DEFAULT_NIL
 }

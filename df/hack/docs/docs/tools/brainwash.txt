@@ -13,6 +13,7 @@ Modify the traits of the selected dwarf to match an idealized personality: as st
 Usage
 -----
 
+::
    brainwash <type>
 
 

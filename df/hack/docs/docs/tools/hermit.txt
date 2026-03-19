@@ -18,4 +18,3 @@ Usage
 -----
 
    enable hermit
-   hermit [status]

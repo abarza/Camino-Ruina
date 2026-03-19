@@ -1,7 +1,7 @@
 labormanager
 ============
 
-Tags: unavailable
+Tags: fort | auto | labors
 
 Command: "labormanager"
 

@@ -5,7 +5,7 @@ Tags: fort | inspection
 
 Command: "gui/petitions"
 
-  List guildhall and temple agreements.
+  Show information about your fort's petitions.
 
 Show your fort's petitions, both pending and fulfilled.
 

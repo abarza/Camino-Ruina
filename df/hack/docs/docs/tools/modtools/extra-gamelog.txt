@@ -1,7 +1,7 @@
 modtools/extra-gamelog
 ======================
 
-Tags: unavailable
+Tags: dev
 
 Command: "modtools/extra-gamelog"
 
@@ -9,8 +9,7 @@ Command: "modtools/extra-gamelog"
 
 This script writes extra information to the gamelog. This is useful for tools like Soundsense.
 
-
-Usage
------
+Usage:
 
    modtools/extra-gamelog enable
+   modtools/extra-gamelog disable

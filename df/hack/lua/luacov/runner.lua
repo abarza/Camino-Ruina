@@ -6,7 +6,7 @@
 
 local runner = {}
 --- LuaCov version in `MAJOR.MINOR.PATCH` format.
-runner.version = "0.16.0"
+runner.version = "0.14.0"
 
 local stats = require("luacov.stats")
 local util = require("luacov.util")
@@ -306,7 +306,11 @@ local function is_absolute(path)
 end
 
 local function get_cur_dir()
-   local cur_dir = dfhack.filesystem.getcwd()
+   local pwd_cmd = dir_sep == "\\" and "cd 2>nul" or "pwd 2>/dev/null"
+   local handler = io.popen(pwd_cmd, "r")
+   local cur_dir = handler:read()
+   handler:close()
+   cur_dir = cur_dir:gsub("\r?\n$", "")
 
    if cur_dir:sub(-1) ~= dir_sep and cur_dir:sub(-1) ~= "/" then
       cur_dir = cur_dir .. dir_sep
@@ -376,7 +380,7 @@ local function load_config_file(name, is_default)
    raw_os_exit(1)
 end
 
-local default_config_file = os.getenv("LUACOV_CONFIG") or ".luacov"
+local default_config_file = ".luacov"
 
 ------------------------------------------------------
 -- Loads a valid configuration.

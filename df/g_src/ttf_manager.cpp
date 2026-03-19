@@ -1,4 +1,3 @@
-/*
 #include "ttf_manager.hpp"
 #include "init.h"
 #include <iostream>
@@ -174,14 +173,14 @@ SDL_Surface *ttf_managerst::get_texture(int handle) {
           continue;
         cp437_to_unicode(text.text, text_unicode);
         const int fg = (text.fg + text.bold * 8) % 16;
-        SDL_Color fgc = {Uint8(gps.uccolor[fg][0]),
-                         Uint8(gps.uccolor[fg][1]),
-                         Uint8(gps.uccolor[fg][2])};
+        SDL_Color fgc = {Uint8(enabler.ccolor[fg][0]*255),
+                         Uint8(enabler.ccolor[fg][1]*255),
+                         Uint8(enabler.ccolor[fg][2]*255)};
         const int bg = text.bg % 16;
         Uint32 bgc = SDL_MapRGB(textimg->format,
-                                Uint8(gps.uccolor[bg][0]),
-                                Uint8(gps.uccolor[bg][1]),
-                                Uint8(gps.uccolor[bg][2]));
+                                Uint8(enabler.ccolor[bg][0]*255),
+                                Uint8(enabler.ccolor[bg][1]*255),
+                                Uint8(enabler.ccolor[bg][2]*255));
 #ifdef DEBUG
         // SDL_Color white = {255,255,255};
         // Uint32 red = SDL_MapRGB(textimg->format, 255,0,0);
@@ -206,9 +205,9 @@ SDL_Surface *ttf_managerst::get_texture(int handle) {
                                 // Uint8(255),
                                 // Uint8(255),
                                 // Uint8(255)));
-                                Uint8(gps.uccolor[bg][0]),
-                                Uint8(gps.uccolor[bg][1]),
-                                Uint8(gps.uccolor[bg][2])));
+                                Uint8(enabler.ccolor[bg][0]*255),
+                                Uint8(enabler.ccolor[bg][1]*255),
+                                Uint8(enabler.ccolor[bg][2]*255)));
         // And copy the TTF segment over.
         SDL_Rect dest2 = {Sint16(xpos), 0, 0, 0};
         SDL_BlitSurface(textimg_seg, NULL, textimg, &dest2);
@@ -244,4 +243,3 @@ void ttf_managerst::gc() {
   handles.clear();
   todo.clear();
 }
-*/

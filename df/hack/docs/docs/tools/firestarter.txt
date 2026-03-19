@@ -1,7 +1,7 @@
 firestarter
 ===========
 
-Tags: fort | adventure | armok | items | map | units
+Tags: fort | armok | items | map | units
 
 Command: "firestarter"
 

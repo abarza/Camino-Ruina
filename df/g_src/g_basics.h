@@ -1,12 +1,10 @@
 #ifndef G_BASICS_H
 #define G_BASICS_H
 
-//************************** WIDE SCREENS
-#define MAX_GRID_X 768
+#define MAX_GRID_X 256
 #define MAX_GRID_Y 256
-
-#define MIN_GRID_X 114
-#define MIN_GRID_Y 46
+#define MIN_GRID_X 80
+#define MIN_GRID_Y 25
 
 #ifndef MAX
 # define MAX(a, b) (((a) > (b)) ? (a) : (b))

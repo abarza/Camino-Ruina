@@ -1,7 +1,7 @@
 modtools/reaction-trigger-transition
 ====================================
 
-Tags: unavailable
+Tags: dev
 
 Command: "modtools/reaction-trigger-transition"
 

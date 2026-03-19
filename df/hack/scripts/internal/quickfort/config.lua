@@ -76,7 +76,7 @@ function do_query_config_blueprint(zlevel, grid, ctx, sidebar_mode,
     local alias_ctx = quickfort_aliases.init_alias_ctx(ctx)
 
     local dry_run = ctx.dry_run
-    local saved_mode = df.global.plotinfo.main.mode
+    local saved_mode = df.global.ui.main.mode
     if not dry_run and saved_mode ~= sidebar_mode then
         guidm.enterSidebarMode(sidebar_mode)
     end
@@ -139,13 +139,13 @@ end
 
 local function config_post_tile_fn(ctx, tile_ctx)
     if ctx.dry_run then return end
-    if df.global.plotinfo.main.mode ~= df.ui_sidebar_mode.Default then
+    if df.global.ui.main.mode ~= df.ui_sidebar_mode.Default then
         qerror(string.format(
             'expected to be at map screen, but we seem to be in mode "%s"; ' ..
             'there is likely a problem with the blueprint text in ' ..
             'cell %s: "%s" (do you need a "^" at the end to get back to the ' ..
             'main map?)',
-            df.ui_sidebar_mode[df.global.plotinfo.main.mode],
+            df.ui_sidebar_mode[df.global.ui.main.mode],
             tile_ctx.cell, tile_ctx.text))
     end
 end

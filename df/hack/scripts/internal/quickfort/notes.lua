@@ -12,30 +12,18 @@ local log = quickfort_common.log
 
 function do_run(_, grid, ctx)
     local cells = quickfort_parse.get_ordered_grid_cells(grid)
-    local line, lines = {}, {}
-    local prev_x, prev_y = nil, nil
+    local lines = {}
+    local prev_y = nil
     for _,cell in ipairs(cells) do
-        if prev_y ~= cell.y and #line > 0 then
-            table.insert(lines, table.concat(line, '    '))
-            for _ = prev_y or cell.y,cell.y-2 do
+        if prev_y then
+            for dy = prev_y,cell.y-2 do
                 table.insert(lines, '')
             end
-            line = {}
         end
-        for _ = prev_x or cell.x,cell.x-2 do
-            table.insert(line, '    ')
-        end
-        table.insert(line, cell.text)
-        prev_x, prev_y = cell.x, cell.y
+        table.insert(lines, cell.text)
+        prev_y = cell.y
     end
-    if #line > 0 then
-        table.insert(lines, table.concat(line, '    '))
-    end
-    local message = table.concat(lines, '\n')
-    if not ctx.messages_set[message] then
-        table.insert(ctx.messages, message)
-        ctx.messages_set[message] = true
-    end
+    table.insert(ctx.messages, table.concat(lines, '\n'))
 end
 
 function do_orders()

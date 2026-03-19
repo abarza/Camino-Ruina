@@ -19,7 +19,7 @@ Usage
 
 Where the optional "<pos>" pair can be used to specify the coordinate bounds within which "build-now" will operate. If they are not specified, "build-now" will scan the entire map. If only one "<pos>" is specified, only the building at that coordinate is built.
 
-The "<pos>" parameters can either be an "<x>,<y>,<z>" triple (e.g. "35,12,150") or the string "here", which means the position of the active keyboard game cursor.
+The "<pos>" parameters can either be an "<x>,<y>,<z>" triple (e.g. "35,12,150") or the string "here", which means the position of the active game cursor.
 
 
 Examples
@@ -37,6 +37,3 @@ Options
 
 "-q", "--quiet"
    Suppress informational output (error messages are still printed).
-
-"-z", "--zlevel"
-   Restrict operation to the currently visible z-level

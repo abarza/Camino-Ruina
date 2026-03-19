@@ -1,13 +1,27 @@
 -- Blocks most types of visitors (caravans, migrants, etc.)
 --@ enable=true
---@ module=true
+--[====[
 
-local argparse = require('argparse')
-local repeatutil = require('repeat-util')
+hermit
+======
 
-local GLOBAL_KEY = 'hermit'
+Blocks all caravans, migrants, diplomats, and forgotten beasts (not wildlife).
+Useful for attempting the `hermit challenge`_.
+
+Use ``enable`` or ``disable`` to enable/disable, or ``help`` for this help.
+
+.. warning::
+
+    This does not block sieges, and may not block visitors or monarchs.
+
+.. _hermit challenge: http://dwarffortresswiki.org/index.php/DF2014:Playstyle_challenge#Hermit
+
+]====]
+
+local repeat_util = require "repeat-util"
 local timed_events = df.global.timed_events
-local allowlist = {
+
+local whitelist = {
     [df.timed_event_type.WildlifeCurious] = true,
     [df.timed_event_type.WildlifeMischievous] = true,
     [df.timed_event_type.WildlifeFlier] = true,
@@ -15,22 +29,7 @@ local allowlist = {
 
 enabled = enabled or false
 
-function isEnabled()
-    return enabled
-end
-
-local function persist_state()
-    dfhack.persistent.saveSiteData(GLOBAL_KEY, {enabled=enabled})
-end
-
-local function load_state()
-    local persisted_data = dfhack.persistent.getSiteData(GLOBAL_KEY, {enabled=false})
-    enabled = persisted_data.enabled
-end
-
-function event_loop()
-    if not enabled then return end
-
+function run()
     local tmp_events = {} --as:df.timed_event[]
     for _, event in pairs(timed_events) do
         table.insert(tmp_events, event)
@@ -38,65 +37,43 @@ function event_loop()
     timed_events:resize(0)
 
     for _, event in pairs(tmp_events) do
-        if allowlist[event.type] then
+        if whitelist[event.type] then
             timed_events:insert('#', event)
         else
             event:delete()
         end
     end
-
-    repeatutil.scheduleUnlessAlreadyScheduled(GLOBAL_KEY, 1, 'days', event_loop)
 end
 
-local function print_status()
-    print(('hermit is currently %s.'):format(enabled and 'enabled' or 'disabled'))
-end
-
-dfhack.onStateChange[GLOBAL_KEY] = function(sc)
-    if sc == SC_MAP_UNLOADED then
-        enabled = false
-        return
+function enable(state)
+    if not dfhack.isWorldLoaded() and state then
+        qerror('This script requires a world to be loaded')
     end
-
-    if sc ~= SC_MAP_LOADED or df.global.gamemode ~= df.game_mode.DWARF then
-        return
+    enabled = state
+    if enabled then
+        repeat_util.scheduleEvery('hermit', 1, 'days', run)
+        print('hermit enabled')
+    else
+        repeat_util.cancel('hermit')
+        print('hermit disabled')
     end
-
-    load_state()
-    event_loop()
 end
 
-if dfhack_flags.module then
-    return
+function dfhack.onStateChange.hermit(event)
+    if event == SC_WORLD_UNLOADED then
+        enable(false)
+    end
 end
 
-if df.global.gamemode ~= df.game_mode.DWARF or not dfhack.isMapLoaded() then
-    dfhack.printerr('hermit needs a loaded fortress to work')
-    return
-end
+local args = {...}
 
-local args, opts = {...}, {}
-if dfhack_flags and dfhack_flags.enable then
-    args = {dfhack_flags.enable_state and 'enable' or 'disable'}
-end
-
-local positionals = argparse.processArgsGetopt(args, {
-    {'h', 'help', handler=function() opts.help = true end},
-})
-
-local command = positionals[1]
-if command == 'help' or opts.help then
-    print(dfhack.script_help())
-elseif command == 'enable' then
-    enabled = true
-    persist_state()
-    event_loop()
-elseif command == 'disable' then
-    enabled = false
-    persist_state()
-    repeatutil.cancel(GLOBAL_KEY)
-elseif not command or command == 'status' then
-    print_status()
+if dfhack_flags.enable then
+    enable(dfhack_flags.enable_state)
+elseif args[1] == 'enable' or args[1] == 'disable' then
+    enable(args[1] == 'enable')
 else
+    if args[1] ~= 'help' then
+        dfhack.printerr('Unrecognized argument(s)')
+    end
     print(dfhack.script_help())
 end

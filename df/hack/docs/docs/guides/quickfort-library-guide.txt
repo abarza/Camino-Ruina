@@ -13,77 +13,79 @@ These files contain the plans for entire fortresses. Each file has one or more h
 
 * library/dreamfort.csv
 
+* library/quickfortress.csv
+
 
 Dreamfort
 ~~~~~~~~~
 
-Dreamfort is a fully functional, self-sustaining fortress with defenses, farming, a complete set of workshops, self-managing quantum stockpiles, a grand dining hall, hospital (werecreature-ready), library, temple, jail, fresh water well system, guildhalls, noble suites, and bedrooms for hundreds of dwarves. It also comes with manager work orders to automate basic fort needs, such as food, booze, and item production. It can function by itself or as the core of a larger, more ambitious fortress. Read the walkthrough by running gui/quickfort, searching for "dreamfort help", and selecting the blueprints.
+Dreamfort is a fully functional, self-sustaining fortress with defenses, farming, a complete set of workshops, self-managing quantum stockpiles, a grand dining hall, hospital, jail, fresh water well system, guildhalls, noble suites, and bedrooms for hundreds of dwarves. It also comes with manager work orders to automate basic fort needs, such as food, booze, and item production. It can function by itself or as the core of a larger, more ambitious fortress. Read the high-level walkthrough by running "quickfort run library/dreamfort.csv" and list the walkthroughs for the individual levels by running "quickfort list -l dreamfort -m notes" or "gui/quickfort dreamfort notes".
 
 Dreamfort blueprints are available for easy viewing and copying online.
 
-The online spreadsheets also include embark profile suggestions, a complete example embark profile, and a convenient checklist that you can use to track your progress.
+The online spreadsheets also include embark profile suggestions, a complete example embark profile, and a convenient checklist from which you can copy the "quickfort" commands.
 
-If you'd like a visual demonstration, there is a series of videos on YouTube that walk you through the entire process of building a Dreamfort-based fortress. You can also download a fully built Dreamfort-based fort from dffd, load it, and explore it interactively.
+If you like, you can download a fully built Dreamfort-based fort from dffd, load it, and explore it interactively.
+
+
+Visual overview
+```````````````
 
 Here are annotated screenshots of the major Dreamfort levels (or click here for a slideshow).
 
 
 Surface level
-`````````````
++++++++++++++
 
 [image: Annotated screenshot of the dreamfort surface level][image]
 
 
 Farming level
-`````````````
++++++++++++++
 
 [image: Annotated screenshot of the dreamfort farming level][image]
 
 
 Industry level
-``````````````
+++++++++++++++
 
 [image: Annotated screenshot of the dreamfort industry level][image]
 
 
-Services levels (4 deep)
-````````````````````````
+Services level
+++++++++++++++
 
-[image: Annotated screenshot of the dreamfort services level][image]
+[image: Annotated screenshot of the dreamfort services level][image][image: Annotated screenshot of the dreamfort cistern][image]
 
-**Example plumbing to fill cisterns**
 
-If you are routing water to fill the cisterns, you can do it like this:
+Example plumbing to fill cisterns
+"""""""""""""""""""""""""""""""""
 
-[image: Annotated screenshot of an example plumbing for the dreamfort cisterns][image]
-
-Cistern drain (keep open while you're digging out the aquifer tap):
-
-[image: Annotated screenshot of an example drainage for the dreamfort cisterns][image]
+[image: Annotated screenshot of an example aqueduct addition to the dreamfort cistern][image]
 
 
 Guildhall level
-```````````````
++++++++++++++++
 
 [image: Annotated screenshot of the dreamfort guildhall level][image]
 
 
 Noble suites
-````````````
+++++++++++++
 
 [image: Annotated screenshot of the dreamfort noble suites][image]
 
 
 Apartments
-``````````
+++++++++++
 
 [image: Annotated screenshot of the dreamfort apartments][image]
 
 
-Crypt
-`````
+The Quick Fortress
+~~~~~~~~~~~~~~~~~~
 
-[image: Annotated screenshot of the dreamfort crypt][image]
+The Quick Fortress is an updated version of the example fortress that came with Python Quickfort 2.0 (the utility that inspired DFHack quickfort). While it is not a complete fortress by itself, it is much simpler than Dreamfort and is good for a first introduction to quickfort blueprints. Read its walkthrough with "quickfort run library/quickfortress.csv" or view the blueprints online.
 
 
 Layout helpers
@@ -103,7 +105,7 @@ These files simply draw diagonal marker-mode lines starting from the cursor. The
 Bedrooms
 --------
 
-These are popular bedroom layouts from the Bedroom design page on the wiki. Each file has blueprints to dig the rooms, zone them as bedrooms, and build the furniture.
+These are popular bedroom layouts from the Bedroom design page on the wiki. Each file has "#dig", "#build", and "#query" blueprints to dig the rooms, build the furniture, and configure the beds as bedrooms, respectively.
 
 * library/bedrooms/48-4-Raynard_Whirlpool_Housing.csv
 
@@ -125,7 +127,7 @@ These blueprints have burial plot layouts for fortress that expect a lot of casu
 Exploratory mining
 ------------------
 
-Several mining patterns to choose from when searching for gems or ores. The patterns can be repeated up or down z-levels (via gui/quickfort's "r"epeat functionality) for exploring through the depths.
+Several mining patterns to choose from when searching for gems or ores. The patterns can be repeated up or down z-levels (via quickfort's "--repeat" commandline option) for exploring through the depths.
 
 * library/exploratory-mining/tunnels.csv
 
@@ -149,9 +151,9 @@ Extra blueprints that are useful in specific situations.
 Light aquifer tap
 ~~~~~~~~~~~~~~~~~
 
-The aquifer tap helps you create a safe, everlasting source of fresh water from a light aquifer. See the step-by-step guide, including information on how to create a drainage system so your dwarves don't drown when digging the tap, by running the "library/aquifer_tap.csv" "/help" blueprint. Alternately, view the demo video below.
+The aquifer tap helps you create a safe, everlasting source of fresh water from a light aquifer. See the step-by-step guide, including information on how to create a drainage system so your dwarves don't drown when digging the tap, by running "quickfort run library/aquifer_tap.csv -n /help".
 
-You can see how to nullify the water pressure (so you don't flood your fort) in the Dreamfort cistern screenshot above: Services levels (4 deep).
+You can see how to nullify the water pressure (so you don't flood your fort) in the Dreamfort screenshot above.
 
 The blueprint spreadsheet is also available online.
 
@@ -165,6 +167,6 @@ The embark blueprints are useful directly after embark. It contains a "#build" b
 Pump stack
 ~~~~~~~~~~
 
-The pump stack blueprints help you move water and magma up to more convenient locations in your fort. See the step-by-step guide for using it by running the "library/pump_stack.csv" "/help" blueprint or by viewing the demo video:
+The pump stack blueprints help you move water and magma up to more convenient locations in your fort. See the step-by-step guide for using it by running "quickfort run library/pump_stack.csv -n /help".
 
 The blueprint spreadsheet is also available online.

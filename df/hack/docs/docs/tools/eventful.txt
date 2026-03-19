@@ -1,7 +1,7 @@
 eventful
 ========
 
-Tags: dev
+Tags: dev | gameplay
 
   Provides a Lua API for reacting to in-game events.
 

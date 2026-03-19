@@ -5,6 +5,7 @@ local _ENV = mkmodule('gui.materials')
 local gui = require('gui')
 local widgets = require('gui.widgets')
 local dlg = require('gui.dialogs')
+local utils = require('utils')
 
 ARROW = string.char(26)
 
@@ -42,12 +43,10 @@ function MaterialDialog:init(info)
             text_pen = COLOR_WHITE,
             frame = { l = 0, t = 0 },
         },
-        widgets.HotkeyLabel{
+        widgets.Label{
             view_id = 'back',
             visible = false,
-            key = 'LEAVESCREEN',
-            label = 'Back',
-            on_activate = self:callback('onEsc'),
+            text = { { key = 'LEAVESCREEN', text = ': Back' } },
             frame = { r = 0, b = 0 },
             auto_width = true,
         },
@@ -116,7 +115,7 @@ end
 function MaterialDialog:initInorganicMode()
     local choices = {}
 
-    for i,mat in ipairs(df.global.world.raws.inorganics.all) do
+    for i,mat in ipairs(df.global.world.raws.inorganics) do
         self:addMaterial(choices, mat.material, 0, i, false, mat)
     end
 
@@ -230,15 +229,7 @@ function MaterialDialog:pushContext(name, choices)
     self.subviews.list:setChoices(choices, 1)
 end
 
-function MaterialDialog:onEsc()
-    if not self.subviews.back.visible then
-        self:dismiss()
-        if self.on_cancel then
-            self.on_cancel()
-        end
-        return
-    end
-
+function MaterialDialog:onGoBack()
     local save = table.remove(self.back_stack)
     self.subviews.back.visible = (#self.back_stack > 0)
 
@@ -264,12 +255,18 @@ function MaterialDialog:onSubmitItem(idx, item)
 end
 
 function MaterialDialog:onInput(keys)
-    if keys._MOUSE_R then
-        self:onEsc()
-        return true
+    if keys.LEAVESCREEN or keys.LEAVESCREEN_ALL then
+        if self.subviews.back.visible and not keys.LEAVESCREEN_ALL then
+            self:onGoBack()
+        else
+            self:dismiss()
+            if self.on_cancel then
+                self.on_cancel()
+            end
+        end
+    else
+        self:inputToSubviews(keys)
     end
-    self:inputToSubviews(keys)
-    return true
 end
 
 function showMaterialPrompt(title, prompt, on_select, on_cancel, mat_filter)
@@ -378,14 +375,14 @@ function ItemTraitsDialog(args)
     end
     --------------------------------------
     local set_ore_ix = {}
-    for i, raw in ipairs(df.global.world.raws.inorganics.all) do
+    for i, raw in ipairs(df.global.world.raws.inorganics) do
         for _, ix in ipairs(raw.metal_ore.mat_index) do
             set_ore_ix[ix] = true
         end
     end
     local ores = {}
     for ix in pairs(set_ore_ix) do
-        local raw = df.global.world.raws.inorganics.all[ix]
+        local raw = df.global.world.raws.inorganics[ix]
         ores[#ores+1] = {mat_index = ix, name = raw.material.state_name.Solid}
     end
     table.sort(ores, function(a,b) return a.name < b.name end)

@@ -69,6 +69,8 @@ Plugins that implement RPC methods include:
 
 * RemoteFortressReader
 
+* isoworldremote
+
 Plugins that use the RPC API include:
 
 * stonesense

@@ -1,4 +1,14 @@
 --- Simple menu to quickly execute common commands.
+--[====[
+
+gui/quickcmd
+============
+A list of commands which you can edit while in-game, and which you can execute
+quickly and easily. For stuff you use often enough to not want to type it, but
+not often enough to be bothered to find a free keybinding.
+
+]====]
+
 --[[
 Copyright (c) 2014, Michon van Dooren
 All rights reserved.
@@ -29,219 +39,104 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ]]
 
-local dlg = require('gui.dialogs')
-local json = require('json')
-local gui = require('gui')
-local widgets = require('gui.widgets')
+local gui = require 'gui'
+local widgets = require 'gui.widgets'
+local dlg = require 'gui.dialogs'
 
-local CONFIG_FILE_BACKUP = 'dfhack-config/quickcmd.json.bak'
-local CONFIG_FILE = 'dfhack-config/quickcmd.json'
 local HOTKEYWIDTH = 7
-local OUTWIDTH = 4
+local COMMANDWIDTH = 28 - HOTKEYWIDTH - 3
+local STORAGEKEY = 'quickcmd.command'
 local HOTKEYS = 'asdfghjklqwertyuiopzxcvbnm'
 
-local function save_commands(data)
-    json.encode_file({version=2, commands=data}, CONFIG_FILE)
-end
-
-local function migrate_to_v2(data)
-    json.encode_file(data, CONFIG_FILE_BACKUP)
-
-    local commands = {}
-    for i, cmd in ipairs(data) do
-        if type(cmd) == 'string' then
-            table.insert(commands, {command = cmd, name = nil, show_output = false})
-        end
-    end
-
-    save_commands(commands)
-    return commands
-end
-
-local function load_commands()
-    local ok, data = pcall(json.decode_file, CONFIG_FILE)
-    if ok then
-        if type(data) == 'table' and data.version then
-            if data.version == 2 then
-                return data.commands or {}
-            end
-        end
-        -- Old format: array of strings
-        if type(data) == 'table' and #data > 0 then
-            return migrate_to_v2(data)
-        end
-    end
-
-    return {}
-end
-
-QCMDDialog = defclass(QCMDDialog, widgets.Window)
+QCMDDialog = defclass(QCMDDialog, gui.FramedScreen)
+QCMDDialog.focus_path = 'QuickCMDDialog'
 QCMDDialog.ATTRS {
-    frame_title='Quick Command',
-    frame={w=40, h=28},
-    resizable=true,
-    resize_min={h=10},
+    frame_title = 'Quick Command',
 }
 
 function QCMDDialog:init(info)
-    self.commands = load_commands()
-
     self:addviews{
-        widgets.Label{
-            frame={t=0},
-            text={{text='Hotkey', width=HOTKEYWIDTH}, {text='Out', width=OUTWIDTH}, 'Name/Command'},
-            visible=function() return #self.commands > 0 end,
-        },
-        widgets.List{
-            view_id='list',
-            frame={t=2, b=4},
-            on_submit=self:callback('submit'),
-        },
-        widgets.Label{
-            frame={t=0},
-            text={'Command list is empty.', NEWLINE, 'Hit "A" to add one!'},
-            visible=function() return #self.commands == 0 end,
-        },
-        widgets.HotkeyLabel{
-            frame={b=2, l=0},
-            key='CUSTOM_SHIFT_A',
-            label='Add command',
-            auto_width=true,
-            on_activate=self:callback('onAddCommand'),
-        },
-        widgets.HotkeyLabel{
-            frame={b=2, l=19},
-            key='CUSTOM_SHIFT_D',
-            label='Delete command',
-            auto_width=true,
-            on_activate=self:callback('onDelCommand'),
-        },
-        widgets.HotkeyLabel{
-            frame={b=1, l=0},
-            key='CUSTOM_SHIFT_E',
-            label='Edit command',
-            auto_width=true,
-            on_activate=self:callback('onEditCommand'),
-        },
-        widgets.HotkeyLabel{
-            frame={b=1, l=19},
-            key='CUSTOM_SHIFT_N',
-            label='Edit name',
-            auto_width=true,
-            on_activate=self:callback('onSetName'),
-        },
-        widgets.HotkeyLabel{
-            frame={b=0, l=0},
-            key='CUSTOM_SHIFT_O',
-            label='Capture output',
-            auto_width=true,
-            on_activate=self:callback('onToggleOutput'),
+        widgets.Panel{
+            frame = { t = 0, r = 0, b = 0, l = 0 },
+            frame_inset = 1,
+            subviews = {
+                widgets.Label{
+                    frame = { t = 0 },
+                    text = {
+                        { text = 'Hotkey', width = HOTKEYWIDTH }, ' ',
+                        { text = 'Command', width = COMMANDWIDTH },
+                    },
+                },
+                widgets.List{
+                    view_id = 'list',
+                    frame = { t = 2, b = 3 },
+                    not_found_label = 'Command list is empty.',
+                },
+                widgets.Label{
+                    frame = { b = 0, h = 2 },
+                    text = {
+                        { key = 'CUSTOM_SHIFT_A', text = ': Add command',
+                          on_activate = self:callback('onAddCommand') }, ' ',
+                        { key = 'CUSTOM_SHIFT_D', text = ': Delete command',
+                          on_activate = self:callback('onDelCommand') }, NEWLINE,
+                        { key = 'CUSTOM_SHIFT_E', text = ': Edit command',
+                          on_activate = self:callback('onEditCommand') }, ' ',
+                    },
+                }
+            },
         },
     }
 
     self:updateList()
 end
 
-function QCMDDialog:submit(idx, choice)
-    local cmd_obj = self.commands[idx]
-
-    if cmd_obj.show_output then
-        self:showCommandOutput(cmd_obj.command, cmd_obj.name)
-    else
-        local screen = self.parent_view
-        dfhack.screen.hideGuard(screen, function()
-            dfhack.run_command(cmd_obj.command)
-        end)
-        screen:dismiss()
-    end
-end
-
-function QCMDDialog:showCommandOutput(command, name)
-    local output = dfhack.run_command_silent(command)
-
-    -- Dismiss the quickcmd dialog before showing output
-    local screen = self.parent_view
-    screen:dismiss()
-
-    local OutputDialog = defclass(OutputDialog, gui.ZScreen)
-    OutputDialog.ATTRS{
-        focus_path='quickcmd_output',
-        command='',
-        name='',
-        output='',
-    }
-
-    function OutputDialog:init()
-        local title = ('%s%s'):format(self.name ~= '' and self.name .. ': ' or '', self.command)
-
-        self:addviews{
-            widgets.Window{
-                frame_title=title,
-                frame={w=80, h=25},
-                resizable=true,
-                resize_min={h=10, w=40},
-                subviews={
-                    widgets.WrappedLabel{
-                        view_id='output',
-                        frame={t=0, l=0, r=0, b=2},
-                        text_to_wrap=self.output or 'No output',
-                        scroll_keys=widgets.STANDARDSCROLL,
-                    },
-                    widgets.HotkeyLabel{
-                        frame={b=0, l=0},
-                        key='LEAVESCREEN',
-                        label='Close',
-                        auto_width=true,
-                        on_activate=self:callback('dismiss'),
-                    },
-                }
-            }
-        }
-    end
-
-    if #output == 0 then
-        output = 'Command finished successfully'
-    end
-
-    OutputDialog{command=command, name=name, output=output}:show()
-end
-
 function QCMDDialog:updateList()
+    -- Get the stored commands.
+    local entries = dfhack.persistent.get_all(STORAGEKEY) or {}
+
     -- Build the list entries.
-    local choices = {}
-    for i,cmd_obj in ipairs(self.commands) do
+    self.commands = {}
+    for i, entry in ipairs(entries) do
         -- Get the hotkey for this entry.
         local hotkey = nil
         if i <= HOTKEYS:len() then
             hotkey = HOTKEYS:sub(i, i)
+
+            -- Store the entry.
+            table.insert(self.commands, {
+                text = {
+                        { text = hotkey or '', width = HOTKEYWIDTH }, ' ',
+                        { text = entry.value, width = COMMANDWIDTH },
+                },
+                entry = entry,
+                command = entry.value,
+                hotkey = 'CUSTOM_' .. hotkey:upper(),
+            })
         end
-
-        -- Display name if set, otherwise display command
-        local display_text = cmd_obj.name or cmd_obj.command
-
-        -- Store the entry.
-        table.insert(choices, {
-            text={{text=hotkey or '', width=HOTKEYWIDTH}, {text=cmd_obj.show_output and '[X]' or '[ ]', width=OUTWIDTH}, display_text},
-            command=cmd_obj.command,
-            name=cmd_obj.name,
-            show_output=cmd_obj.show_output,
-            hotkey=hotkey and ('CUSTOM_' .. hotkey:upper()) or '',
-        })
     end
-    self.subviews.list:setChoices(choices);
+    self.subviews.list:setChoices(self.commands);
+end
+
+function QCMDDialog:getWantedFrameSize(rect)
+    return 40, 28
 end
 
 function QCMDDialog:onInput(keys)
-    -- If the pressed key is a hotkey, perform that command and close.
-    for idx,choice in ipairs(self.subviews.list:getChoices()) do
-        if keys[choice.hotkey] then
-            self:submit(idx, choice)
-            return true
+    if keys.LEAVESCREEN then
+        self:dismiss()
+    else
+        -- If the pressed key is a hotkey, perform that command and close.
+        for _, command in pairs(self.commands) do
+            if keys[command.hotkey] then
+                dfhack.run_command(command.command)
+                self:dismiss()
+                return
+            end
         end
-    end
 
-    -- Else, let the parent handle it.
-    return QCMDDialog.super.onInput(self, keys)
+        -- Else, let the parent handle it.
+        QCMDDialog.super.onInput(self, keys)
+    end
 end
 
 function QCMDDialog:onAddCommand()
@@ -251,8 +146,10 @@ function QCMDDialog:onAddCommand()
         COLOR_GREEN,
         '',
         function(command)
-            table.insert(self.commands, {command=command, name=nil, show_output=false})
-            save_commands(self.commands)
+            dfhack.persistent.save({
+                key = STORAGEKEY,
+                value = command
+            }, true)
             self:updateList()
         end
     )
@@ -268,11 +165,10 @@ function QCMDDialog:onDelCommand()
     -- Prompt for confirmation.
     dlg.showYesNoPrompt(
         'Delete command',
-        'Are you sure you want to delete this command: ' .. NEWLINE .. self.commands[index].command,
+        'Are you sure you want to delete this command: ' .. NEWLINE .. item.entry.value,
         COLOR_GREEN,
         function()
-            table.remove(self.commands, index)
-            save_commands(self.commands)
+            item.entry:delete()
             self:updateList()
         end
     )
@@ -290,60 +186,14 @@ function QCMDDialog:onEditCommand()
         'Edit command',
         'Enter command:',
         COLOR_GREEN,
-        self.commands[index].command,
+        item.entry.value,
         function(command)
-            self.commands[index].command = command
-            save_commands(self.commands)
+            item.entry.value = command
+            item.entry:save()
             self:updateList()
         end
     )
 end
 
-function QCMDDialog:onSetName()
-    -- Get the selected command.
-    local index, item = self.subviews.list:getSelected()
-    if not item then
-        return
-    end
-
-    -- Prompt for new name.
-    dlg.showInputPrompt(
-        'Set name',
-        'Enter name:',
-        COLOR_GREEN,
-        self.commands[index].name or '',
-        function(name)
-            self.commands[index].name = name ~= '' and name or nil
-            save_commands(self.commands)
-            self:updateList()
-        end
-    )
-end
-
-function QCMDDialog:onToggleOutput()
-    -- Get the selected command.
-    local index, item = self.subviews.list:getSelected()
-    if not item then
-        return
-    end
-
-    -- Toggle the show_output flag.
-    self.commands[index].show_output = not self.commands[index].show_output
-    save_commands(self.commands)
-    self:updateList()
-end
-
-QCMDScreen = defclass(QCMDScreen, gui.ZScreen)
-QCMDScreen.ATTRS {
-    focus_path='quickcmd',
-}
-
-function QCMDScreen:init()
-    self:addviews{QCMDDialog{}}
-end
-
-function QCMDScreen:onDismiss()
-    view = nil
-end
-
-view = view and view:raise() or QCMDScreen{}:show()
+local screen = QCMDDialog{}
+screen:show()

@@ -1,7 +1,7 @@
 generated-creature-renamer
 ==========================
 
-Tags: unavailable
+Tags: adventure | fort | legends | units
 
   Automatically renames generated creatures.
 

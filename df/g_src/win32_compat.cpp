@@ -10,15 +10,14 @@
 # include <errno.h>
 # include <stdio.h>
 # include <string.h>
+# ifdef __APPLE__
+#  include "osx_messagebox.h"
+# elif defined(unix)
+#  include <gtk/gtk.h>
+# endif
 #endif
 
 #ifndef WIN32
-using std::max;
-using std::min;
-#endif
-
-#ifndef WIN32
-/*
 BOOL CreateDirectory(const char* pathname, void*)
 {
   if (mkdir(pathname, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH)) {
@@ -33,7 +32,6 @@ BOOL CreateDirectory(const char* pathname, void*)
     return TRUE;
   }
 }
-*/
 
 BOOL DeleteFile(const char* filename)
 {
@@ -97,50 +95,90 @@ BOOL QueryPerformanceFrequency(LARGE_INTEGER* performanceCount)
   return TRUE;
 }
 
-int MessageBox(HWND *dummy, const wchar_t *text, const wchar_t *caption, UINT type)
+int MessageBox(HWND *dummy, const char *text, const char *caption, UINT type)
 {
-	static int ret=IDOK; // static is mostly just a precaution here
-  if (SDL_ThreadID() != enabler.renderer_threadid)
-    {
-    enabler.show_message_box(text,caption,type);
-	ret=enabler.last_message_result;
-    }
-  else
-      {
-	  bool toggle_screen=false;
-	  ret=!!(type&MB_YESNO)?IDNO:IDOK;
-	  static SDL_MessageBoxButtonData yesno_buttons[2]={
-		  SDL_MessageBoxButtonData({SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT, IDYES, "Yes"}),
-		  SDL_MessageBoxButtonData({SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT, IDNO, "No"})
-		  };
-	  static SDL_MessageBoxButtonData ok_button=SDL_MessageBoxButtonData({SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT, IDOK, "Ok"});
-	  if (enabler.is_fullscreen())
-		  {
-		  enabler.toggle_fullscreen();
-		  toggle_screen=true;
-		  }
-	  SDL_MessageBoxData data;
-	  data.window=NULL;
-	  data.flags=SDL_MESSAGEBOX_ERROR;
-	  char *buftitle=new char[64]; // needs to be on the heap lest we have a pointer to stack
-	  char *buftext=new char[128];
-	  wcstombs(buftitle,caption,64);
-	  data.title=buftitle;
-	  wcstombs(buftext,text,128);
-	  data.message=buftext;
-	  if (!!(type & MB_YESNO))
-		  {
-		  data.numbuttons=2;
-		  data.buttons=yesno_buttons;
-		  }
-	  else
-		  {
-		  data.numbuttons=1;
-		  data.buttons=&ok_button;
-		  }
-	  SDL_ShowMessageBox(&data,&ret);
-	  enabler.last_message_result=ret;
+  bool toggle_screen = false;
+  int ret = IDOK;
+  if (enabler.is_fullscreen()) {
+    enabler.toggle_fullscreen();
+    toggle_screen = true;
+  }
+# ifdef __APPLE__ // Cocoa code
+  if (type & MB_YESNO) {
+    ret = CocoaAlertPanel(caption, text, "Yes", "No", NULL);
+    ret = (ret == 0 ? IDNO : IDYES);
+  } else {
+    CocoaAlertPanel(caption, text, "OK", NULL, NULL);
+  }
+# else // GTK code
+  if (getenv("DISPLAY")) {
+    // Have X, will dialog
+    GtkWidget *dialog = gtk_message_dialog_new(NULL,
+                                               GTK_DIALOG_DESTROY_WITH_PARENT,
+                                               type & MB_YESNO ?
+                                               GTK_MESSAGE_QUESTION :
+                                               GTK_MESSAGE_ERROR,
+                                               type & MB_YESNO ?
+                                               GTK_BUTTONS_YES_NO :
+                                               GTK_BUTTONS_OK,
+                                               "%s", text);
+    gtk_window_set_position((GtkWindow*)dialog, GTK_WIN_POS_CENTER_ALWAYS);
+    gtk_window_set_title((GtkWindow*)dialog, caption);
+    gint dialog_ret = gtk_dialog_run(GTK_DIALOG(dialog));
+    gtk_widget_destroy(dialog);
+    while (gtk_events_pending())
+      gtk_main_iteration();
+    
+    if (type & MB_YESNO) {
+      switch (dialog_ret) {
+      default:
+      case GTK_RESPONSE_DELETE_EVENT:
+      case GTK_RESPONSE_NO:
+        ret = IDNO;
+        break;
+      case GTK_RESPONSE_YES:
+        ret = IDYES;
+        break;
       }
+    }
+  } else {
+    // Use curses
+    init_curses();
+    erase();
+    gps.force_full_display_count = 1;
+    wattrset(*stdscr_p, A_NORMAL | COLOR_PAIR(1));
+    
+    mvwaddstr(*stdscr_p, 0, 5, caption);
+    mvwaddstr(*stdscr_p, 2, 2, text);
+    nodelay(*stdscr_p, false);
+    if (type & MB_YESNO) {
+      mvwaddstr(*stdscr_p, 5, 0, "Press 'y' or 'n'.");
+      refresh();
+      while (1) {
+        char i = wgetch(*stdscr_p);
+        if (i == 'y') {
+          ret = IDYES;
+          break;
+        }
+        else if (i == 'n') {
+          ret = IDNO;
+          break;
+        }
+      }
+    }
+    else {
+      mvwaddstr(*stdscr_p, 5, 0, "Press any key to continue.");
+      refresh();
+      wgetch(*stdscr_p);
+    }
+    nodelay(*stdscr_p, -1);
+  }
+# endif
+  
+  if (toggle_screen) {
+    enabler.toggle_fullscreen();
+  }
+	
   return ret;
 }
 #endif

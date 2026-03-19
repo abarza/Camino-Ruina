@@ -1,7 +1,7 @@
 modtools/outside-only
 =====================
 
-Tags: unavailable
+Tags: dev
 
 Command: "modtools/outside-only"
 

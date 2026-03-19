@@ -1,7 +1,7 @@
 spawnunit
 =========
 
-Tags: unavailable
+Tags: fort | armok | units
 
 Command: "spawnunit"
 
@@ -21,7 +21,7 @@ The name and coordinates of the unit are optional. Any further arguments are sim
 
 To see the full list of races and castes for your world, run the following command:
 
-   devel/query --table df.global.world.raws.creatures.all --search [ creature_id caste_id ] --maxdepth 3 --maxlength 5000
+   dfhack-run devel/query --table df.global.world.raws.creatures.all --search [ creature_id caste_id ] --maxdepth 3 --maxlength 5000
 
 
 Examples

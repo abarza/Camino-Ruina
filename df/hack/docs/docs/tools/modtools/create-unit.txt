@@ -1,17 +1,13 @@
 modtools/create-unit
 ====================
 
-Tags: unavailable
+Tags: dev
 
 Command: "modtools/create-unit"
 
   Create arbitrary units.
 
-Creates a unit.
-
-
-Usage
------
+Creates a unit.  Usage:
 
    -race raceName
        (obligatory)

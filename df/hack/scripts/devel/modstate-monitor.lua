@@ -1,5 +1,19 @@
 -- Displays changes in the key modifier state
 --@ enable = true
+--[====[
+
+devel/modstate-monitor
+======================
+Display changes in key modifier state, i.e. :kbd:`Ctrl`/:kbd:`Alt`/:kbd:`Shift`.
+
+Arguments:
+
+:enable|start:  Begin monitoring
+:disable|stop:  End monitoring
+
+]====]
+
+VERSION = '0.1'
 
 active = active or false
 
@@ -8,7 +22,11 @@ if dfhack.internal.getModstate == nil or dfhack.internal.getModifiers == nil the
 end
 
 function usage()
-    print(dfhack.script_help())
+    print [[
+Usage:
+    modstate-monitor enable|start: Begin monitoring
+    modstate-monitor disable|stop: End monitoring
+]]
 end
 
 function set_timeout()

@@ -1,11 +1,13 @@
 gui/choose-weapons
 ==================
 
-Tags: unavailable
+Tags: fort | productivity | military
 
 Command: "gui/choose-weapons"
 
   Ensure military dwarves choose appropriate weapons.
+
+Keybinding: [Ctrl][W] in "layer_military/Equip/Customize/View"
 
 Activate in the Equip->View/Customize page of the military screen.
 

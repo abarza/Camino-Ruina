@@ -11,22 +11,19 @@
 
 #include "ViewBase.h"
 #include "keybindings.h"
-#include "files.h"
-#ifdef CURSES
-//#include "curses.h"
-#endif
-#include <SDL2/SDL.h>
+#include "curses.h"
+
+#include <SDL/SDL.h>
 
 typedef Uint32 Time;
 
 enum Repeat {
   REPEAT_NOT,  // Don't repeat at all. Furthermore, cancel other repeats.
   REPEAT_SLOW, // Repeat normally.
-  REPEAT_FAST,  // Repeat instantly, without waiting for the first-repeat interval.
-  REPEAT_MWHEEL // Count *down* from repeat until it's 0, original value set by mouse wheel y
+  REPEAT_FAST  // Repeat instantly, without waiting for the first-repeat interval.
 };
 
-enum MatchType { type_key, type_button, type_mwheel };
+enum MatchType { type_unicode, type_key, type_button };
 
 Uint8 getModState();
 std::string translate_mod(Uint8 mod);
@@ -43,18 +40,18 @@ struct EventMatch {
   Uint8 mod;      // not defined for type=unicode. 1: shift, 2: ctrl, 4:alt
   Uint8 scancode; // not defined for type=button
   union {
-    SDL_Keycode key;
+    Uint16 unicode;
+    SDLKey key;
     Uint8 button;
-    Sint32 y;
   };
   
   bool operator== (const EventMatch &other) const {
     if (mod != other.mod) return false;
     if (type != other.type) return false;
     switch (type) {
+    case type_unicode: return unicode == other.unicode;
     case type_key: return key == other.key;
     case type_button: return button == other.button;
-    case type_mwheel: return y == other.y;
     default: return false;
     }
   }
@@ -63,9 +60,9 @@ struct EventMatch {
     if (mod != other.mod) return mod < other.mod;
     if (type != other.type) return type < other.type;
     switch (type) {
+    case type_unicode: return unicode < other.unicode;
     case type_key: return key < other.key;
     case type_button: return button < other.button;
-    case type_mwheel: return y < other.y;
     default: return false;
     }
   }
@@ -102,9 +99,8 @@ class enabler_inputst {
   std::set<InterfaceKey> get_input(Time now);
   void clear_input();
 
-  bool load_keybindings(const filest &file);
-  void clear_keybindings();
-  void save_keybindings(const string &file);
+  void load_keybindings(const std::string &file);
+  void save_keybindings(const std::string &file);
   void save_keybindings();
   virtual std::string GetKeyDisplay(int binding);
   std::string GetBindingDisplay(int binding);
@@ -130,10 +126,9 @@ class enabler_inputst {
 
   // Updating the key-bindings
   void register_key(); // Sets the next key-press to be stored instead of executed.
-  std::list<RegisteredKey> getRegisteredKey(); // Returns a description of stored keys. Max one of each type.
+  list<RegisteredKey> getRegisteredKey(); // Returns a description of stored keys. Max one of each type.
   void bindRegisteredKey(MatchType type, InterfaceKey key); // Binds one of the stored keys to key
   bool is_registering(); // Returns true if we're still waiting for a key-hit
-    void stop_registering_key();
 
   std::list<EventMatch> list_keys(InterfaceKey key); // Returns a list of events matching this interfacekey
   void remove_key(InterfaceKey key, EventMatch ev); // Removes a particular matcher from the keymap.

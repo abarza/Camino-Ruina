@@ -1,9 +1,59 @@
 -- Adjust all attributes of all dwarves to an ideal
 -- by vjek
+--[====[
 
-local rejuvenate = reqscript('rejuvenate')
-local utils = require('utils')
+armoks-blessing
+===============
+Runs the equivalent of `rejuvenate`, `elevate-physical`, `elevate-mental`, and
+`brainwash` on all dwarves currently on the map.  This is an extreme change,
+which sets every stat and trait to an ideal easy-to-satisfy preference.
 
+Without providing arguments, only attributes, age, and personalities will be adjusted.
+Adding arguments allows for skills or classes to be adjusted to legendary (maximum).
+
+Arguments:
+
+- ``list``
+   Prints list of all skills
+
+- ``classes``
+   Prints list of all classes
+
+- ``all``
+   Set all skills, for all Dwarves, to legendary
+
+- ``<skill name>``
+   Set a specific skill, for all Dwarves, to legendary
+
+   example: ``armoks-blessing RANGED_COMBAT``
+
+   All Dwarves become a Legendary Archer
+
+- ``<class name>``
+   Set a specific class (group of skills), for all Dwarves, to legendary
+
+   example: ``armoks-blessing Medical``
+
+   All Dwarves will have all medical related skills set to legendary
+
+]====]
+local utils = require 'utils'
+function rejuvenate(unit)
+    if unit==nil then
+        print ("No unit available!  Aborting with extreme prejudice.")
+        return
+    end
+
+    local current_year=df.global.cur_year
+    local newbirthyear=current_year - 20
+    if unit.birth_year < newbirthyear then
+        unit.birth_year=newbirthyear
+    end
+    if unit.old_year < current_year+100 then
+        unit.old_year=current_year+100
+    end
+
+end
 -- ---------------------------------------------------------------------------
 function brainwash_unit(unit)
     if unit==nil then
@@ -23,7 +73,7 @@ function brainwash_unit(unit)
     unit.status.current_soul.personality.traits.GREED                    = 25
     unit.status.current_soul.personality.traits.IMMODERATION             = 25
     unit.status.current_soul.personality.traits.VIOLENT                  = 50
-    unit.status.current_soul.personality.traits.PERSEVERANCE             = 75
+    unit.status.current_soul.personality.traits.PERSEVERENCE             = 75
     unit.status.current_soul.personality.traits.WASTEFULNESS             = 50
     unit.status.current_soul.personality.traits.DISCORD                  = 25
     unit.status.current_soul.personality.traits.FRIENDLINESS             = 75
@@ -80,7 +130,7 @@ function brainwash_unit(unit)
         [df.value_type.HARD_WORK]=41,
         [df.value_type.SACRIFICE]=41,
         [df.value_type.COMPETITION]=-41,
-        [df.value_type.PERSEVERANCE]=41,
+        [df.value_type.PERSEVERENCE]=41,
         [df.value_type.LEISURE_TIME]=-11,
         [df.value_type.COMMERCE]=41,
         [df.value_type.ROMANCE]=41,
@@ -189,26 +239,22 @@ function BreathOfArmok(unit)
     print ("The breath of Armok has engulfed "..unit.name.first_name)
 end
 -- ---------------------------------------------------------------------------
-local function get_skill_desc(skill_idx)
-    return df.job_skill.attrs[skill_idx].caption or df.job_skill[skill_idx] or ("(unnamed skill %d)"):format(skill_idx)
-end
-
-function LegendaryByClass(skilltype, unit)
-    if not unit then
+function LegendaryByClass(skilltype,v)
+    local unit=v
+    if unit==nil then
         print ("No unit available!  Aborting with extreme prejudice.")
         return
     end
 
+    local i
+    local skillclass
     local count_max = count_this(df.job_skill)
     for i=0, count_max do
-        if df.job_skill[i]:startswith('UNUSED') then goto continue end
-        local skillclass = df.job_skill_class[df.job_skill.attrs[i].type]
+        skillclass = df.job_skill_class[df.job_skill.attrs[i].type]
         if skilltype == skillclass then
-            local skillname = get_skill_desc(i)
-            print ("Skill "..skillname.." is type: "..skillclass.." and is now Legendary for "..unit.name.first_name)
+            print ("Skill "..df.job_skill.attrs[i].caption.." is type: "..skillclass.." and is now Legendary for "..unit.name.first_name)
             utils.insert_or_update(unit.status.current_soul.skills, { new = true, id = i, rating = 20 }, 'id')
         end
-        ::continue::
     end
 end
 -- ---------------------------------------------------------------------------
@@ -216,7 +262,7 @@ function PrintSkillList()
     local count_max = count_this(df.job_skill)
     local i
     for i=0, count_max do
-        print("'"..get_skill_desc(i).."' "..df.job_skill[i].." Type: "..df.job_skill_class[df.job_skill.attrs[i].type])
+        print("'"..df.job_skill.attrs[i].caption.."' "..df.job_skill[i].." Type: "..df.job_skill_class[df.job_skill.attrs[i].type])
     end
     print ("Provide the UPPER CASE argument, for example: PROCESSPLANTS rather than Threshing")
 end
@@ -232,18 +278,20 @@ function PrintSkillClassList()
 end
 -- ---------------------------------------------------------------------------
 function adjust_all_dwarves(skillname)
-    for _,v in ipairs(dfhack.units.getCitizens()) do
-        print("Adjusting "..dfhack.df2console(dfhack.units.getReadableName(v)))
-        brainwash_unit(v)
-        elevate_attributes(v)
-        rejuvenate.rejuvenate(v, true)
-        if skillname then
-            if df.job_skill_class[skillname] then
-                LegendaryByClass(skillname,v)
-            elseif skillname=="all" then
-                BreathOfArmok(v)
-            else
-                make_legendary(skillname,v)
+    for _,v in ipairs(df.global.world.units.all) do
+        if v.race == df.global.ui.race_id and v.status.current_soul then
+            print("Adjusting "..dfhack.df2console(dfhack.TranslateName(dfhack.units.getVisibleName(v))))
+            brainwash_unit(v)
+            elevate_attributes(v)
+            rejuvenate(v)
+            if skillname then
+                if df.job_skill_class[skillname] then
+                    LegendaryByClass(skillname,v)
+                elseif skillname=="all" then
+                    BreathOfArmok(v)
+                else
+                    make_legendary(skillname,v)
+                end
             end
         end
     end

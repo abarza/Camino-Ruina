@@ -1,7 +1,7 @@
 autogems
 ========
 
-Tags: unavailable
+Tags: fort | auto | workorders
 
   Automatically cut rough gems.
 

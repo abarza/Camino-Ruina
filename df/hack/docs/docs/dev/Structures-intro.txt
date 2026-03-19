@@ -7,6 +7,8 @@ Data structure layouts are described in files named with the "df.*.xml" pattern.
 
 Addresses of DF global objects and vtables are stored in a separate file, "symbols.xml". Since these are only absolute addresses, they do not need to be compiled into DFHack code, and are instead loaded at runtime. This makes fixes and additions to global addresses possible without recompiling DFHack. In an installed copy of DFHack, this file can be found at the root of the "hack" folder.
 
-Please see the following page for detailed information about the syntax of the df-structures XML files:
+The following pages contain more detailed information about various aspects of DF-structures:
 
 * Data Structure Definition Syntax
+
+* Updating DF-structures for a new DF version

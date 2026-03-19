@@ -1,7 +1,7 @@
 colonies
 ========
 
-Tags: adventure | fort | armok | map
+Tags: fort | armok | map
 
 Command: "colonies"
 

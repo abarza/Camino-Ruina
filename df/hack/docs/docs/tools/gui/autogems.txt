@@ -1,7 +1,7 @@
 gui/autogems
 ============
 
-Tags: unavailable
+Tags: fort | auto | workorders
 
 Command: "gui/autogems"
 

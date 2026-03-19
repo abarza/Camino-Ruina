@@ -5,7 +5,6 @@
 #include <iostream>
 #include <ios>
 #include <streambuf>
-#include <syncstream>
 #include <istream>
 #include <ostream>
 #include <iomanip>
@@ -13,7 +12,6 @@
 #include <cstdlib>
 #include <fstream>
 #include <zlib.h>
-#include "../zlib/contrib/minizip/unzip.h"
 
 #include "svector.h"
 using std::string;
@@ -42,28 +40,13 @@ typedef int32_t Ordinal;
 
 #endif
 
-//#include "ttf_manager.hpp"
+#include "ttf_manager.hpp"
 #include "init.h"
 #include "basics.h"
 
 //#define FAST_ERRORLOG
 
-extern thread_local string errorlog_prefix;
-
-// opening/closing these too often seems to cause crashes on linux--std::osyncstream makes sure they can be used between threads, too
-static std::ofstream error_file("errorlog.txt",std::ios::out|std::ios::app);
-
-static std::ofstream gamelog_file("gamelog.txt",std::ios::out|std::ios::app);
-
-void emit_logs()
-	{
-	error_file.close();
-	gamelog_file.close();
-	}
-
-std::mutex gamelog_mutex;
-
-std::mutex errorlog_mutex;
+extern string errorlog_prefix;
 
 #ifdef FAST_ERRORLOG
 std::ofstream error_feed;
@@ -91,18 +74,15 @@ void errorlog_string(const string &str)
 	//fseed.close();
 }
 #else
-
 void errorlog_string(const string &str)
 {
-	if (str.empty())return;
-
-	std::scoped_lock lk(errorlog_mutex);
+	if(str.empty())return;
 
 	//SAVE AN ERROR TO THE LOG FILE
-	std::ofstream fseed("errorlog.txt",std::ios::out | std::ios::app);
-	if (fseed.is_open())
+	std::ofstream fseed("errorlog.txt", std::ios::out | std::ios::app);
+	if(fseed.is_open())
 		{
-		if (!errorlog_prefix.empty())
+		if(!errorlog_prefix.empty())
 			{
 			fseed<<errorlog_prefix.c_str()<<std::endl;
 			errorlog_prefix.clear();
@@ -115,12 +95,11 @@ void errorlog_string(const string &str)
 
 void gamelog_string(const string &str)
 {
-	if (str.empty())return;
+	if(str.empty())return;
 
-	std::scoped_lock lk(gamelog_mutex);
 	//SAVE AN ERROR TO THE LOG FILE
 	std::ofstream fseed("gamelog.txt",std::ios::out | std::ios::app);
-	if (fseed.is_open())
+	if(fseed.is_open())
 		{
 		fseed<<str.c_str()<<std::endl;
 		}
@@ -129,15 +108,13 @@ void gamelog_string(const string &str)
 
 void errorlog_string(const char *ptr)
 {
-	if (ptr==NULL)return;
-
-	std::scoped_lock lk(errorlog_mutex);
+	if(ptr==NULL)return;
 
 	//SAVE AN ERROR TO THE LOG FILE
-	std::ofstream fseed("errorlog.txt",std::ios::out | std::ios::app);
-	if (fseed.is_open())
+	std::ofstream fseed("errorlog.txt", std::ios::out | std::ios::app);
+	if(fseed.is_open())
 		{
-		if (!errorlog_prefix.empty())
+		if(!errorlog_prefix.empty())
 			{
 			fseed<<errorlog_prefix.c_str()<<std::endl;
 			errorlog_prefix.clear();
@@ -147,32 +124,20 @@ void errorlog_string(const char *ptr)
 	fseed.close();
 }
 
-int32_t convert_string_to_long(const string &str)
+int32_t convert_string_to_long(string &str)
 {
 	return atoi(str.c_str());
 }
 
-uint32_t convert_string_to_ulong(const string &str)
+uint32_t convert_string_to_ulong(string &str)
 {
 	return strtoul(str.c_str(),NULL,0);
-}
-
-uint64_t convert_string_to_ulong64(const string &str)
-{
-	return strtoull(str.c_str(),NULL,0);
 }
 
 void add_long_to_string(int32_t n,string &str)
 {
 	string str2;
 	convert_long_to_string(n,str2);
-	str+=str2;
-}
-
-void add_ulong64_to_string(uint64_t n,string &str)
-{
-	string str2;
-	convert_ulong64_to_string(n,str2);
 	str+=str2;
 }
 
@@ -184,13 +149,6 @@ void convert_long_to_string(int32_t n,string &str)
 }
 
 void convert_ulong_to_string(uint32_t n,string &str)
-{
-	std::ostringstream o;
-	o << n;
-	str = o.str();
-}
-
-void convert_ulong64_to_string(uint64_t n,string &str)
 {
 	std::ostringstream o;
 	o << n;
@@ -281,7 +239,7 @@ bool grab_token_string(string &dest,string &source,char compc)
 	dest.erase();
 	if(source.length()==0)return false;
 
-	//GO UNTIL YOU HIT A compc, ], or the end
+	//GO UNTIL YOU HIT A :, ], or the end
 	auto s=source.begin(),e=source.end();
 	for(;s<e;++s)
 		{
@@ -297,7 +255,7 @@ bool grab_token_string_pos(string &dest,string &source,int32_t pos,char compc)
 	if(source.length()==0)return false;
 	if(pos>source.length())return false;
 
-	//GO UNTIL YOU HIT A compc, ], or the end
+	//GO UNTIL YOU HIT A :, ], or the end
 	auto s=source.begin(),e=source.end();
 	s+=pos;
 	for(;s<e;++s)
@@ -314,7 +272,7 @@ bool grab_token_string(string &dest,const char *source,char compc)
 	int32_t sz=(int32_t)strlen(source);
 	if(sz==0)return false;
 
-	//GO UNTIL YOU HIT A compc, ], or the end
+	//GO UNTIL YOU HIT A :, ], or the end
 	int32_t s;
 	for(s=0;s<sz;s++)
 		{
@@ -406,11 +364,6 @@ void simplify_string(string &str)
 		}
 }
 
-string simplified_string(string s) {
-	simplify_string(s); // implicitly copied for argument
-	return s;
-	}
-
 void lower_case_string(string &str)
 {
 	int32_t s;
@@ -463,17 +416,12 @@ void upper_case_string(string &str)
 
 void capitalize_string_words(string &str)
 {
-	bool starting=true;
-	int32_t bracket_count=0;
 	char conf;
 	int32_t s;
 	for(s=0;s<str.length();s++)
 		{
-		if(str[s]=='['){++bracket_count;continue;}
-		if(str[s]==']'){--bracket_count;continue;}
-		if(bracket_count>0)continue;
 		conf=0;
-		if(!starting)
+		if(s>0)
 			{
 			if(str[s-1]==' '||
 				str[s-1]=='\"')conf=1;
@@ -488,7 +436,7 @@ void capitalize_string_words(string &str)
 					}
 				}
 			}
-		if(starting||conf)
+		if(s==0||conf)
 			{
 			//CAPITALIZE
 			if(str[s]>='a'&&str[s]<='z')
@@ -507,24 +455,18 @@ void capitalize_string_words(string &str)
 				case (char)135:str[s]=(char)128;break;
 				case (char)145:str[s]=(char)146;break;
 				}
-			starting=false;
 			}
 		}
 }
 
 void capitalize_string_first_word(string &str)
 {
-	bool starting=true;
-	int32_t bracket_count=0;
 	char conf;
 	int32_t s;
 	for(s=0;s<str.length();s++)
 		{
 		conf=0;
-		if(str[s]=='['){++bracket_count;continue;}
-		if(str[s]==']'){--bracket_count;continue;}
-		if(bracket_count>0)continue;
-		if(!starting)
+		if(s>0)
 			{
 			if(str[s-1]==' '||
 				str[s-1]=='\"')conf=1;
@@ -539,7 +481,7 @@ void capitalize_string_first_word(string &str)
 					}
 				}
 			}
-		if(starting||conf)
+		if(s==0||conf)
 			{
 			//CAPITALIZE
 			if(str[s]>='a'&&str[s]<='z')
@@ -560,7 +502,6 @@ void capitalize_string_first_word(string &str)
 				case (char)145:str[s]=(char)146;return;
 				}
 			if(str[s]!=' '&&str[s]!='\"')return;
-			starting=false;
 			}
 		}
 }
@@ -635,48 +576,17 @@ static void abbreviate_string_helper(string &str, int len) {
 
 void abbreviate_string(string &str, int32_t len)
 {
-	/*
   if (ttf_manager.ttf_active()) {
     // We'll need to use TTF-aware text shrinking.
     while (ttf_manager.size_text(str) > len)
       abbreviate_string_helper(str, (int32_t)str.length() - 1);
-  } else */if(str.length()>len){
+  } else if(str.length()>len){
     // 1 letter = 1 tile.
     abbreviate_string_helper(str, len);
   }
 }
 
-void separate_string(const string &str,std::vector<string> &separated,int32_t len)
-	{
-	separated.clear();
-	if (str.size()>len && len>0)
-		{
-		for (int i=0; i<str.size();)
-			{
-			auto sub=str.substr(i,len);
-			if (sub.length()==len)
-				{
-				auto linebreak_char=sub.find_last_of("- ");
-				if(linebreak_char!=std::string::npos) sub=sub.substr(0,linebreak_char+1);
-				}
-			separated.push_back(sub);
-			i+=(int)sub.length();
-			}
-		}
-	else
-		{
-		separated.push_back(str);
-		}
-	}
 
-void truncate_string(string &str,int32_t len) 
-{
-	if (str.size()>len)
-		{
-		str.resize(len);
-		str.replace(str.size()-3,3,3,'.');
-		}
-}
 
 void get_number(int32_t number,string &str)
 {

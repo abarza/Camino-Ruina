@@ -1,7 +1,7 @@
 gui/extended-status
 ===================
 
-Tags: unavailable
+Tags: fort | inspection | interface
 
 Command: "gui/extended-status"
 

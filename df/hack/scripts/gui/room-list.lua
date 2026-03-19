@@ -120,7 +120,7 @@ function drawUnitName(dc, unit)
 
         local vname = dfhack.units.getVisibleName(unit)
         if vname and vname.has_name then
-            dc:string(dfhack.translation.translateName(vname)..', ')
+            dc:string(dfhack.TranslateName(vname)..', ')
         end
         dc:string(dfhack.units.getProfessionName(unit))
     else

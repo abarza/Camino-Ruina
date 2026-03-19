@@ -1,7 +1,7 @@
 break-dance
 ===========
 
-Tags: unavailable
+Tags: fort | bugfix | units
 
 Command: "break-dance"
 

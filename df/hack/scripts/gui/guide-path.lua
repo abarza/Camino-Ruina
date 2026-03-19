@@ -187,7 +187,7 @@ if not string.match(dfhack.gui.getCurFocus(), '^dwarfmode/Hauling/DefineStop/Con
     qerror("This script requires 'h' mode over a Guide order")
 end
 
-local hauling = df.global.plotinfo.hauling
+local hauling = df.global.ui.hauling
 local route = hauling.view_routes[hauling.cursor_top]
 local stop = hauling.view_stops[hauling.cursor_top]
 local order = hauling.stop_conditions[hauling.cursor_stop]

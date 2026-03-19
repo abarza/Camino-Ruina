@@ -1,7 +1,7 @@
 siege-engine
 ============
 
-Tags: unavailable
+Tags: fort | gameplay | buildings
 
   Extend the functionality and usability of siege engines.
 

@@ -1,7 +1,7 @@
 modtools/syndrome-trigger
 =========================
 
-Tags: unavailable
+Tags: dev
 
 Command: "modtools/syndrome-trigger"
 
@@ -13,9 +13,9 @@ This script helps you set up commands that trigger when syndromes are applied to
 Usage
 -----
 
-   modtools/syndrome-trigger --clear
-   modtools/syndrome-trigger --syndrome <name> --command [ <command> ]
-   modtools/syndrome-trigger --synclass <class> --command [ <command> ]
+   modutils/syndrome-trigger --clear
+   modutils/syndrome-trigger --syndrome <name> --command [ <command> ]
+   modutils/syndrome-trigger --synclass <class> --command [ <command> ]
 
 
 Options
@@ -37,4 +37,4 @@ Options
 Examples
 --------
 
-   modtools/syndrome-trigger --synclass VAMPCURSE --command [ modtools/spawn-flow -flowType Dragonfire -location [ \\LOCATION ] ]
+   modutils/syndrome-trigger --synclass VAMPCURSE --command [ modtools/spawn-flow -flowType Dragonfire -location [ \\LOCATION ] ]

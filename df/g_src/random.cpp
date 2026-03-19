@@ -12,7 +12,6 @@
 #include <cstdlib>
 #include <fstream>
 #include <zlib.h>
-#include "../zlib/contrib/minizip/unzip.h"
 
 #include "svector.h"
 using std::string;
@@ -29,6 +28,7 @@ using std::string;
 
 #include "random.h"
 
+extern int32_t basic_seed;
 extern int mt_index[MT_BUFFER_NUM];
 extern short mt_cur_buffer;
 extern short mt_virtual_buffer;
@@ -197,4 +197,18 @@ void push_trandom_triple_seed(uint32_t newseed1,uint32_t newseed2,uint32_t newse
     mt_index[mt_cur_buffer]=MT_LEN*sizeof(uint32_t);
 
 	trandom_twist();
+}
+
+//picks a random number from 0 to max-1
+int32_t basic_random(int32_t max)
+{
+	r_num();
+
+	return (int32_t)((uint32_t)basic_seed/((1073741824UL/(uint32_t)max)+1UL));
+}
+
+//sets seed to a random number from 0 to 1 billion
+void r_num()
+{
+	basic_seed=(int32_t)(((uint32_t)basic_seed*907725UL+99979777UL)%1073741824UL);
 }

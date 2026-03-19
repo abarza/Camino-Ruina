@@ -33,5 +33,8 @@ void push_trandom_triple_seed(uint32_t newseed1,uint32_t newseed2,uint32_t newse
 void pop_trandom_uniform_seed();
 void trandom_twist();
 
+void r_num();
+int32_t basic_random(int32_t max=2147483647);
+
 
 #endif

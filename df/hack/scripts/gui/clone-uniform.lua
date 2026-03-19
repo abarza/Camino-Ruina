@@ -11,7 +11,7 @@ page of the military screen with the cursor in the leftmost list.
 local utils = require 'utils'
 local gui = require 'gui'
 
-local entity = df.global.plotinfo.main.fortress_entity
+local entity = df.global.ui.main.fortress_entity
 
 local args = {...}
 local vs = dfhack.gui.getCurViewscreen()

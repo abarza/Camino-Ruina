@@ -1,7 +1,7 @@
 prefchange
 ==========
 
-Tags: unavailable
+Tags: fort | armok | units
 
 Command: "prefchange"
 

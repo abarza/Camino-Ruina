@@ -2,71 +2,30 @@
 
 local _ENV = mkmodule('gui')
 
-local textures = require('gui.textures')
-local utils = require('utils')
-
 local dscreen = dfhack.screen
-local getval = utils.getval
 
----@class dfhack.pen
----@field ch? integer|string
----@field fg? dfhack.color
----@field bg? dfhack.color
----@field bold? boolean
----@field tile? integer|fun(): integer
----@field tile_color? boolean
----@field tile_fg? dfhack.color
----@field tile_bg? dfhack.color
----@field keep_lower? boolean
----@field write_to_lower? boolean
----@field top_of_text? boolean
----@field bottom_of_text? boolean
+USE_GRAPHICS = dscreen.inGraphicsMode()
 
 local to_pen = dfhack.pen.parse
 
-local function getInteriorTexpos()
-    if not dfhack.internal.getAddress('init') then return end
-    if dfhack.screen.inGraphicsMode() then
-        return df.global.init.texpos_border_interior
-    else
-        return df.global.init.classic_texpos_border_interior
-    end
-end
+CLEAR_PEN = to_pen{ch=32,fg=0,bg=0}
 
-CLEAR_PEN = to_pen{tile=getInteriorTexpos(), ch=32, fg=0, bg=0, write_to_lower=true}
-TRANSPARENT_PEN = to_pen{tile=0, ch=0}
-KEEP_LOWER_PEN = to_pen{ch=32, fg=0, bg=0, keep_lower=true}
-
-local function set_and_get_undo(field, is_set)
-    local prev_value = df.global.enabler[field]
-    df.global.enabler[field] = is_set and 1 or 0
-    return function() df.global.enabler[field] = prev_value end
-end
-
-local MOUSE_KEYS = {
-    _MOUSE_L = curry(set_and_get_undo, 'mouse_lbut'),
-    _MOUSE_R = curry(set_and_get_undo, 'mouse_rbut'),
-    _MOUSE_M = curry(set_and_get_undo, 'mouse_mbut'),
-    _MOUSE_L_DOWN = curry(set_and_get_undo, 'mouse_lbut_down'),
-    _MOUSE_R_DOWN = curry(set_and_get_undo, 'mouse_rbut_down'),
-    _MOUSE_M_DOWN = curry(set_and_get_undo, 'mouse_mbut_down'),
+local FAKE_INPUT_KEYS = {
+    _MOUSE_L = true,
+    _MOUSE_R = true,
+    _MOUSE_L_DOWN = true,
+    _MOUSE_R_DOWN = true,
+    _STRING = true,
 }
 
-local FAKE_INPUT_KEYS = copyall(MOUSE_KEYS)
-FAKE_INPUT_KEYS._STRING = true
-
 function simulateInput(screen,...)
-    local keys, enabled_mouse_keys = {}, {}
+    local keys = {}
     local function push_key(arg)
         local kv = arg
         if type(arg) == 'string' then
             kv = df.interface_key[arg]
             if kv == nil and not FAKE_INPUT_KEYS[arg] then
                 error('Invalid keycode: '..arg)
-            end
-            if MOUSE_KEYS[arg] then
-                df.global.enabler.tracking_on = 1
-                enabled_mouse_keys[arg] = true
             end
         end
         if type(kv) == 'number' then
@@ -81,7 +40,7 @@ function simulateInput(screen,...)
                 for k,v in pairs(arg) do
                     if v == true then
                         push_key(k)
-                    elseif k ~= '_STRING' then
+                    else
                         push_key(v)
                     end
                 end
@@ -90,59 +49,15 @@ function simulateInput(screen,...)
             end
         end
     end
-    local undo_fns = {}
-    for mk, fn in pairs(MOUSE_KEYS) do
-        if type(fn) == 'function' then
-            table.insert(undo_fns, fn(enabled_mouse_keys[mk]))
-        end
-    end
     dscreen._doSimulateInput(screen, keys)
-    for _, undo_fn in ipairs(undo_fns) do
-        undo_fn()
-    end
 end
 
----@param x1 integer
----@param y1 integer
----@param x2 integer
----@param y2 integer
----@return gui.dimension
 function mkdims_xy(x1,y1,x2,y2)
     return { x1=x1, y1=y1, x2=x2, y2=y2, width=x2-x1+1, height=y2-y1+1 }
 end
-
----@param x1 integer
----@param y1 integer
----@param w integer
----@param h integer
----@return gui.dimension
 function mkdims_wh(x1,y1,w,h)
     return { x1=x1, y1=y1, x2=x1+w-1, y2=y1+h-1, width=w, height=h }
 end
-
----@return gui.dimension
-function get_interface_rect()
-    local l, t = 0, 0
-    local w, h = dscreen.getWindowSize()
-    local interface_pct = df.global.init.display.max_interface_percentage
-    if interface_pct < 100 then
-        local interface_width = math.max(114, w * interface_pct / 100)
-        l = math.ceil((w - interface_width) / 2)
-        w = math.floor(interface_width)
-    end
-    return mkdims_wh(l, t, w, h)
-end
-
----@return widgets.Widget.frame
-function get_interface_frame()
-    local interface_rect = get_interface_rect()
-    return {t=0, l=interface_rect.x1, w=interface_rect.width, h=interface_rect.height}
-end
-
----@param rect gui.dimension
----@param x integer
----@param y integer
----@return boolean
 function is_in_rect(rect,x,y)
     return x and y and x >= rect.x1 and x <= rect.x2 and y >= rect.y1 and y <= rect.y2
 end
@@ -227,42 +142,8 @@ end
 -- Clipped view rectangle object --
 -----------------------------------
 
----@class gui.dimension
----@field x1 integer
----@field y1 integer
----@field x2 integer
----@field y2 integer
----@field width integer
----@field height integer
-
----@class gui.ViewRect.attrs
----@field clip_x1 integer
----@field clip_y1 integer
----@field clip_x2 integer
----@field clip_y2 integer
----@field x1 integer
----@field y1 integer
----@field x2 integer
----@field y2 integer
----@field width integer
----@field height integer
-
----@class gui.ViewRect.attrs.partial: gui.ViewRect.attrs
-
----@class gui.ViewRect.initTable: gui.ViewRect.attrs.partial
----@field rect? gui.dimension
----@field clip_rect? gui.dimension
----@field view_rect? gui.ViewRect
----@field clip_view? gui.ViewRect
-
----@class gui.ViewRect: dfhack.class, gui.ViewRect.attrs
----@field super dfhack.class
----@field ATTRS gui.ViewRect.attrs|fun(attributes: gui.ViewRect.attrs.partial)
----@overload fun(init_table: gui.ViewRect.initTable): self
 ViewRect = defclass(ViewRect, nil)
 
----@param self gui.ViewRect
----@param args gui.ViewRect.initTable
 function ViewRect:init(args)
     if args.view_rect then
         self:assign(args.view_rect)
@@ -289,51 +170,28 @@ function ViewRect:init(args)
     end
 end
 
--- Returns true if the clip area is empty, i.e. no painting is possible.
----@return boolean
 function ViewRect:isDefunct()
     return (self.clip_x1 > self.clip_x2 or self.clip_y1 > self.clip_y2)
 end
 
----@param x integer
----@param y integer
----@return boolean
 function ViewRect:inClipGlobalXY(x,y)
     return x >= self.clip_x1 and x <= self.clip_x2
        and y >= self.clip_y1 and y <= self.clip_y2
 end
 
----@param x integer
----@param y integer
----@return boolean
 function ViewRect:inClipLocalXY(x,y)
     return (x+self.x1) >= self.clip_x1 and (x+self.x1) <= self.clip_x2
        and (y+self.y1) >= self.clip_y1 and (y+self.y1) <= self.clip_y2
 end
 
----@param x integer
----@param y integer
----@return integer x_local
----@return integer y_local
 function ViewRect:localXY(x,y)
     return x-self.x1, y-self.y1
 end
 
----@param x integer
----@param y integer
----@return integer x_global
----@return integer y_global
 function ViewRect:globalXY(x,y)
     return x+self.x1, y+self.y1
 end
 
----@nodiscard
----@param x integer
----@param y integer
----@param w integer
----@param h integer
----@return gui.ViewRect
----@overload fun(x: gui.dimension): gui.ViewRect
 function ViewRect:viewport(x,y,w,h)
     if type(x) == 'table' then
         x,y,w,h = x.x1, x.y1, x.width, x.height
@@ -357,27 +215,8 @@ end
 -- Clipped painter object --
 ----------------------------
 
----@class gui.Painter.attrs: gui.ViewRect.attrs
----@field cur_pen dfhack.pen
----@field cur_key_pen dfhack.pen
----@field to_map boolean
----@field x integer
----@field y integer
-
----@class gui.Painter.attrs.partial: gui.Painter.attrs
-
----@class gui.Painter.initTable: gui.Painter.attrs.partial
----@field pen? dfhack.pen|dfhack.color
----@field key_pen? dfhack.pen|dfhack.color
-
----@class gui.Painter: gui.ViewRect, gui.Painter.attrs
----@field super gui.ViewRect
----@field ATTRS gui.Painter.attrs|fun(attributes: gui.Painter.attrs.partial)
----@overload fun(attributes: gui.Painter.initTable): self
 Painter = defclass(Painter, ViewRect)
 
----@param self gui.Painter
----@param args gui.Painter.initTable
 function Painter:init(args)
     self.x = self.x1
     self.y = self.y1
@@ -386,50 +225,26 @@ function Painter:init(args)
     self.to_map = false
 end
 
----@param rect gui.dimension
----@param pen dfhack.pen
----@return gui.Painter
 function Painter.new(rect, pen)
     return Painter{ rect = rect, pen = pen }
 end
 
----@param view_rect gui.dimension
----@param pen dfhack.pen
----@return gui.Painter
 function Painter.new_view(view_rect, pen)
     return Painter{ view_rect = view_rect, pen = pen }
 end
 
----@param x1 integer
----@param y1 integer
----@param x2 integer
----@param y2 integer
----@param pen integer
----@return gui.Painter
 function Painter.new_xy(x1,y1,x2,y2,pen)
     return Painter{ rect = mkdims_xy(x1,y1,x2,y2), pen = pen }
 end
 
----@param x integer
----@param y integer
----@param w integer
----@param h integer
----@param pen dfhack.pen
----@return gui.Painter
 function Painter.new_wh(x,y,w,h,pen)
     return Painter{ rect = mkdims_wh(x,y,w,h), pen = pen }
 end
 
----@return boolean
 function Painter:isValidPos()
     return self:inClipGlobalXY(self.x, self.y)
 end
 
----@param x integer
----@param y integer
----@param w integer
----@param h integer
----@return gui.Painter
 function Painter:viewport(x,y,w,h)
     local vp = ViewRect.viewport(self,x,y,w,h)
     vp.cur_pen = self.cur_pen
@@ -437,97 +252,61 @@ function Painter:viewport(x,y,w,h)
     return mkinstance(Painter, vp):seek(0,0)
 end
 
----@return integer x
----@return integer y
 function Painter:cursor()
     return self.x - self.x1, self.y - self.y1
 end
 
----@return integer
 function Painter:cursorX()
     return self.x - self.x1
 end
 
----@return integer
 function Painter:cursorY()
     return self.y - self.y1
 end
 
----@param x? integer
----@param y? integer
----@return self
 function Painter:seek(x,y)
     if x then self.x = self.x1 + x end
     if y then self.y = self.y1 + y end
     return self
 end
 
----@param dx? integer
----@param dy? integer
----@return self
 function Painter:advance(dx,dy)
     if dx then self.x = self.x + dx end
     if dy then self.y = self.y + dy end
     return self
 end
 
----@param dx? integer
----@return self
 function Painter:newline(dx)
     self.y = self.y + 1
     self.x = self.x1 + (dx or 0)
     return self
 end
 
----@param pen dfhack.pen
----@param ... any
----@return self
----@overload fun(pen: dfhack.color, ...: any): self
 function Painter:pen(pen,...)
     self.cur_pen = to_pen(self.cur_pen, pen, ...)
     return self
 end
 
----@param fg dfhack.color
----@param bold? boolean
----@param bg? dfhack.color
----@return self
 function Painter:color(fg,bold,bg)
     self.cur_pen = to_pen(self.cur_pen, fg, bg, bold)
     return self
 end
 
----@param pen dfhack.pen
----@param ... any
----@return self
----@overload fun(pen: dfhack.color, ...: any): self
 function Painter:key_pen(pen,...)
     self.cur_key_pen = to_pen(self.cur_key_pen, pen, ...)
     return self
 end
 
----@param to_map boolean If set to true, the painter will paint to the fortress/adventure map buffer and not the UI buffer.
----@return self
 function Painter:map(to_map)
     self.to_map = to_map
     return self
 end
 
----@return self
 function Painter:clear()
     dscreen.fillRect(CLEAR_PEN, self.clip_x1, self.clip_y1, self.clip_x2, self.clip_y2)
     return self
 end
 
----@param x1 integer
----@param y1 integer
----@param x2 integer
----@param y2 integer
----@param pen dfhack.pen|dfhack.color
----@param bg? dfhack.color
----@param bold? boolean
----@return self
----@overload fun(rect: gui.dimension, pen: dfhack.pen, bg?: dfhack.color, bold?: boolean): self
 function Painter:fill(x1,y1,x2,y2,pen,bg,bold)
     if type(x1) == 'table' then
         x1, y1, x2, y2, pen, bg, bold = x1.x1, x1.y1, x1.x2, x1.y2, y1, x2, y2
@@ -540,10 +319,6 @@ function Painter:fill(x1,y1,x2,y2,pen,bg,bold)
     return self
 end
 
----@param char? string
----@param pen? dfhack.pen
----@param ... any
----@return self
 function Painter:char(char,pen,...)
     if self:isValidPos() then
         dscreen.paintTile(to_pen(self.cur_pen, pen, ...), self.x, self.y, char, nil, self.to_map)
@@ -551,11 +326,6 @@ function Painter:char(char,pen,...)
     return self:advance(1, nil)
 end
 
----@param char? string
----@param tile? integer
----@param pen? dfhack.pen
----@param ... any
----@return self
 function Painter:tile(char,tile,pen,...)
     if self:isValidPos() then
         dscreen.paintTile(to_pen(self.cur_pen, pen, ...), self.x, self.y, char, tile, self.to_map)
@@ -563,10 +333,6 @@ function Painter:tile(char,tile,pen,...)
     return self:advance(1, nil)
 end
 
----@param text string
----@param pen? dfhack.pen
----@param ... any
----@return self
 function Painter:string(text,pen,...)
     if self.y >= self.clip_y1 and self.y <= self.clip_y2 then
         local dx = 0
@@ -589,10 +355,6 @@ function Painter:string(text,pen,...)
     return self:advance(#text, nil)
 end
 
----@param keycode string
----@param pen? dfhack.pen
----@param ... any
----@return self
 function Painter:key(keycode,pen,...)
     return self:string(
         getKeyDisplay(keycode),
@@ -600,10 +362,6 @@ function Painter:key(keycode,pen,...)
     )
 end
 
----@param keycode string
----@param text string
----@param ... any
----@return self
 function Painter:key_string(keycode, text, ...)
     return self:key(keycode):string(': '):string(text, ...)
 end
@@ -612,30 +370,6 @@ end
 -- Abstract view object --
 --------------------------
 
----@class gui.View.focus_group
----@field cur? gui.View[]
----@field [integer] gui.View
-
----@class gui.View.attrs
----@field subviews gui.View[]
----@field parent_view? gui.View
----@field focus_group gui.View.focus_group
----@field focus boolean
----@field active boolean|fun(): boolean
----@field visible boolean|fun(): boolean
----@field view_id? string
----@field on_focus? function
----@field on_unfocus? function
----@field frame_parent_rect gui.ViewRect
----@field frame_rect gui.ViewRect
----@field frame_body gui.ViewRect
-
----@class gui.View.attrs.partial: gui.ViewAttrs
-
----@class gui.View: dfhack.class, gui.View.attrs
----@field super dfhack.class
----@field ATTRS gui.View.attrs|fun(attributes: gui.View.attrs.partial)
----@overload fun(init_table: gui.View.attrs.partial): self
 View = defclass(View)
 
 View.ATTRS {
@@ -659,8 +393,6 @@ local function inherit_focus_group(view, focus_group)
     view.focus_group = focus_group
 end
 
----@param self gui.View
----@param list gui.View[]
 function View:addviews(list)
     if not list then return end
 
@@ -715,8 +447,6 @@ function View:getPreferredFocusState()
     return false
 end
 
----@param self gui.View
----@param focus boolean
 function View:setFocus(focus)
     if focus then
         if self.focus then return end -- nothing to do if we already have focus
@@ -738,36 +468,17 @@ function View:setFocus(focus)
     end
 end
 
----@param self gui.View
----@return integer width
----@return integer height
 function View:getWindowSize()
     local rect = self.frame_body
     return rect.width, rect.height
 end
 
----@param self gui.View
----@param view_rect? gui.ViewRect
----@return integer x
----@return integer y
 function View:getMousePos(view_rect)
     local rect = view_rect or self.frame_body
     local x,y = dscreen.getMousePos()
-    if rect and x and rect:inClipGlobalXY(x,y) then
+    if rect and rect:inClipGlobalXY(x,y) then
         return rect:localXY(x,y)
     end
-end
-
-function View:getMouseFramePos()
-    if not self.frame_rect or not self.frame_parent_rect then return end
-    return self:getMousePos(ViewRect{
-        rect=mkdims_wh(
-            self.frame_rect.x1+self.frame_parent_rect.x1,
-            self.frame_rect.y1+self.frame_parent_rect.y1,
-            self.frame_rect.width,
-            self.frame_rect.height
-        )
-    })
 end
 
 function View:computeFrame(parent_rect)
@@ -803,7 +514,7 @@ end
 
 function View:renderSubviews(dc)
     for _,child in ipairs(self.subviews) do
-        if getval(child.visible) then
+        if child.visible then
             child:render(dc)
         end
     end
@@ -845,7 +556,7 @@ local function should_send_input_to_focus_owner(view, focus_owner)
     end
     iter = focus_owner
     while iter do
-        if not getval(iter.visible) or not getval(iter.active) then
+        if not iter.visible or not iter.active then
             return false
         end
         iter = iter.parent_view
@@ -865,8 +576,8 @@ function View:inputToSubviews(keys)
 
     for i=#children,1,-1 do
         local child = children[i]
-        if getval(child.visible) and getval(child.active)
-                and child ~= focus_owner and child:onInput(keys) then
+        if child.visible and child.active and child ~= focus_owner and
+                child:onInput(keys) then
             return true
         end
     end
@@ -882,21 +593,9 @@ end
 -- Base screen object --
 ------------------------
 
----@class gui.Screen.attrs: gui.View.attrs
----@field text_input_mode boolean
----@field request_full_screen_refresh boolean
----@field focus_path string
-
----@class gui.Screen.attrs.partial: gui.Screen.attrs
-
----@class gui.Screen: gui.View, gui.Screen.attrs
----@field super gui.View
----@field ATTRS gui.Screen.attrs|fun(attributes: gui.Screen.attrs.partial)
----@overload fun(init_table: gui.Screen.attrs.partial): self
 Screen = defclass(Screen, View)
 
 Screen.text_input_mode = false
-Screen.request_full_screen_refresh = false
 
 function Screen:postinit()
     self:onResize(dscreen.getWindowSize())
@@ -904,12 +603,10 @@ end
 
 Screen.isDismissed = dscreen.isDismissed
 
----@return boolean
 function Screen:isShown()
     return self._native ~= nil
 end
 
----@return boolean
 function Screen:isActive()
     return self:isShown() and not self:isDismissed()
 end
@@ -920,13 +617,9 @@ end
 
 function Screen:renderParent()
     if self._native and self._native.parent then
-        self._native.parent:render(dfhack.getTickCount())
+        self._native.parent:render()
     else
         dscreen.clear()
-    end
-    if Screen.request_full_screen_refresh then
-        df.global.gps.force_full_display_count = 1
-        Screen.request_full_screen_refresh = false
     end
 end
 
@@ -962,8 +655,6 @@ function Screen:dismiss()
     if self._native then
         dscreen.dismiss(self)
     end
-    -- don't leave artifacts behind on the parent screen when we disappear
-    Screen.request_full_screen_refresh = true
 end
 
 function Screen:onDismiss()
@@ -980,338 +671,38 @@ function Screen:onRender()
     self:render(Painter.new())
 end
 
------------------------------
--- Z-order swapping screen --
------------------------------
-
-DEFAULT_INITIAL_PAUSE = true
-
----@class gui.ZScreen.attrs
----@field defocusable boolean
----@field initial_pause boolean
----@field defocused boolean
----@field force_pause boolean
----@field pass_pause boolean
----@field pass_movement_keys boolean
----@field pass_mouse_clicks boolean
-
----@class gui.ZScreen.attrs.partial: gui.ZScreen.attrs
-
----@class gui.ZScreen.initTable: gui.ZScreen.attrs.partial
-
----@class gui.ZScreen: gui.Screen, gui.ZScreen.attrs
----@field super gui.Screen
----@field ATTRS gui.ZScreen.attrs|fun(attributes: gui.ZScreen.attrs.partial)
----@overload fun(init_table: gui.ZScreen.initTable): self
-ZScreen = defclass(ZScreen, Screen)
-ZScreen.ATTRS{
-    defocusable=true,
-    initial_pause=DEFAULT_NIL,
-    defocused=false,
-    force_pause=false,
-    pass_pause=true,
-    pass_movement_keys=false,
-    pass_mouse_clicks=true,
-}
-
----@param self gui.ZScreen
----@param args gui.ZScreen.initTable
-function ZScreen:preinit(args)
-    if self.ATTRS.initial_pause == nil then
-        args.initial_pause = DEFAULT_INITIAL_PAUSE or
-                self.ATTRS.pass_mouse_clicks == false or
-                self.ATTRS.force_pause
-    end
-end
-
-function ZScreen:init()
-    self.saved_pause_state = df.global.pause_state
-    if self.initial_pause and dfhack.isMapLoaded() then
-        df.global.pause_state = true
-    end
-end
-
-function ZScreen:dismiss()
-    ZScreen.super.dismiss(self)
-    if (self.force_pause or self.initial_pause) and dfhack.isMapLoaded() then
-        -- never go from unpaused to paused, just from paused to unpaused
-        df.global.pause_state = df.global.pause_state and self.saved_pause_state
-    end
-end
-
-local NO_LOGIC_SCREENS = {
-    'viewscreen_loadgamest',
-    'viewscreen_adopt_regionst',
-    'viewscreen_export_regionst',
-    'viewscreen_choose_game_typest',
-    'viewscreen_worldst',
-}
-for _,v in ipairs(NO_LOGIC_SCREENS) do
-    if not df[v] then
-        error('invalid class name: ' .. v)
-    end
-    NO_LOGIC_SCREENS[df[v]] = true
-end
-
--- this is necessary for middle-click map scrolling to function
-function ZScreen:onIdle()
-    if self.force_pause and dfhack.isMapLoaded() then
-        if not df.global.pause_state and self.force_pause ~= 'blink' then
-            self.force_pause = 'blink'
-            local end_ms = dfhack.getTickCount() + 1000
-            local function blink_reset()
-                if dfhack.getTickCount() < end_ms then
-                    dfhack.timeout(10, 'frames', blink_reset)
-                else
-                    self.force_pause = true
-                end
-            end
-            blink_reset()
-        end
-        df.global.pause_state = true
-    end
-    if self._native and self._native.parent then
-        local vs_type = dfhack.gui.getDFViewscreen(true)._type
-        if NO_LOGIC_SCREENS[vs_type] then
-            self.force_pause = true
-            self.pass_movement_keys = false
-            self.pass_mouse_clicks = false
-        else
-            self._native.parent:logic()
-        end
-    end
-end
-
-local function record_zscreen_runtime(self, start_ms)
-    dfhack.internal.recordZScreenRuntime(self.focus_path or 'unknown', start_ms)
-end
-
----@param dc gui.Painter
-function ZScreen:render(dc)
-    self:renderParent()
-    local now_ms = dfhack.getTickCount()
-    ZScreen.super.render(self, dc)
-    record_zscreen_runtime(self, now_ms)
-end
-
----@return boolean
-function ZScreen:hasFocus()
-    return not self.defocused
-            and dfhack.gui.getCurViewscreen(true) == self._native
-end
-
-function ZScreen:onInput(keys)
-    local now_ms = dfhack.getTickCount()
-    local has_mouse = self:isMouseOver()
-    if not self:hasFocus() then
-        if has_mouse and
-                (keys._MOUSE_L or keys._MOUSE_R or
-                 keys.CONTEXT_SCROLL_UP or keys.CONTEXT_SCROLL_DOWN or
-                 keys.CONTEXT_SCROLL_PAGEUP or keys.CONTEXT_SCROLL_PAGEDOWN) then
-            self:raise()
-        else
-            record_zscreen_runtime(self, now_ms)
-            self:sendInputToParent(keys)
-            return true
-        end
-    end
-
-    if ZScreen.super.onInput(self, keys) then
-        -- noop
-    elseif self.pass_mouse_clicks and keys._MOUSE_L and not has_mouse then
-        self.defocused = self.defocusable
-        record_zscreen_runtime(self, now_ms)
-        self:sendInputToParent(keys)
-        return true
-    elseif keys.LEAVESCREEN or keys._MOUSE_R then
-        self:dismiss()
-    else
-        local passit = self.pass_pause and keys.D_PAUSE
-        if not passit and self.pass_mouse_clicks and not has_mouse then
-            if keys.CONTEXT_SCROLL_UP or keys.CONTEXT_SCROLL_DOWN or
-                    keys.CONTEXT_SCROLL_PAGEUP or keys.CONTEXT_SCROLL_PAGEDOWN then
-                passit = true
-            else
-                for key in pairs(MOUSE_KEYS) do
-                    if keys[key] then
-                        passit = true
-                        break
-                    end
-                end
-            end
-        end
-        if not passit and self.pass_movement_keys then
-            passit = require('gui.dwarfmode').getMapKey(keys)
-        end
-        if passit then
-            record_zscreen_runtime(self, now_ms)
-            self:sendInputToParent(keys)
-            return true
-        end
-    end
-    record_zscreen_runtime(self, now_ms)
-    return true
-end
-
-function ZScreen:raise()
-    if self:isDismissed() or self:hasFocus() then
-        return self
-    end
-    dscreen.raise(self)
-    self.defocused = false
-    return self
-end
-
-function ZScreen:isMouseOver()
-    for _,sv in ipairs(self.subviews) do
-        if utils.getval(sv.visible) and sv:getMouseFramePos() then return true end
-    end
-end
-
-local function zscreen_get_any(scr, thing)
-    if not scr._native or not scr._native.parent then return nil end
-    return dfhack.gui['getAny'..thing](scr._native.parent)
-end
-function ZScreen:onGetSelectedUnit()
-    return zscreen_get_any(self, 'Unit')
-end
-function ZScreen:onGetSelectedItem()
-    return zscreen_get_any(self, 'Item')
-end
-function ZScreen:onGetSelectedJob()
-    return zscreen_get_any(self, 'Job')
-end
-function ZScreen:onGetSelectedBuilding()
-    return zscreen_get_any(self, 'Building')
-end
-function ZScreen:onGetSelectedStockpile()
-    return zscreen_get_any(self, 'Stockpile')
-end
-function ZScreen:onGetSelectedCivZone()
-    return zscreen_get_any(self, 'CivZone')
-end
-function ZScreen:onGetSelectedPlant()
-    return zscreen_get_any(self, 'Plant')
-end
-
--- convenience subclass for modal dialogs
----@class gui.ZScreenModal: gui.ZScreen
----@field super gui.ZScreen
-ZScreenModal = defclass(ZScreenModal, ZScreen)
-ZScreenModal.ATTRS{
-    defocusable = false,
-    force_pause = true,
-    pass_movement_keys = false,
-    pass_mouse_clicks = false,
-}
-
--- Framed screen object
---------------------------
+------------------------
+-- Framed screen object --
+------------------------
 
 -- Plain grey-colored frame.
--- deprecated
 GREY_FRAME = {
     frame_pen = to_pen{ ch = ' ', fg = COLOR_BLACK, bg = COLOR_GREY },
     title_pen = to_pen{ fg = COLOR_BLACK, bg = COLOR_WHITE },
     signature_pen = to_pen{ fg = COLOR_BLACK, bg = COLOR_GREY },
 }
 
--- The boundary used by the pre-steam DF screens.
--- deprecated
+-- The usual boundary used by the DF screens. Often has fancy pattern in tilesets.
 BOUNDARY_FRAME = {
-    frame_pen = to_pen{ ch = 0xDB, fg = COLOR_GREY, bg = COLOR_BLACK }, -- ch=0xDB is "full block" (█)
+    frame_pen = to_pen{ ch = 0xDB, fg = COLOR_DARKGREY, bg = COLOR_BLACK },
     title_pen = to_pen{ fg = COLOR_BLACK, bg = COLOR_GREY },
-    signature_pen = to_pen{ fg = COLOR_BLACK, bg = COLOR_GREY },
+    signature_pen = to_pen{ fg = COLOR_BLACK, bg = COLOR_DARKGREY },
 }
 
----@class gui.Frame
-local BASE_FRAME = {
-    frame_pen = to_pen{ ch=206, fg=COLOR_GREY, bg=COLOR_BLACK }, -- ch=206 is "box drawings double vertical and horizontal" (╬)
-    title_pen = to_pen{ fg=COLOR_BLACK, bg=COLOR_GREY },
-    inactive_title_pen = to_pen{ fg=COLOR_GREY, bg=COLOR_BLACK },
-    signature_pen = to_pen{ fg=COLOR_GREY, bg=COLOR_BLACK },
-    paused_pen = to_pen{fg=COLOR_RED, bg=COLOR_BLACK},
+GREY_LINE_FRAME = {
+    frame_pen = to_pen{ ch = 206, fg = COLOR_GREY, bg = COLOR_BLACK },
+    h_frame_pen = to_pen{ ch = 205, fg = COLOR_GREY, bg = COLOR_BLACK },
+    v_frame_pen = to_pen{ ch = 186, fg = COLOR_GREY, bg = COLOR_BLACK },
+    lt_frame_pen = to_pen{ ch = 201, fg = COLOR_GREY, bg = COLOR_BLACK },
+    lb_frame_pen = to_pen{ ch = 200, fg = COLOR_GREY, bg = COLOR_BLACK },
+    rt_frame_pen = to_pen{ ch = 187, fg = COLOR_GREY, bg = COLOR_BLACK },
+    rb_frame_pen = to_pen{ ch = 188, fg = COLOR_GREY, bg = COLOR_BLACK },
+    title_pen = to_pen{ fg = COLOR_BLACK, bg = COLOR_GREY },
+    signature_pen = to_pen{ fg = COLOR_DARKGREY, bg = COLOR_BLACK },
 }
 
-
-local function make_frame(tp, double_line)
-    local frame = copyall(BASE_FRAME)
-    -- external horizontal/vertical bars
-    frame.t_frame_pen = to_pen{ tile=curry(tp, 2), ch=double_line and 205 or 196, fg=COLOR_GREY, bg=COLOR_BLACK }
-    frame.l_frame_pen = to_pen{ tile=curry(tp, 8), ch=double_line and 186 or 179, fg=COLOR_GREY, bg=COLOR_BLACK }
-    frame.b_frame_pen = to_pen{ tile=curry(tp, 16), ch=double_line and 205 or 196, fg=COLOR_GREY, bg=COLOR_BLACK }
-    frame.r_frame_pen = to_pen{ tile=curry(tp, 10), ch=double_line and 186 or 179, fg=COLOR_GREY, bg=COLOR_BLACK }
-    -- external corners
-    frame.lt_frame_pen = to_pen{ tile=curry(tp, 1), ch=double_line and 201 or 218, fg=COLOR_GREY, bg=COLOR_BLACK }
-    frame.lb_frame_pen = to_pen{ tile=curry(tp, 15), ch=double_line and 200 or 192, fg=COLOR_GREY, bg=COLOR_BLACK }
-    frame.rt_frame_pen = to_pen{ tile=curry(tp, 3), ch=double_line and 187 or 191, fg=COLOR_GREY, bg=COLOR_BLACK }
-    frame.rb_frame_pen = to_pen{ tile=curry(tp, 17), ch=double_line and 188 or 217, fg=COLOR_GREY, bg=COLOR_BLACK }
-    -- internal T-junctions
-    frame.tTi_frame_pen = to_pen{ tile=curry(tp, 21), ch=double_line and 203 or 194, fg=COLOR_GREY, bg=COLOR_BLACK }
-    frame.bTi_frame_pen = to_pen{ tile=curry(tp, 20), ch=double_line and 202 or 193, fg=COLOR_GREY, bg=COLOR_BLACK }
-    frame.lTi_frame_pen = to_pen{ tile=curry(tp, 19), ch=double_line and 204 or 195, fg=COLOR_GREY, bg=COLOR_BLACK }
-    frame.rTi_frame_pen = to_pen{ tile=curry(tp, 18), ch=double_line and 185 or 180, fg=COLOR_GREY, bg=COLOR_BLACK }
-    -- external T-junctions
-    frame.tTe_frame_pen = to_pen{ tile=curry(tp, 11), ch=double_line and 203 or 194, fg=COLOR_GREY, bg=COLOR_BLACK }
-    frame.bTe_frame_pen = to_pen{ tile=curry(tp, 12), ch=double_line and 202 or 193, fg=COLOR_GREY, bg=COLOR_BLACK }
-    frame.lTe_frame_pen = to_pen{ tile=curry(tp, 13), ch=double_line and 204 or 195, fg=COLOR_GREY, bg=COLOR_BLACK }
-    frame.rTe_frame_pen = to_pen{ tile=curry(tp, 14), ch=double_line and 185 or 180, fg=COLOR_GREY, bg=COLOR_BLACK }
-    -- internal horizontal/vertical bars (and cross junction)
-    frame.v_frame_pen = to_pen{ tile=curry(tp, 5), ch=179, fg=COLOR_GREY, bg=COLOR_BLACK }
-    frame.h_frame_pen = to_pen{ tile=curry(tp, 6), ch=196, fg=COLOR_GREY, bg=COLOR_BLACK }
-    frame.x_frame_pen = to_pen{ tile=curry(tp, 4), ch=197, fg=COLOR_GREY, bg=COLOR_BLACK }
-    return frame
-end
-
-function FRAME_WINDOW(resizable)
-    local frame = make_frame(textures.tp_border_window, true)
-    if resizable then
-        frame.rb_frame_pen = to_pen{ tile=curry(textures.tp_border_window, 17), ch=217, fg=COLOR_GREY, bg=COLOR_BLACK }
-    else
-        frame.rb_frame_pen = to_pen{ tile=curry(textures.tp_border_panel, 17), ch=188, fg=COLOR_GREY, bg=COLOR_BLACK }
-    end
-    return frame
-end
-function FRAME_PANEL()
-    return make_frame(textures.tp_border_panel, false)
-end
-function FRAME_MEDIUM()
-    return make_frame(textures.tp_border_medium, false)
-end
-function FRAME_BOLD()
-    return make_frame(textures.tp_border_bold, true)
-end
-function FRAME_THIN()
-    return make_frame(textures.tp_border_thin, false)
-end
-function FRAME_INTERIOR()
-    local frame = make_frame(textures.tp_border_thin, false)
-    frame.signature_pen = false
-    return frame
-end
-function FRAME_INTERIOR_MEDIUM()
-    local frame = make_frame(textures.tp_border_medium, false)
-    frame.signature_pen = false
-    return frame
-end
-
--- for compatibility with pre-steam code
-GREY_LINE_FRAME = FRAME_PANEL
-
--- for compatibility with deprecated frame naming scheme
-WINDOW_FRAME = FRAME_WINDOW
-PANEL_FRAME = FRAME_PANEL
-MEDIUM_FRAME = FRAME_MEDIUM
-BOLD_FRAME = FRAME_BOLD
-INTERIOR_FRAME = FRAME_INTERIOR
-INTERIOR_MEDIUM_FRAME = FRAME_INTERIOR_MEDIUM
-
-function paint_frame(dc, rect, style, title, inactive, pause_forced, resizable)
-    if type(style) == 'function' then
-        style = style(resizable)
-    end
+function paint_frame(x1,y1,x2,y2,style,title)
     local pen = style.frame_pen
-    local x1,y1,x2,y2 = dc.x1+rect.x1, dc.y1+rect.y1, dc.x1+rect.x2, dc.y1+rect.y2
     dscreen.paintTile(style.lt_frame_pen or pen, x1, y1)
     dscreen.paintTile(style.rt_frame_pen or pen, x2, y1)
     dscreen.paintTile(style.lb_frame_pen or pen, x1, y2)
@@ -1330,26 +721,10 @@ function paint_frame(dc, rect, style, title, inactive, pause_forced, resizable)
         if #tstr > x2-x1-1 then
             tstr = string.sub(tstr,1,x2-x1-1)
         end
-        dscreen.paintString(inactive and style.inactive_title_pen or style.title_pen or pen,
-                            x, y1, tstr)
-    end
-
-    if pause_forced then
-        local pause_label = ' PAUSE FORCED '
-        if pause_forced == 'blink' and blink_visible(100) then
-            pause_label = '              '
-        end
-        dscreen.paintString(style.paused_pen or style.title_pen or pen,
-                            x1+2, y2, pause_label)
+        dscreen.paintString(style.title_pen or pen, x, y1, tstr)
     end
 end
 
--- This class is **deprecated** and should not be used, use `gui.ZScreen`
--- instead.
---
----@see gui.ZScreen
----@deprecated
----@class gui.FramedScreen
 FramedScreen = defclass(FramedScreen, Screen)
 
 FramedScreen.ATTRS{
@@ -1372,29 +747,16 @@ function FramedScreen:computeFrame(parent_rect)
 end
 
 function FramedScreen:onRenderFrame(dc, rect)
+    local x1,y1,x2,y2 = rect.x1, rect.y1, rect.x2, rect.y2
+
     if rect.wgap <= 0 and rect.hgap <= 0 then
         dc:clear()
     else
         self:renderParent()
         dc:fill(rect, self.frame_background)
     end
-    paint_frame(dc,rect,self.frame_style,self.frame_title)
-end
 
-function FramedScreen:onInput(keys)
-    FramedScreen.super.onInput(self, keys)
-    return true -- FramedScreens are modal
-end
-
--- Inverts the brightness of the color, optionally taking a "bold" parameter,
--- which you should include if you're reading the fg color of a pen.
----@nodiscard
----@param color dfhack.color
----@param bold? boolean
----@return dfhack.color
-function invert_color(color, bold)
-    color = bold and (color + 8) or color
-    return (color + 8) % 16
+    paint_frame(x1,y1,x2,y2,self.frame_style,self.frame_title)
 end
 
 return _ENV

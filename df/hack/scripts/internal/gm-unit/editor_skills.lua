@@ -8,7 +8,7 @@ local base_editor = reqscript("internal/gm-unit/base_editor")
 --TODO set local should or better yet skills vector to reduce long skill list access typing
 Editor_Skills = defclass(Editor_Skills, base_editor.Editor)
 
-Editor_Skills.ATTRS{
+Editor_Skills.ATTRS = {
     frame_title = "Skill editor",
     learned_only = false
 }
@@ -24,13 +24,7 @@ function list_skills(unit, learned_only)
                     u_skill={rating=-1,experience=0}
                 end
                 local rating
-                if u_skill.rating > df.skill_rating.Legendary then
-                    local legendary_bonus= u_skill.rating - df.skill_rating.Legendary
-                    rating=df.skill_rating.attrs[df.skill_rating.Legendary]
-                    rating={ xp_threshold=rating.xp_threshold, caption=rating.caption }
-                    rating.xp_threshold= rating.xp_threshold + legendary_bonus * 100
-                    rating.caption = rating.caption.."+"..legendary_bonus
-                elseif u_skill.rating >=0 then
+                if u_skill.rating >=0 then
                     rating=df.skill_rating.attrs[u_skill.rating]
                 else
                     rating={caption="<unlearned>",xp_threshold=0}
@@ -72,22 +66,25 @@ function Editor_Skills:init( args )
     self:addviews{
         widgets.FilteredList{
             choices=skill_list,
-            frame = {t=0, b=3,l=0},
+            frame = {t=0, b=1,l=1},
             view_id="skills",
-            edit_ignore_keys={"STRING_A045", "STRING_A043", "STRING_A047"},
+            edit_ignore_keys={"SECONDSCROLL_UP", "SECONDSCROLL_DOWN"},
         },
         widgets.Label{
-            frame = { b=0,l=0},
-            text ={
+            frame = { b=0,l=1},
+            text ={{text= ": exit editor ",
+                key  = "LEAVESCREEN",
+                on_activate= self:callback("dismiss")
+                },
                 {text=": remove level ",
-                key = "STRING_A045",
+                key = "SECONDSCROLL_UP",
                 on_activate=self:callback("level_skill",-1)},
                 {text=": add level ",
-                key = "STRING_A043",
-                on_activate=self:callback("level_skill",1)},
-                NEWLINE,
+                key = "SECONDSCROLL_DOWN",
+                on_activate=self:callback("level_skill",1)}
+                ,
                 {text=": show learned only ",
-                key = "STRING_A047", -- /
+                key = "CHANGETAB",
                 on_activate=function ()
                     self.learned_only=not self.learned_only
                     self:update_list(true)
@@ -95,9 +92,6 @@ function Editor_Skills:init( args )
             }
         },
     }
-end
-function Editor_Skills:onOpen()
-    self.subviews[1].edit:setFocus(true)
 end
 function Editor_Skills:get_cur_skill()
     local list_wid=self.subviews.skills

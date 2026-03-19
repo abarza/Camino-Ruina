@@ -5,7 +5,7 @@ Tags: fort | armok | units
 
 Command: "assign-preferences"
 
-  View or adjust a unit's preferences.
+  Adjust a unit's preferences.
 
 You will need to know the token of the object you want your dwarf to like. You can find them in the wiki, otherwise in the folder "/raw/objects/" under the main DF directory you will find all the raws defined in the game.
 
@@ -31,9 +31,9 @@ Examples
 
      assign-preferences --reset --likecreature SPARROW
 
-* "prefers to consume dwarven wine, olives and yak":
+* "prefers to consume dwarven wine and olives":
 
-     assign-preferences --reset --likefood [ PLANT:MUSHROOM_HELMET_PLUMP:DRINK PLANT:OLIVE:FRUIT CREATURE_MAT:YAK:MUSCLE ]
+     assign-preferences --reset --likefood [ PLANT:MUSHROOM_HELMET_PLUMP:DRINK PLANT:OLIVE:FRUIT ]
 
 * "absolutely detests jumping spiders:
 
@@ -67,9 +67,6 @@ For each of the parameters that take lists of tokens, if there is a space in the
 
 "--unit <id>"
    The target unit ID. If not present, the currently selected unit will be the target.
-
-"--show"
-   Print the list of current likes/dislikes for the selected unit
 
 "--likematerial [ <token> [<token> ...] ]"
    This is usually set to three tokens: a type of stone, a type of metal, and a type of gem. It can also be a type of wood, glass, leather, horn, pearl, ivory, a decoration material - coral or amber, bone, shell, silk, yarn, or cloth. Please include the full tokens, not just a part.

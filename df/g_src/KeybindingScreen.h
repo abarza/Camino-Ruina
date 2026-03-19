@@ -8,7 +8,6 @@
 #include <set>
 #include <string>
 
-#ifdef NEED_KEYBINDING_SCREEN
 class KeybindingScreen : public viewscreenst {
   enum { mode_main, mode_keyL, mode_keyR, mode_macro, mode_register } mode;
   enum keyR_type { sel_add, sel_rep_none, sel_rep_slow, sel_rep_fast, sel_event };
@@ -38,10 +37,11 @@ class KeybindingScreen : public viewscreenst {
 public:
   KeybindingScreen(); 
   virtual void feed(std::set<InterfaceKey> &events);
-  virtual void render(uint32_t curtick=0);
+  virtual void render();
+  virtual void help();
   virtual void logic();
+  virtual char is_option_screen() { return 2; }
 };
-#endif
 
 class MacroScreenLoad : public viewscreenst {
   widgets::menu<string> menu;
@@ -50,8 +50,9 @@ class MacroScreenLoad : public viewscreenst {
  public:
   MacroScreenLoad();
   virtual void logic();
-  virtual void render(uint32_t curtick=0);
+  virtual void render();
   virtual void feed(std::set<InterfaceKey> &events);
+  virtual char is_option_screen() { return 1; }
 };
 
 class MacroScreenSave : public viewscreenst {
@@ -59,8 +60,10 @@ class MacroScreenSave : public viewscreenst {
 public:
   MacroScreenSave();
   virtual void logic();
-  virtual void render(uint32_t curtick=0);
+  virtual void render();
   virtual void feed(std::set<InterfaceKey> &events);
+  virtual char is_option_screen() { return 1; }
 };
+
 
 #endif

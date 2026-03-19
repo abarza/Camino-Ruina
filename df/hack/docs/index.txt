@@ -11,12 +11,10 @@ Quick Links
 
 * Installation guide
 
-* Quickstart guide
-
 * Getting help
 
 * Source code
-     (**important:** read Building DFHack before attempting to build from source.)
+     (**important:** read Compiling DFHack before attempting to build from source.)
 
 
 User Manual
@@ -28,21 +26,7 @@ User Manual
 
   * Getting help
 
-* Quickstart guide
-
-  * What is DFHack?
-
-  * What can I do with DFHack tools?
-
-  * How can I figure out which commands to run?
-
-  * What if I don't want to be tempted by god-mode tools?
-
-  * How do DFHack in-game windows work?
-
-  * Where do I go next?
-
-* Installing
+* Installing DFHack
 
   * Requirements
 
@@ -54,6 +38,10 @@ User Manual
 
   * Upgrading DFHack
 
+  * Pre-packaged DFHack installations
+
+  * Linux packages
+
 * DFHack Core
 
   * Command implementation
@@ -62,13 +50,9 @@ User Manual
 
   * Configuration files
 
-  * Commandline options
-
   * Environment variables
 
-  * Core preferences
-
-  * Performance monitoring
+  * Miscellaneous notes
 
 * DFHack tools
 
@@ -88,17 +72,19 @@ User Manual
 
   * DFHack modding guide
 
+  * DFHack config file examples
+
   * Quickfort blueprint library
 
   * Quickfort blueprint creation guide
 
-  * Stonesense art creation guide
+  * Quickfort keystroke alias reference
 
 * DFHack development guide
 
   * DFHack development overview
 
-  * Building DFHack
+  * Compiling DFHack
 
   * How to contribute to DFHack
 
@@ -111,12 +97,6 @@ User Manual
   * DFHack overlay dev guide
 
   * DF data definitions (DF-structures)
-
-  * DFHack Data Identity System
-
-  * GitHub workflows
-
-  * Release process
 
   * Memory research
 

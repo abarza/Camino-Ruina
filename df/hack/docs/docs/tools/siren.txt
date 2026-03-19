@@ -1,7 +1,7 @@
 siren
 =====
 
-Tags: unavailable
+Tags: fort | armok | units
 
 Command: "siren"
 

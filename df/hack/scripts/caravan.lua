@@ -1,30 +1,31 @@
--- Adjusts properties of caravans and provides overlays for enhanced trading
+-- Adjusts properties of caravans
+--[====[
+
+caravan
+=======
+
+Adjusts properties of caravans on the map. See also `force` to create caravans.
+
+This script has multiple subcommands. Commands listed with the argument
+``[IDS]`` can take multiple caravan IDs (see ``caravan list``). If no IDs are
+specified, then the commands apply to all caravans on the map.
+
+**Subcommands:**
+
+- ``list``: lists IDs and information about all caravans on the map.
+- ``extend [DAYS] [IDS]``: extends the time that caravans stay at the depot by
+  the specified number of days (defaults to 7 if not specified). Also causes
+  caravans to return to the depot if applicable.
+- ``happy [IDS]``: makes caravans willing to trade again (after seizing goods,
+  annoying merchants, etc.). Also causes caravans to return to the depot if
+  applicable.
+- ``leave [IDS]``: makes caravans pack up and leave immediately.
+- ``unload``: fixes endless unloading at the depot. Run this if merchant pack
+  animals were startled and now refuse to come to the trade depot.
+
+]====]
+
 --@ module = true
-
-local movegoods = reqscript('internal/caravan/movegoods')
-local pedestal = reqscript('internal/caravan/pedestal')
-local trade = reqscript('internal/caravan/trade')
-local tradeagreement = reqscript('internal/caravan/tradeagreement')
-
-dfhack.onStateChange.caravanTradeOverlay = function(code)
-    if code == SC_WORLD_UNLOADED then
-        trade.trader_selected_state = {}
-        trade.broker_selected_state = {}
-        trade.handle_ctrl_click_on_render = false
-        trade.handle_shift_click_on_render = false
-    end
-end
-
-OVERLAY_WIDGETS = {
-    trade=trade.TradeOverlay,
-    tradebanner=trade.TradeBannerOverlay,
-    tradeethics=trade.TradeEthicsWarningOverlay,
-    tradeagreement=tradeagreement.TradeAgreementOverlay,
-    movegoods=movegoods.MoveGoodsOverlay,
-    movegoods_hider=movegoods.MoveGoodsHiderOverlay,
-    assigntrade=movegoods.AssignTradeOverlay,
-    displayitemselector=pedestal.PedestalOverlay,
-}
 
 INTERESTING_FLAGS = {
     casualty = 'Casualty',
@@ -32,7 +33,7 @@ INTERESTING_FLAGS = {
     seized = 'Goods seized',
     offended = 'Offended'
 }
-local caravans = df.global.plotinfo.caravans
+local caravans = df.global.ui.caravans
 
 local function caravans_from_ids(ids)
     if not ids or #ids == 0 then
@@ -41,7 +42,7 @@ local function caravans_from_ids(ids)
 
     local c = {} --as:df.caravan_state[]
     for _,id in ipairs(ids) do
-        id = tonumber(id)
+        local id = tonumber(id)
         if id then
             c[id] = caravans[id]
         end
@@ -62,9 +63,9 @@ function commands.list()
         print(dfhack.df2console(('%d: %s caravan from %s'):format(
             id,
             df.creature_raw.find(df.historical_entity.find(car.entity).race).name[2], -- adjective
-            dfhack.translation.translateName(df.historical_entity.find(car.entity).name)
+            dfhack.TranslateName(df.historical_entity.find(car.entity).name)
         )))
-        print('  ' .. (df.caravan_state.T_trade_state[car.trade_state] or ('Unknown state: ' .. car.trade_state)))
+        print('  ' .. (df.caravan_state.T_trade_state[car.trade_state] or 'Unknown state: ' .. car.trade_state))
         print(('  %d day(s) remaining'):format(math.floor(car.time_remaining / 120)))
         for flag, msg in pairs(INTERESTING_FLAGS) do
             if car.flags[flag] then
@@ -94,26 +95,6 @@ function commands.leave(...)
     for id, car in pairs(caravans_from_ids{...}) do
         car.trade_state = df.caravan_state.T_trade_state.Leaving
     end
-    local still_needs_broker = false
-    for _,car in ipairs(caravans) do
-        if car.trade_state == df.caravan_state.T_trade_state.Approaching or
-            car.trade_state == df.caravan_state.T_trade_state.AtDepot
-        then
-            still_needs_broker = true
-            break
-        end
-    end
-    if not still_needs_broker then
-        for _,depot in ipairs(df.global.world.buildings.other.TRADE_DEPOT) do
-            depot.trade_flags.trader_requested = false
-            for _, job in ipairs(depot.jobs) do
-                if job.job_type == df.job_type.TradeAtDepot then
-                    dfhack.job.removeJob(job)
-                    break
-                end
-            end
-        end
-    end
 end
 
 local function isDisconnectedPackAnimal(unit)
@@ -126,15 +107,24 @@ local function isDisconnectedPackAnimal(unit)
     end
 end
 
+local function getPrintableUnitName(unit)
+    local visible_name = dfhack.units.getVisibleName(unit)
+    local profession_name = dfhack.units.getProfessionName(unit)
+    if visible_name.has_name then
+        return ('%s (%s)'):format(dfhack.TranslateName(visible_name), profession_name)
+    end
+    return profession_name  -- for unnamed animals
+end
+
 local function rejoin_pack_animals()
     print('Reconnecting disconnected pack animals...')
     local found = false
-    for _, unit in ipairs(df.global.world.units.active) do
+    for _, unit in pairs(df.global.world.units.active) do
         if unit.flags1.merchant and isDisconnectedPackAnimal(unit) then
             local dragger = unit.following
             print(('  %s  <->  %s'):format(
-                dfhack.df2console(dfhack.units.getReadableName(unit)),
-                dfhack.df2console(dfhack.units.getReadableName(dragger))
+                dfhack.df2console(getPrintableUnitName(unit)),
+                dfhack.df2console(getPrintableUnitName(dragger))
             ))
             unit.relationship_ids[ df.unit_relationship_type.Dragger ] = dragger.id
             dragger.relationship_ids[ df.unit_relationship_type.Draggee ] = unit.id
@@ -148,7 +138,7 @@ local function rejoin_pack_animals()
     end
 end
 
-function commands.unload()
+function commands.unload(...)
     rejoin_pack_animals()
 end
 
@@ -156,17 +146,21 @@ function commands.help()
     print(dfhack.script_help())
 end
 
-function main(args)
-    local command = table.remove(args, 1) or 'list'
+function main(...)
+    local args = {...}
+    local command = table.remove(args, 1)
     if commands[command] then
         commands[command](table.unpack(args))
     else
         commands.help()
-        print()
-        qerror("No such command: " .. command)
+        if command then
+            qerror("No such subcommand: " .. command)
+        else
+            qerror("Missing subcommand")
+        end
     end
 end
 
 if not dfhack_flags.module then
-    main{...}
+    main(...)
 end

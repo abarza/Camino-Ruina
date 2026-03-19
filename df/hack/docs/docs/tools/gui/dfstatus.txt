@@ -1,11 +1,13 @@
 gui/dfstatus
 ============
 
-Tags: unavailable
+Tags: fort | inspection
 
 Command: "gui/dfstatus"
 
   Show a quick overview of critical stock quantities.
+
+Keybinding: [Ctrl][Shift][I] in "dwarfmode/Default|dfhack/lua/dfstatus"
 
 This tool show a quick overview of stock quantities for:
 

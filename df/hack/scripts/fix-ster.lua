@@ -83,7 +83,7 @@ function process_args(args)
     elseif args[2] == "animals" then
         --Create a table of all creature indexes except dwarves on the current map
         for n,v in ipairs(df.global.world.units.active) do
-            if v.race ~= df.global.plotinfo.race_id then
+            if v.race ~= df.global.ui.race_id then
                 table.insert(creatures,n)
             end
         end

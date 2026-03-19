@@ -6,32 +6,9 @@ local widgets = require 'gui.widgets'
 local base_editor = reqscript("internal/gm-unit/base_editor")
 
 Editor_Colors=defclass(Editor_Colors, base_editor.Editor)
-Editor_Colors.ATTRS{
+Editor_Colors.ATTRS={
     frame_title = "Colors editor"
 }
-
-rng = rng or dfhack.random.new(nil, 10)
-
-local function weightedRoll(weightedTable)
-  local maxWeight = 0
-  for index, result in ipairs(weightedTable) do
-    maxWeight = maxWeight + result.weight
-  end
-
-  local roll = rng:random(maxWeight) + 1
-  local currentNum = roll
-  local result
-
-  for index, currentResult in ipairs(weightedTable) do
-    currentNum = currentNum - currentResult.weight
-    if currentNum <= 0 then
-      result = currentResult.id
-      break
-    end
-  end
-
-  return result
-end
 
 function patternString(patternId)
   local pattern = df.descriptor_pattern.find(patternId)
@@ -64,7 +41,7 @@ end
 
 function Editor_Colors:random()
   local featureChoiceIndex, featureChoice = self.subviews.features:getSelected() -- This is the part / feature that's selected
-  local caste = dfhack.units.getCasteRaw(self.target_unit)
+  local caste = df.creature_raw.find(self.target_unit.race).caste[self.target_unit.caste]
 
   -- Nil check in case there are no features
   if featureChoiceIndex == nil then
@@ -97,19 +74,22 @@ function Editor_Colors:random()
   -- Set the unit's appearance for the feature to the new pattern
   self.target_unit.appearance.colors[featureChoice.index] = options[result].index
 
-  -- Update the unit's portrait
-  self.target_unit.flags4.portrait_must_be_refreshed = true
-  -- Update the world texture
-  self.target_unit.flags4.any_texture_must_be_refreshed = true
+  -- Notify the user on the change, so they get some visual feedback that something has happened
+  local pluralWord
+  if featureChoice.mod.unk_6c == 1 then
+    pluralWord = "are"
+  else
+    pluralWord = "is"
+  end
+
+  dialog.showMessage("Color randomised!",
+    featureChoice.text .. " " .. pluralWord .." now " .. patternString(options[result].patternId),
+    nil, nil)
 end
 
 function Editor_Colors:colorSelected(index, choice)
   -- Update the modifier for the unit
   self.target_unit.appearance.colors[self.modIndex] = choice.index
-  -- Update the unit's portrait
-  self.target_unit.flags4.portrait_must_be_refreshed = true
-  -- Update the world texture
-  self.target_unit.flags4.any_texture_must_be_refreshed = true
 end
 
 function Editor_Colors:featureSelected(index, choice)
@@ -136,7 +116,7 @@ function Editor_Colors:featureSelected(index, choice)
 end
 
 function Editor_Colors:updateChoices()
-  local caste = dfhack.units.getCasteRaw(self.target_unit)
+  local caste = df.creature_raw.find(self.target_unit.race).caste[self.target_unit.caste]
   local choices = {}
   for index, colorMod in ipairs(caste.color_modifiers) do
     table.insert(choices, {text = colorMod.part:gsub("^%l", string.upper), mod = colorMod, index = index})
@@ -152,13 +132,14 @@ function Editor_Colors:init(args)
 
   self:addviews{
     widgets.List{
-      frame = {t=0, b=2,l=0},
+      frame = {t=0, b=1,l=1},
       view_id = "features",
       on_submit = self:callback("featureSelected"),
     },
     widgets.Label{
-      frame = {b=0, l=0},
+      frame = {b=0, l=1},
       text = {
+        {text = ": exit editor ", key = "LEAVESCREEN", on_activate = self:callback("dismiss")},
         {text = ": edit feature ", key = "SELECT"},
         {text = ": randomise color", key = "CUSTOM_R", on_activate = self:callback("random")},
       },

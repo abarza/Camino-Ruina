@@ -2,8 +2,7 @@
 -- Written by Josh Cooper(cppcooper) on 2017-12-21, last modified: 2021-06-13
 -- Version: 3.2
 --luacheck:skip-entirely
-local guidm = require('gui.dwarfmode')
-local utils = require('utils')
+local utils=require('utils')
 local validArgs = utils.invert({
  'help',
 
@@ -170,19 +169,12 @@ function main()
     query(selection, path_info, args.search, path_info)
 end
 
-local eval_env = utils.df_shortcut_env()
-function eval(s)
-    local f, err = load("return " .. s, "expression", "t", eval_env)
-    if err then qerror(err) end
-    return f()
-end
-
 function getSelectionData()
     local selection = nil
     local path_info = nil
     if args.table then
         debugf(0,"table selection")
-        selection = eval(args.table)
+        selection = utils.df_expr_to_ref(args.table)
         path_info = args.table
         path_info_pattern = escapeSpecialChars(path_info)
     elseif args.json then
@@ -221,24 +213,12 @@ function getSelectionData()
         path_info_pattern = path_info
     elseif args.job then
         debugf(0,"job selection")
-        selection = dfhack.gui.getSelectedJob(true)
-        local pos = guidm.getCursorPos()
-        if selection == nil and pos then
-            print("searching for a job at the cursor")
-            for _link, job in utils.listpairs(df.global.world.jobs.list) do
-                if same_xyz(job.pos, pos) then
-                    if selection == nil then
-                        selection = {}
-                    end
-                    table.insert(selection, job)
-                end
-            end
-        end
+        selection = dfhack.gui.getSelectedJob()
         path_info = "job"
         path_info_pattern = path_info
     elseif args.tile then
         debugf(0,"tile selection")
-        local pos = guidm.getCursorPos()
+        local pos = copyall(df.global.cursor)
         selection = dfhack.maps.ensureTileBlock(pos.x,pos.y,pos.z)
         bpos = selection.map_pos
         path_info = string.format("tile[%d][%d][%d]",pos.x,pos.y,pos.z)
@@ -247,7 +227,7 @@ function getSelectionData()
         tiley = pos.y%16
     elseif args.block then
         debugf(0,"block selection")
-        local pos = guidm.getCursorPos()
+        local pos = copyall(df.global.cursor)
         selection = dfhack.maps.ensureTileBlock(pos.x,pos.y,pos.z)
         bpos = selection.map_pos
         path_info = string.format("blocks[%d][%d][%d]",bpos.x,bpos.y,bpos.z)

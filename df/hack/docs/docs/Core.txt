@@ -19,17 +19,9 @@ Contents
 
   * Script paths
 
-* Commandline options
-
-  * Options passed to Dwarf Fortress
-
-  * Options passed to the DFHack Steam stub launcher
-
 * Environment variables
 
-* Core preferences
-
-* Performance monitoring
+* Miscellaneous notes
 
 
 Command implementation
@@ -44,7 +36,7 @@ plugins:
    are stored in "hack/plugins/" and must be compiled with the same version of DFHack.  They are less flexible than scripts, but used for complex or ongoing tasks because they run faster.
 
 scripts:
-   are Lua scripts stored in "hack/scripts/" or other directories in the Script paths. Because they don't need to be compiled, scripts are more flexible about versions, and they are easier to distribute. Most third-party DFHack addons are scripts.
+   are Ruby or Lua scripts stored in "hack/scripts/". Because they don't need to be compiled, scripts are more flexible about versions, and easier to distribute. Most third-party DFHack addons are scripts.
 
 All tools distributed with DFHack are documented here.
 
@@ -64,8 +56,6 @@ DFHack commands can be executed in a number of ways:
 
 5. Using script to run a batch of commands from a file
 
-6. From an in-game command launcher interface like gui/launcher, the hotkeys overlay widget, or gui/quickcmd.
-
 
 The DFHack console
 ~~~~~~~~~~~~~~~~~~
@@ -74,7 +64,7 @@ The command line has some nice line editing capabilities, including history that
 
 To include whitespace in the argument/s to some command, quote it in double quotes.  To include a double quote character, use "\"".
 
-If the first non-whitespace character is ":", the command is parsed in an alternative mode.  The non-whitespace characters following the ":" are the command name, and the remaining part of the line is used verbatim as the first argument.  This is very useful for the lua command. As an example, the following two command lines are exactly equivalent:
+If the first non-whitespace character is ":", the command is parsed in an alternative mode.  The non-whitespace characters following the ":" are the command name, and the remaining part of the line is used verbatim as the first argument.  This is very useful for the lua and ruby commands. As an example, the following two command lines are exactly equivalent:
 
    :foo a b "c d" e f
    foo "a b \"c d\" e f"
@@ -137,21 +127,23 @@ Init files
 
 * onMapUnload*.init and onUnload*.init
 
-* init.d/*.lua
+* raw/init.d/*.lua
 
 DFHack allows users to automatically run commonly-used DFHack commands when DF is first loaded, when a world is loaded, when a map is loaded, when a map is unloaded, and when a world is unloaded.
 
 Init scripts function the same way they would if the user manually typed in their contents, but are much more convenient.  In order to facilitate savegave portability, mod merging, and general organization of init files, DFHack supports multiple init files both in the main DF directory and save-specific init files in the save folders.
 
-DFHack looks for init files in two places each time they could be run:
+DFHack looks for init files in three places each time they could be run:
 
-1. The "dfhack-config/init" subdirectory in the main DF directory and
+1. The "dfhack-config/init" subdirectory in the main DF directory
 
-2. "save/*world*/init", where "{world}" is the current save
+2. "data/save/*world*/raw", where "world" is the current save, and
+
+3. "data/save/*world*/raw/objects"
 
 For each of those directories, all matching init files will be executed in alphabetical order.
 
-Before running matched init scripts in any of those locations, the "dfhack-config/init/default.*" file that matches the event will be run to load DFHack defaults. Only the "dfhack-config/init" directory is checked for this file, not any "save" directories. If you want DFHack to load without running any of its default configuration commands, edit the "dfhack-config/init/default.*" files and comment out the commands you see there.
+Before running matched init scripts in any of those locations, the "dfhack-config/init/default.*" file that matches the event will be run to load DFHack defaults. Only the "dfhack-config/init" directory is checked for this file, not any "raw" directories. If you want DFHack to load without running any of its default configuration commands, edit the "dfhack-config/init/default.*" files and comment out the commands you see there.
 
 When reading commands from the init files or with the script command, if the final character on a line is a backslash then the next uncommented line is considered a continuation of that line, with the backslash deleted.  Commented lines are skipped, so it is possible to comment out parts of a command with the "#" character.
 
@@ -161,7 +153,7 @@ dfhack*.init
 
 On startup, DFHack looks for files of the form "dfhack*.init" (where "*" is a placeholder for any string, including the empty string).
 
-These files are best used for keybindings and enabling persistent tools which do not require a world to be loaded.
+These files are best used for keybindings and enabling persistent plugins which do not require a world to be loaded.
 
 
 onLoad*.init
@@ -190,10 +182,10 @@ When a map or world is unloaded, DFHack looks for files of the form "onMapUnload
 Modders often use unload init scripts to disable tools which should not run after a modded save is unloaded.
 
 
-init.d/*.lua
-````````````
+raw/init.d/*.lua
+````````````````
 
-Any lua script named "init.d/*.lua", in the save or main DF directory, will be run when any world or that save is loaded.
+Any lua script named "raw/init.d/*.lua", in the save or main DF directory, will be run when any world or that save is loaded.
 
 
 Script paths
@@ -201,56 +193,13 @@ Script paths
 
 Script paths are folders that DFHack searches to find a script when a command is run. By default, the following folders are searched, in order (relative to the root DF folder):
 
-1. "dfhack-config/scripts"
+1. "data/save/*<region folder>*/raw/scripts" (only if a save is loaded)
 
-2. "save/*world*/scripts" (only if a save is loaded)
+2. "raw/scripts"
 
 3. "hack/scripts"
 
-4. "data/installed_mods/..." (see below)
-
-For example, if "teleport" is run, these folders are searched in order for "teleport.lua", and the first matching file is run.
-
-
-Scripts in installed mods
-`````````````````````````
-
-Scripts in mods are automatically added to the script path. The following directories are searched for mods:
-
-   ../../workshop/content/975370/ (the DF Steam workshop directory)
-   mods/
-   data/installed_mods/
-
-Each mod can have two directories that contain scripts:
-
-* "scripts_modactive/" is added to the script path if and only if the mod is
-     active in the loaded world.
-
-* "scripts_modinstalled/" is added to the script path as long as the mod is
-     installed in one of the searched mod directories.
-
-Multiple versions of a mod may be installed at the same time. If a mod is active in a loaded world, then the scripts for the version of the mod that is active will be added to the script path. Otherwise, the latest version of each mod is added to the script path.
-
-Scripts for active mods take precedence according to their load order when you generated the current world.
-
-Scripts for non-active mods are ordered by their containing mod's ID.
-
-For example, the search paths for mods might look like this:
-
-   activemod_last_in_load_order/scripts_modactive
-   activemod_last_in_load_order/scripts_modinstalled
-   activemod_second_to_last_in_load_order/scripts_modactive
-   activemod_second_to_last_in_load_order/scripts_modinstalled
-   ...
-   inactivemod1/scripts_modinstalled
-   inactivemod2/scripts_modinstalled
-   ...
-
-Not all mods will have script directories, of course, and those mods will not be added to the script search path. Mods are re-scanned whenever a world is loaded or unloaded. For more information on scripts and mods, check out the DFHack modding guide.
-
-
-Custom script paths
-```````````````````
+For example, if "teleport" is run, these folders are searched in order for "teleport.lua" or "teleport.rb", and the first matching file is run.
 
 Script paths can be added by modifying "dfhack-config/script-paths.txt". Each line should start with one of these characters:
 
@@ -267,32 +216,6 @@ Tip: When developing scripts in the dfhack/scripts repo, it may be useful to add
 Note that "script-paths.txt" is only read at startup, but the paths can also be modified programmatically at any time through the Lua API.
 
 
-Commandline options
--------------------
-
-In addition to Using an OS terminal to execute commands on startup, DFHack also recognizes a few commandline options.
-
-
-Options passed to Dwarf Fortress
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-These options can be passed to Dwarf Fortress and will be intercepted by DFHack. If you are launching Dwarf Fortress from Steam, you can set your options in the "Launch Options" text box in the properties for the Dwarf Fortress app (**NOT the DFHack app**). Note that these launch options will be used regardless of whether you run Dwarf Fortress from its own app or DFHack's.
-
-* "--disable-dfhack": If set, then DFHack will be disabled for the session. You will have to restart Dwarf Fortress without specifying this option in order to use DFHack. Note that even if DFHack is disabled, "stdout.txt" and "stderr.txt" will still be redirected to "stdout.log" and "stderr.log", respectively.
-
-* "--nosteam-dfhack": If set, then the DFHack stub launcher will not execute when you launch DF from its own app in the Steam client. This will prevent your settings from being restored or backed up with Steam Cloud Save. This is probably not what you want. If you want to just not have the DFHack playtime counted towards your hours, see the DFHack stub launcher "--nowait" option below.
-
-* "--skip-size-check": DFHack normally verifies the sizes of important game on startup and shuts down if a discrepancy is detected. This is intended to reduce the risk of misalignments in these structures leading to crashes or other misbehavior. This option bypasses the check. This option should normally only be used to facilitate DFHack development. This option will **not** enable DFHack to be used usefully with a version of DF with which DFHack has not been aligned.
-
-
-Options passed to the DFHack Steam stub launcher
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-These options can be passed to the DFHack stub launcher that executes when you run the DFHack app from the Steam client. You can set your options in the "Launch Options" text box in the properties for the DFHack app (**NOT the Dwarf Fortress app**). Note that these launch options will be used regardless of whether you run Dwarf Fortress from its own app or DFHack's.
-
-* "--nowait": If set, the DFHack stub launcher will not wait for DF to exit before exiting itself. This may be desired by players who do not want their playtime "double counted". However, using this option means that your DFHack settings that get backed up to the cloud will always be out of sync. The stub launcher normally downloads updated settings from Steam Cloud Save when DF launches, and then backs up changed settings when DF exits. If this option is used, then your settings will still be reconciled when DF launches, but changes made during your play session will not be saved when DF exits. Please use with caution -- you may lose data.
-
-
 Environment variables
 ---------------------
 
@@ -300,11 +223,9 @@ DFHack's behavior can be adjusted with some environment variables. For example, 
 
    DFHACK_SOME_VAR=1 ./dfhack
 
-* "DFHACK_DISABLE": if set, DFHack will not initialize, not even to redirect standard output or standard error. This is provided as an alternative to the "--disable-dfhack" commandline parameter above for when environment variables are more convenient.
-
 * "DFHACK_PORT": the port to use for the RPC server (used by "dfhack-run" and RemoteFortressReader among others) instead of the default "5000". As with the default, if this port cannot be used, the server is not started. See DFHack remote interface for more details.
 
-* "DFHACK_DISABLE_CONSOLE": if set, DFHack's external console is not set up. This is the default behavior if "PRINT_MODE:TEXT" is set in "data/init/init.txt". Intended for situations where DFHack cannot run in a terminal window.
+* "DFHACK_DISABLE_CONSOLE": if set, the DFHack console is not set up. This is the default behavior if "PRINT_MODE:TEXT" is set in "data/init/init.txt". Intended for situations where DFHack cannot run in a terminal window.
 
 * "DFHACK_HEADLESS": if set, and "PRINT_MODE:TEXT" is set, DF's display will be hidden, and the console will be started unless "DFHACK_DISABLE_CONSOLE" is also set. Intended for non-interactive gameplay only.
 
@@ -323,31 +244,11 @@ Other (non-DFHack-specific) variables that affect DFHack:
 * "LANG", "LC_CTYPE": if either of these contain "UTF8" or "UTF-8" (not case sensitive), "DF2CONSOLE()" will produce UTF-8-encoded text. Note that this should be the case in most UTF-8-capable *nix terminal emulators already.
 
 
-Core preferences
-----------------
+Miscellaneous notes
+-------------------
 
-Settings that control DFHack's runtime behavior can be changed dynamically via the "Preferences" tab in gui/control-panel or on the commandline with control-panel. The two most important settings for the core are:
+This section is for odd but important notes that don't fit anywhere else.
 
-* "HIDE_CONSOLE_ON_STARTUP": On Windows, this controls whether to hide the external DFHack terminal window on startup. The console is hidden by default so it does not get in the way of gameplay, but it can be useful to enable for debugging purposes or if you just prefer to use the external console instead of the in-game gui/launcher. When you change this setting, the new behavior will take effect the next time you start the game. If you are running the native Linux version of DF (and DFHack), the terminal that you run the game from becomes the DFHack console and this setting has no effect.
+* If a DF "H" hotkey is named with a DFHack command, pressing the corresponding "Fx" button will run that command, instead of zooming to the set location. *This feature will be removed in a future version.*  (see Issue 731)
 
-* "HIDE_ARMOK_TOOLS": Whether to hide "armok" tools in command lists. Also known as "Mortal mode", this setting keeps god-mode tools out of sight and out of mind. Highly recommended for players who would prefer if the god-mode tools were not quite as obvious and accessible.
-
-
-Performance monitoring
-----------------------
-
-Though DFHack tools are generally performant, they do take some amount of time to run. DFHack tracks its impact on DF game speed so the DFHack team can be aware of (and fix) tools that are taking more than their fair share of processing time.
-
-The target threshold for DFHack CPU utilization during unpaused gameplay with all overlays and automation tools enabled is 10%. This is about the level where players would notice the impact. In general, DFHack will have even less impact for most players, since it is not common for every single DFHack tool to be enabled at once.
-
-DFHack will record a performance report with the savegame files named "dfhack-perf-counters.dat". The report contains measurements from when the game was loaded to the time when it was saved. By default, only unpaused time is measured (since processing done while the game is paused doesn't slow anything down from the player's perspective). You can display a live report at any time by running:
-
-   :lua require('script-manager').print_timers()
-
-You can reset the timers to start a new measurement session by running:
-
-   :lua dfhack.internal.resetPerfCounters()
-
-If you want to record performance over all elapsed time, not just unpaused time, then instead run:
-
-   :lua dfhack.internal.resetPerfCounters(true)
+* The binaries for 0.40.15-r1 to 0.34.11-r4 are on DFFD. Older versions are available here. *These files will eventually be migrated to GitHub.*  (see Issue 473)

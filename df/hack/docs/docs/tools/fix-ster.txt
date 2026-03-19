@@ -1,7 +1,7 @@
 fix-ster
 ========
 
-Tags: unavailable
+Tags: fort | armok | animals
 
 Command: "fix-ster"
 

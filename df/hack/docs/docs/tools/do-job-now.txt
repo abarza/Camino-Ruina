@@ -1,11 +1,13 @@
 do-job-now
 ==========
 
-Tags: unavailable
+Tags: fort | productivity | jobs
 
 Command: "do-job-now"
 
   Mark the job related to what you're looking at as high priority.
+
+Keybinding: [Alt][N] in "dwarfmode|job|joblist|unit|unitlist|joblist|dungeon_monsterstatus|layer_unit_relationship|item|layer_noblelist|locations|pets|layer_overall_health|textviewer|reportlist|announcelist|layer_military|layer_unit_health|customize_unit|buildinglist|textviewer|item|layer_assigntrade|tradegoods|store|assign_display_item|treasurelist"
 
 The script will try its best to find a job related to the selected entity (which can be a job, dwarf, animal, item, building, plant or work order) and then mark the job as high priority.
 

@@ -12,7 +12,6 @@
 #include <cstdlib>
 #include <fstream>
 #include <zlib.h>
-#include "../zlib/contrib/minizip/unzip.h"
 
 #include "svector.h"
 using std::string;
@@ -33,19 +32,19 @@ extern char filecomp_buffer_aux[20000];
 extern char filecomp_buffer2_aux[80000];
 
 
-void textlinesst::load_raw_to_lines(const std::filesystem::path &filename)
+void textlinesst::load_raw_to_lines(char *filename)
 {
 	clean_lines();
 
+	//LOAD THE FILE
 	std::ifstream fseed(filename);
-
 	if(fseed.is_open())
 		{
 		string str;
 
 		while(std::getline(fseed,str))
 			{
-			long end=(long)str.length();
+			long end=str.length();
 
 			while(end>0)
 				{
@@ -56,18 +55,6 @@ void textlinesst::load_raw_to_lines(const std::filesystem::path &filename)
 			str.resize(end);
 
 			if(str.length()>0)text.add_string(str);
-			}
-		}
-	fseed.close();
-}
-void textlinesst::save_lines_to_raw(const std::filesystem::path &filename)
-{
-	std::ofstream fseed(filename);
-	if (fseed.is_open())
-		{
-		for (auto &line : text.str)
-			{
-			fseed<<line->dat<<std::endl;
 			}
 		}
 	fseed.close();

@@ -32,7 +32,7 @@ local utils = require 'utils'
 
 function createTree(...)
   local old_gametype = df.global.gametype
-  local old_mode = df.global.plotinfo.main.mode
+  local old_mode = df.global.ui.main.mode
   local old_popups = {} --as:df.popup_message[]
   for _, popup in pairs(df.global.world.status.popups) do
     table.insert(old_popups, popup)
@@ -42,7 +42,7 @@ function createTree(...)
   local ok, ret = dfhack.pcall(createTreeInner, ...)
 
   df.global.gametype = old_gametype
-  df.global.plotinfo.main.mode = old_mode
+  df.global.ui.main.mode = old_mode
   for _, popup in pairs(old_popups) do
     df.global.world.status.popups:insert('#', popup)
   end
@@ -69,7 +69,7 @@ function createTreeInner(treeRaw, treeAge, treePos)
   local dwarfmodeScreen = df.viewscreen_dwarfmodest:new()
   curViewscreen.child = dwarfmodeScreen
   dwarfmodeScreen.parent = curViewscreen
-  df.global.plotinfo.main.mode = df.ui_sidebar_mode.LookAround
+  df.global.ui.main.mode = df.ui_sidebar_mode.LookAround
 
   local arenaSettings = df.global.world.arena_settings
   local oldTreeCursor = arenaSettings.tree_cursor

@@ -1,7 +1,7 @@
 rendermax
 =========
 
-Tags: unavailable
+Tags: adventure | fort | gameplay | graphics
 
 Command: "rendermax"
 

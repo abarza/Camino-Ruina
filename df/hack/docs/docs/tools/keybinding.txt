@@ -9,7 +9,7 @@ Command: "keybinding"
 
 Like any other command, it can be used at any time from the console, but bindings are not remembered between runs of the game unless re-created in "dfhack-config/init/dfhack.init".
 
-Hotkeys can be any combinations of Ctrl/Alt/Super/Shift with any key recognized by SDL. You can also represent mouse buttons beyond the first three with "MOUSE4" through "MOUSE15".
+Hotkeys can be any combinations of Ctrl/Alt/Shift with A-Z, 0-9, F1-F12, or ` (the key below the "Esc" key on most keyboards).
 
 
 Usage
@@ -30,13 +30,11 @@ Usage
 "keybinding set <key> "<cmdline>" ["<cmdline>" ...]"
    Clear, and then add bindings for the specified key.
 
-The "<key>" parameter above has the following case-insensitive syntax:
+The "<key>" parameter above has the following **case-sensitive** syntax:
 
-   [Ctrl-][Alt-][Super-][Shift-]KEY[@context[|context...]]
+   [Ctrl-][Alt-][Shift-]KEY[@context[|context...]]
 
-where the "KEY" part can be any recognized key and "[""]" denote optional parts. It is important to note that the key is the non-shifted version of the key. For example "!" would be defined as "Shift-0".
-
-DFHack commands can advertise the contexts in which they can be usefully run. For example, a command that acts on a selected unit can tell keybinding that it is not "applicable" in the current context if a unit is not actively selected.
+where the "KEY" part can be any recognized key and "[""]" denote optional parts.
 
 When multiple commands are bound to the same key combination, DFHack selects the first applicable one. Later "add" commands, and earlier entries within one "add" command have priority. Commands that are not specifically intended for use as a hotkey are always considered applicable.
 
@@ -52,19 +50,11 @@ Commands like liquids or tiletypes cannot be used as hotkeys since they require 
 Examples
 --------
 
-Bind Ctrl-Shift-C to run the hotkeys command on any screen at any time:
+"keybinding add Ctrl-Shift-C hotkeys"
+   Bind Ctrl-Shift-C to run the hotkeys command on any screen at any time.
 
-   keybinding add Ctrl-Shift-C hotkeys
+"keybinding add Alt-F@dwarfmode gui/quickfort"
+   Bind Alt-F to run gui/quickfort, but only when on a screen that shows the main map.
 
-Bind Ctrl-M to run gui/mass-remove, but only when on the main map with nothing else selected:
-
-   keybinding add Ctrl-M@dwarfmode/Default gui/mass-remove
-
-Bind the fourth mouse button to launch gui/teleport when a unit is selected or gui/autodump when an item is selected:
-
-   keybinding add MOUSE4@dwarfmode/ViewSheets/UNIT gui/teleport
-   keybinding add MOUSE4@dwarfmode/ViewSheets/ITEM gui/autodump
-
-Bind Shift + the fifth mouse button to toggle the keyboard cursor in fort or adventure mode:
-
-   keybinding add Shift-MOUSE5@dwarfmode|dungeonmode toggle-kbd-cursor
+"keybinding add Ctrl-Shift-Z@dwarfmode/Default "stocks show""
+   Bind Ctrl-Shift-Z to run stocks show, but only when on the main map in the default mode (that is, no special mode, like cursor look, is enabled).
