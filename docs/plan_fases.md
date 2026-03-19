@@ -10,24 +10,27 @@ Fecha de auditoría: 2026-03-18.
 
 ### Inventario (evidencia)
 
-- `docker-compose.yml`
+- `docker-compose.yml` (seccomp:unconfined, puerto VNC 5900, restart policy)
 - `docker/`:
-  - `docker/Dockerfile`
-  - `docker/entrypoint.sh`
+  - `docker/Dockerfile` (incluye imagemagick, x11vnc, xdotool, openbox)
+  - `docker/entrypoint.sh` (DFHack default, symlink saves DF 53.x, openbox + x11vnc auto)
   - `docker/launch_df.sh`
   - `docker/cron_narrador`
   - `docker/README.md`
 - `scripts/`:
-  - `scripts/captura_pantalla.py`
-  - `scripts/agente_jugador.py`
+  - `scripts/agente_jugador.py` (usa DFHack + xdotool, no tmux)
+  - `scripts/xvfb_io.py` (screenshots + envío de teclas via xdotool)
+  - `scripts/dfhack_io.py` (consultas de estado via dfhack-run)
+  - `scripts/dfhack_state.lua` (script Lua que extrae estado del juego)
   - `scripts/narrador_nocturno.py`
-  - `scripts/tmux_io.py`
+  - `scripts/tmux_io.py` (legacy, ya no usado por el agente)
+  - `scripts/captura_pantalla.py` (legacy)
   - `scripts/llm.py`
-  - `scripts/intenciones.py`
+  - `scripts/intenciones.py` (16 intenciones)
   - `scripts/decisor_llm.py`
 - `mundo/` (bus persistente):
   - `mundo/diario.md`
-  - `mundo/logs/2026-03-17.md` (hay snapshots/turnos de ejecución)
+  - `mundo/logs/` (turnos con estado DFHack real)
   - `mundo/maletas/maleta_001.md`
   - `mundo/biblia/personajes.md`, `mundo/biblia/fortaleza_actual.md`
   - `mundo/legends/mundo.md`
@@ -43,12 +46,21 @@ Fecha de auditoría: 2026-03-18.
 ### Checklist rápido (18-03-2026)
 
 - [x] Fase 0 cerrada.
-- [x] Fase 1 cerrada (Docker + DF + DFHack compat + logs limpios).
-- [x] Fase 2 v0 cerrada (agente en loop y logging estructurado).
+- [x] Fase 1 cerrada (Docker + DF 53.11 SDL2 + DFHack nativo + openbox WM + VNC).
+- [x] Fase 2 cerrada (agente con DFHack state + xdotool input, primer turno real ejecutado).
 - [x] Fase 3 validada manualmente (`narrador_nocturno` ejecuta y escribe).
 - [ ] Fase 3 automática pendiente (1 corrida cron real en horario programado sin intervención manual).
 - [ ] Fase 4 pendiente de medición real (20–30 llamadas/hora y calidad de intención en runtime).
 - [ ] Fase 5 pendiente de estabilidad (corrida prolongada de varias horas sin intervención frecuente).
+
+### Hallazgos operativos (18-03-2026)
+
+- **DF 53.11 es SDL2-only**: no soporta `PRINT_MODE:TEXT`. No hay modo terminal.
+- **Saves DF 53.x**: van a `~/.local/share/Bay 12 Games/Dwarf Fortress/save/`, no a `data/save/`. Resuelto con symlink en entrypoint.
+- **DFHack requiere `seccomp:unconfined`**: Docker por defecto bloquea `setarch -R` (deshabilitar ASLR). Sin esto, DFHack carga en memoria pero no se inicializa.
+- **SDL2 no recibe input X11 sin WM**: xdotool, xte, y XTEST no funcionan sin window manager. Resuelto con openbox.
+- **IO del agente migrado**: de tmux (capture_pane/send_keys) a DFHack (dfhack-run Lua) + xdotool. Screenshots via ImageMagick disponibles.
+- **Worldgen por CLI**: `./dwarfort -gen 1 RANDOM` funciona sin presets.
 
 #### Fase 0 — Arranque del repo y estructura
 

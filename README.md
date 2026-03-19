@@ -27,15 +27,10 @@ El directorio `mundo/` persiste por volumen y contiene logs y estado narrativo.
 docker compose up --build
 ```
 
-- **Sesión tmux del juego**: por defecto `TMUX_SESSION=df` dentro del contenedor.
-  - Si montas DF/DFHack en `/opt/df`, el entrypoint ejecuta `DF_CMD` (default `./dwarfort`).
-  - Puedes cambiarlo con `.env`/variables (`DF_CMD=./dfhack`, por ejemplo).
-  - En modo `./dfhack`, el contenedor usa un launcher compatible (preload de `libdfhack.so`, sin `setarch`).
-- **Captura manual (logs crudos)**:
-
-```bash
-python3 -m scripts.captura_pantalla
-```
+- **Setup inicial (una sola vez)**: conectar por VNC a `localhost:5900` para crear mundo y aventurero.
+  - DF arranca con DFHack en Xvfb. El entrypoint levanta openbox (WM) + x11vnc automáticamente.
+  - En el menú: Start new game in existing world → Adventure Mode → crear personaje.
+  - Una vez en el mundo, cerrar VNC. El agente toma control.
 
 - **Agente jugador v0 (loop mecánico)**:
 
@@ -54,6 +49,13 @@ USE_LLM_INTENTIONS=1 python3 -m scripts.agente_jugador
 ```bash
 python3 -m scripts.narrador_nocturno
 ```
+
+### Stack técnico
+
+- **DF 53.11 Classic** (SDL2) + **DFHack 53.11-r2** en Xvfb
+- El agente lee estado via `dfhack-run` (Lua) y envía teclas via `xdotool`
+- Screenshots disponibles via ImageMagick (`import -window root`)
+- VNC (`localhost:5900`) para debug visual
 
 ### Inbox (futuro bot)
 
