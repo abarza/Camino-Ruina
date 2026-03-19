@@ -6,7 +6,7 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
-from scripts.tmux_io import TmuxTarget, capture_pane, send_raw_keys
+from scripts.xvfb_io import capture_screenshot, send_keys as xvfb_send_keys
 
 USE_LLM_INTENTIONS = os.getenv("USE_LLM_INTENTIONS", "0") == "1"
 
@@ -75,8 +75,16 @@ def parse_teclas_env() -> list[str]:
     return [k.strip() for k in raw.split(",") if k.strip()]
 
 
+def _get_game_state() -> str:
+    """Intenta obtener estado via DFHack; si falla, retorna string vacío."""
+    try:
+        from scripts.dfhack_io import get_game_state
+        return get_game_state()
+    except Exception:
+        return ""
+
+
 def main() -> int:
-    target = TmuxTarget.from_env()
     mundo = mundo_dir()
 
     intervalo = float(os.getenv("AGENT_TICK_SECONDS", "10"))
@@ -84,7 +92,9 @@ def main() -> int:
 
     while True:
         log_path = log_path_for_today(mundo)
-        antes = capture_pane(target, lines=250)
+
+        # Capturar estado antes de actuar.
+        antes = _get_game_state()
         contexto = detectar_contexto(antes)
         decision = "Ejecutar secuencia mecánica v0"
         teclas_a_enviar = teclas
@@ -101,10 +111,11 @@ def main() -> int:
                 print(f"[agente] decisor LLM falló: {exc}", file=sys.stderr)
                 teclas_a_enviar = teclas
 
-        send_raw_keys(target, teclas_a_enviar)
+        xvfb_send_keys(teclas_a_enviar)
         time.sleep(delay_por_contexto(contexto))
 
-        despues = capture_pane(target, lines=250)
+        # Capturar estado después de actuar.
+        despues = _get_game_state()
         hora = dt.datetime.now().strftime("%H:%M")
 
         escribir_turno(
