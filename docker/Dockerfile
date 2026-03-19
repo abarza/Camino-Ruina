@@ -46,6 +46,6 @@ ENV MUNDO_DIR=/gonzalo/mundo
 ENV TMUX_SESSION=df
 ENV TMUX_PANE=0
 ENV DF_DIR=/opt/df
-ENV DF_CMD=./dwarfort
+ENV DF_CMD=./dfhack
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

@@ -48,5 +48,17 @@ fi
 
 service cron start >/dev/null 2>&1 || true
 
+# Esperar a que DFHack esté listo (max 60s), solo si DF_DIR existe y usamos dfhack.
+if [ -d "${DF_DIR}" ] && [[ "${DF_CMD}" == *dfhack* ]]; then
+  echo "Esperando DFHack..."
+  for i in $(seq 1 30); do
+    if "${DF_DIR}/dfhack-run" lua "print('ok')" 2>/dev/null | grep -q 'ok'; then
+      echo "DFHack listo."
+      break
+    fi
+    sleep 2
+  done
+fi
+
 echo "Camino a la Ruina listo. TMUX_SESSION=${TMUX_SESSION} DISPLAY=${DISPLAY} VNC=:5900"
 exec bash
