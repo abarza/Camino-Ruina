@@ -12,6 +12,11 @@ services:
       - ./df:/opt/df
     working_dir: /gonzalo
     restart: unless-stopped
+    # DFHack necesita setarch -R (deshabilitar ASLR) para engancharse a DF.
+    security_opt:
+      - seccomp:unconfined
+    ports:
+      - "5900:5900"  # VNC (x11vnc) para setup inicial / debug visual
     tty: true
     stdin_open: true
 

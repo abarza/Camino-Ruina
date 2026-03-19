@@ -16,6 +16,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libsdl2-ttf-2.0-0 \
     libsdl2-mixer-2.0-0 \
     libopenal1 \
+    imagemagick \
+    x11vnc \
+    xdotool \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /gonzalo
