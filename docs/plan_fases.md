@@ -62,12 +62,13 @@ DF 0.47.05 es la última versión con `PRINT_MODE:TEXT` (ncurses puro en termina
 - [x] DFHack detecta aventurero: `UNIT: Gonzalo Usuknol (HUMAN), POS, HP: 7910/7910`
 - [x] Partida guardada en `df/data/save/region1/` (save base del proyecto)
 
-### Fase 5: Agente — Verificar pipeline completo
+### Fase 5: Agente — Verificar pipeline completo ✅ (2026-03-20)
 
-- [ ] `agente_jugador.py` corre una iteración
-- [ ] Log tiene turnos con UNIT/POS/HP reales
-- [ ] Posiciones cambian entre turnos (aventurero se mueve)
-- [ ] 5+ iteraciones sin errores
+- [x] `agente_jugador.py` corre 12 iteraciones sin errores
+- [x] Log tiene turnos con UNIT/POS/HP reales (Gonzalo Usuknol, HP 7910/7910)
+- [x] Posiciones cambian entre turnos (x=81,y=92 → x=84,y=90)
+- [x] NPCs cercanos detectados con distancias variables
+- [x] Sin errores en stderr
 
 ### Fase 6: Deploy VPS
 

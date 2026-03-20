@@ -1,4 +1,4 @@
-## Camino a la Ruina (OpenClaw)
+## Camino a la Ruina
 
 Proyecto para correr un "corresponsal" (Gonzalo) 24/7 en **Dwarf Fortress — Adventure Mode**, con:
 
@@ -64,6 +64,14 @@ docker compose exec camino tmux capture-pane -t df:0 -p
 ```bash
 docker compose exec camino /opt/df/dfhack-run lua "dofile('/gonzalo/scripts/dfhack_state.lua')"
 ```
+
+### Requisitos
+
+DF y DFHack **no se incluyen** en el repo (por licencia). Descargar de sus fuentes originales:
+- [DF 0.47.05 Linux](https://www.bay12games.com/dwarves/older_versions.html) (x64)
+- [DFHack 0.47.05-r8](https://github.com/DFHack/dfhack/releases/tag/0.47.05-r8) (Linux 64-bit gcc-7)
+
+Extraer DFHack sobre DF y colocar en `./df/`. Configurar `df/data/init/init.txt`: `[PRINT_MODE:TEXT]`.
 
 ### Stack técnico
 
