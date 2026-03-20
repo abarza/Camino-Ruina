@@ -1,4 +1,4 @@
-# Handoff — Deployment Vultr
+# Handoff — Deployment VPS (Hetzner)
 
 ## Contexto del proyecto
 
@@ -8,11 +8,11 @@ Repo: https://github.com/abarza/Camino-Ruina
 
 ## Infraestructura
 
-- VPS Vultr: Ubuntu 24.04, 2 vCPU, 4 GB RAM, Atlanta US, $20/mes
+- VPS Hetzner: Ubuntu 24.04, 2+ vCPU, 4+ GB RAM
 - Docker + Docker Compose instalados
-- Repo clonado en `~/Camino-Ruina`
-- DF 0.47.05 (text mode) + DFHack 0.47.05-r8 en `~/Camino-Ruina/df/`
-- Saves en `~/Camino-Ruina/saves/`
+- Repo clonado en `~/camino-a-la-ruina`
+- DF 0.47.05 (text mode) + DFHack 0.47.05-r8 en `~/camino-a-la-ruina/df/`
+- Saves en `~/camino-a-la-ruina/saves/`
 
 ## Arquitectura del contenedor
 
@@ -28,7 +28,7 @@ Repo: https://github.com/abarza/Camino-Ruina
 ## Cómo hacer el deploy (pasos en el VPS)
 
 ```bash
-cd ~/Camino-Ruina
+cd ~/camino-a-la-ruina
 git pull
 
 # Verificar que .env tiene DF_CMD=./dfhack
@@ -50,8 +50,10 @@ docker exec $(docker ps -q) tmux capture-pane -t df:0 -p
 docker exec -it $(docker ps -q) tmux attach -t df
 # Ctrl+B, D para salir de tmux sin cerrarlo
 
-# Correr el agente
+# Correr el agente manualmente (si AGENT_AUTOSTART=0)
 docker exec $(docker ps -q) python3 -m scripts.agente_jugador
+
+# O prender AGENT_AUTOSTART=1 en .env para que arranque solo con el container
 ```
 
 ## Verificación

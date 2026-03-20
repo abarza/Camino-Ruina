@@ -36,4 +36,13 @@ if [ -d "${DF_DIR}" ] && [[ "${DF_CMD}" == *dfhack* ]]; then
 fi
 
 echo "Camino a la Ruina listo. TMUX_SESSION=${TMUX_SESSION} (text mode)"
+
+# Lanzar agente jugador automáticamente si AGENT_AUTOSTART=1.
+if [ "${AGENT_AUTOSTART:-0}" = "1" ]; then
+  echo "Lanzando agente jugador en background..."
+  cd /gonzalo
+  python3 -m scripts.agente_jugador >> /var/log/agente.log 2>&1 &
+  echo "Agente PID: $!"
+fi
+
 exec bash

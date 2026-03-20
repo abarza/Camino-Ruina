@@ -70,11 +70,15 @@ DF 0.47.05 es la última versión con `PRINT_MODE:TEXT` (ncurses puro en termina
 - [x] NPCs cercanos detectados con distancias variables
 - [x] Sin errores en stderr
 
-### Fase 6: Deploy VPS
+### Fase 6: Deploy VPS (Hetzner)
 
-- [ ] Push a GitHub
-- [ ] `git pull && docker compose up --build -d` en VPS
-- [ ] Pipeline completo funcionando en VPS
+- [ ] Provisionar VPS en Hetzner (Ubuntu 24.04, 2+ vCPU, 4+ GB RAM)
+- [ ] Instalar Docker + Docker Compose en el VPS
+- [ ] Clonar repo + descargar DF 0.47.05 + DFHack 0.47.05-r8 en el VPS
+- [ ] Configurar `.env` con API keys
+- [ ] `docker compose up --build -d`
+- [ ] Crear mundo y aventurero via tmux (o copiar save desde local)
+- [ ] Verificar pipeline completo: DFHack responde, agente escribe turnos
 - [ ] No hay procesos Xvfb/x11vnc/openbox
 
 ### Archivos modificados (resumen)
