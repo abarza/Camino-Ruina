@@ -1,8 +1,0 @@
-building-hacks
-==============
-
-Tags: fort | gameplay | buildings
-
-  Provides a Lua API for creating powered workshops.
-
-See building-hacks for more details.
