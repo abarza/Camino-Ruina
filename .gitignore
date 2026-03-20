@@ -24,7 +24,12 @@ venv/
 
 # Local heavy/runtime data (do not commit)
 df/
+
 saves/
 
 # Optional local scratch file seen in repo root
 Untitled
+
+# Downloaded archives (DF/DFHack binaries)
+*.tar.bz2
+*.tar.gz

@@ -19,67 +19,48 @@ DF 0.47.05 es la última versión con `PRINT_MODE:TEXT` (ncurses puro en termina
 
 **Saves de 53.x son incompatibles con 0.47.x** — se necesita mundo nuevo.
 
-### Fase 0: Preparación — Binarios
+### Fase 0: Preparación — Binarios ✅ (2026-03-20)
 
-- [ ] Descargar DF 0.47.05 Linux 64-bit desde bay12games
-- [ ] Descargar DFHack 0.47.05-r8 Linux 64-bit gcc-7
-- [ ] Extraer DFHack sobre DF (merge)
-- [ ] Configurar `data/init/init.txt`: `[PRINT_MODE:TEXT]`
-- [ ] Reemplazar contenido de `df/` con los nuevos binarios
+- [x] Descargar DF 0.47.05 Linux 64-bit desde bay12games
+- [x] Descargar DFHack 0.47.05-r8 Linux 64-bit gcc-7
+- [x] Extraer DFHack sobre DF (merge)
+- [x] Configurar `data/init/init.txt`: `[PRINT_MODE:TEXT]`
+- [x] Reemplazar contenido de `df/` con los nuevos binarios
 
-**Test:**
-```bash
-ls -la df/dwarfort df/dfhack df/dfhack-run df/hack/libdfhack.so
-grep PRINT_MODE df/data/init/init.txt  # debe decir TEXT
-```
+### Fase 1: Docker — Simplificar para text mode ✅ (2026-03-20)
 
-### Fase 1: Docker — Simplificar para text mode
+- [x] Dockerfile: eliminados xvfb, SDL2, imagemagick, x11vnc, xdotool, openbox
+- [x] Dockerfile: agregados libncursesw6 (con symlink .so.5), libsdl1.2, libopenal1, libgtk2.0, libglu1-mesa
+- [x] entrypoint.sh: eliminados Xvfb, openbox, x11vnc, SDL_VIDEO_X11_XINPUT2, symlink saves 53.x
+- [x] docker-compose.yml: eliminado puerto 5900
+- [x] `docker compose build` exitoso, DF corre en text mode puro
+- [x] No hay procesos Xvfb/x11vnc/openbox en el container
 
-| Archivo | Acción |
-|---|---|
-| `docker/Dockerfile` | Eliminar deps gráficas (xvfb, SDL2, imagemagick, x11vnc, xdotool, openbox), agregar ncurses |
-| `docker/entrypoint.sh` | Eliminar Xvfb/openbox/x11vnc/DISPLAY, mantener tmux + DFHack wait |
-| `docker/launch_df.sh` | Simplificar (text mode no necesita display) |
-| `docker-compose.yml` | Eliminar puerto 5900 (VNC) |
-| `.env.example` | Eliminar referencia a DISPLAY |
+**Hallazgo**: DF 0.47 necesita SDL 1.2 + GTK2 + GLU incluso en text mode (el binario los linkea). También necesita `libncursesw.so.5` (Ubuntu 24.04 trae .so.6, resuelto con symlink).
 
-**Test:**
-```bash
-docker compose build
-docker compose up -d
-docker exec <c> pgrep -a dwarfort              # DF corriendo
-docker exec <c> tmux capture-pane -t df:0 -p   # muestra texto DF
-docker exec <c> pgrep -a Xvfb                  # vacío
-```
+### Fase 2: Scripts — Cambiar I/O del agente ✅ (2026-03-20)
 
-### Fase 2: Scripts — Cambiar I/O del agente
+- [x] `agente_jugador.py`: cambiado de `xvfb_io` a `tmux_io` (`send_raw_keys`)
+- [x] `xvfb_io.py`: eliminado
+- [x] `dfhack_state.lua`: adaptado para API 0.47 (`ui_advmode.player_id` → `units.active[0]`, `TranslateName`, `world.raws.creatures.all`, `getCurFocus`)
 
-| Archivo | Acción |
-|---|---|
-| `scripts/agente_jugador.py` | `xvfb_io` → `tmux_io` para envío de teclas |
-| `scripts/xvfb_io.py` | ELIMINAR |
-| `scripts/tmux_io.py` | Sin cambios (ya tiene `capture_pane()` y `send_raw_keys()`) |
-| `scripts/dfhack_io.py` | Mantener (mismo protocolo TCP :5000) |
-| `scripts/dfhack_state.lua` | Adaptar API si difiere en 0.47 |
+### Fase 3: DFHack — Verificar compatibilidad 0.47.05-r8 ✅ (2026-03-20)
 
-**Test:**
-```bash
-docker exec <c> python3 -c "from scripts.agente_jugador import main; print('OK')"
-docker exec <c> python3 -c "import scripts.xvfb_io" 2>&1 | grep -q "No module"
-```
+- [x] `dfhack-run lua "print('ok')"` responde `ok`
+- [x] `dfhack_state.lua` retorna UNIT/POS/HP/FOCUS/NEARBY sin errores
 
-### Fase 3: DFHack — Verificar compatibilidad 0.47.05-r8
+**Hallazgos API 0.47 vs 53.x:**
+- `df.global.adventure.player_id` no funciona → el aventurero es siempre `units.active[0]`
+- `dfhack.units.getReadableName()` no existe → `dfhack.TranslateName(u.name)`
+- `df.creature_raw.find()` no existe → `df.global.world.raws.creatures.all[u.race]`
+- `dfhack.gui.getFocusStrings()` no existe → `dfhack.gui.getCurFocus()`
 
-- [ ] `dfhack-run version` responde
-- [ ] `dfhack-run lua "print('ok')"` responde `ok`
-- [ ] `dfhack_state.lua` retorna UNIT/POS/HP/FOCUS/NEARBY sin errores
+### Fase 4: Juego — Crear mundo y aventurero ✅ (2026-03-20)
 
-### Fase 4: Juego — Crear mundo y aventurero
-
-- [ ] Crear mundo nuevo via text mode
-- [ ] Iniciar adventure mode con humano
-- [ ] Verificar DFHack detecta aventurero
-- [ ] Guardar partida (save base del proyecto)
+- [x] Mundo creado: "Cadenielathu, The Destined Domain" (Medium, 250 años)
+- [x] Aventurero: Gonzalo Usuknol (HUMAN, Hero)
+- [x] DFHack detecta aventurero: `UNIT: Gonzalo Usuknol (HUMAN), POS, HP: 7910/7910`
+- [x] Partida guardada en `df/data/save/region1/` (save base del proyecto)
 
 ### Fase 5: Agente — Verificar pipeline completo
 

@@ -1,6 +1,6 @@
 ## Camino a la Ruina (OpenClaw)
 
-Proyecto para correr un “corresponsal” (Gonzalo) 24/7 en **Dwarf Fortress — Adventure Mode**, con:
+Proyecto para correr un "corresponsal" (Gonzalo) 24/7 en **Dwarf Fortress — Adventure Mode**, con:
 
 - **Agente Jugador**: juega, decide y loguea en crudo.
 - **Narrador nocturno**: convierte logs en crónica diaria y actualiza maletas/diario/biblia.
@@ -24,38 +24,54 @@ El directorio `mundo/` persiste por volumen y contiene logs y estado narrativo.
 - **Levantar contenedor**:
 
 ```bash
-docker compose up --build
+docker compose up --build -d
 ```
 
-- **Setup inicial (una sola vez)**: conectar por VNC a `localhost:5900` para crear mundo y aventurero.
-  - DF arranca con DFHack en Xvfb. El entrypoint levanta openbox (WM) + x11vnc automáticamente.
-  - En el menú: Start new game in existing world → Adventure Mode → crear personaje.
-  - Una vez en el mundo, cerrar VNC. El agente toma control.
+- **Setup inicial (una sola vez)**: attachar a la sesión tmux para crear mundo y aventurero.
+
+```bash
+docker compose exec camino tmux attach -t df
+# Navegar menús de DF: Create New World → Start Playing → Adventurer → crear personaje
+# Para salir de tmux sin cerrarlo: Ctrl+B luego D
+```
 
 - **Agente jugador v0 (loop mecánico)**:
 
 ```bash
-python3 -m scripts.agente_jugador
+docker compose exec camino python3 -m scripts.agente_jugador
 ```
 
 - **Agente jugador con LLM (16 intenciones)**:
 
 ```bash
-USE_LLM_INTENTIONS=1 python3 -m scripts.agente_jugador
+docker compose exec camino env USE_LLM_INTENTIONS=1 python3 -m scripts.agente_jugador
 ```
 
 - **Narrador nocturno (manual)**:
 
 ```bash
-python3 -m scripts.narrador_nocturno
+docker compose exec camino python3 -m scripts.narrador_nocturno
+```
+
+- **Ver pantalla de DF**:
+
+```bash
+docker compose exec camino tmux capture-pane -t df:0 -p
+```
+
+- **Consultar estado via DFHack**:
+
+```bash
+docker compose exec camino /opt/df/dfhack-run lua "dofile('/gonzalo/scripts/dfhack_state.lua')"
 ```
 
 ### Stack técnico
 
-- **DF 53.11 Classic** (SDL2) + **DFHack 53.11-r2** en Xvfb
-- El agente lee estado via `dfhack-run` (Lua) y envía teclas via `xdotool`
-- Screenshots disponibles via ImageMagick (`import -window root`)
-- VNC (`localhost:5900`) para debug visual
+- **DF 0.47.05** (text mode, ncurses) + **DFHack 0.47.05-r8** en tmux
+- `PRINT_MODE:TEXT` — DF corre como aplicación de terminal pura
+- El agente lee estado via `dfhack-run` (Lua) y envía teclas via `tmux send-keys`
+- Lectura de pantalla via `tmux capture-pane` (texto directo, sin OCR)
+- Sin dependencias gráficas (no Xvfb, SDL2, x11vnc, xdotool)
 
 ### Inbox (futuro bot)
 

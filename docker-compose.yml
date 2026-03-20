@@ -7,8 +7,7 @@ services:
       - .env
     volumes:
       - ./mundo:/gonzalo/mundo
-      - ./saves:/df/data/save
-      # Opcional: monta tu instalación de DF/DFHack dentro del contenedor.
+      # DF 0.47 + DFHack binarios. Saves persisten en ./df/data/save/
       - ./df:/opt/df
     working_dir: /gonzalo
     restart: unless-stopped
