@@ -9,6 +9,9 @@ export TERM="${TERM:-xterm-256color}"
 
 mkdir -p /gonzalo /gonzalo/mundo
 
+# Exportar variables de entorno para que cron las herede.
+env >> /etc/environment
+
 if ! tmux has-session -t "${TMUX_SESSION}" >/dev/null 2>&1; then
   tmux new-session -d -s "${TMUX_SESSION}" "bash"
 fi

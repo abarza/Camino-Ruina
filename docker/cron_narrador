@@ -1,4 +1,4 @@
 # Ejecuta el narrador una vez por noche a las 20:30 hora de Chile
 CRON_TZ=America/Santiago
-30 20 * * * cd /gonzalo && python3 -m scripts.narrador_nocturno >> /var/log/narrador_nocturno.log 2>&1
+30 20 * * * . /etc/environment && cd /gonzalo && /venv/bin/python3 -m scripts.narrador_nocturno >> /var/log/narrador_nocturno.log 2>&1
 
