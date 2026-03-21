@@ -96,21 +96,11 @@ docker compose exec camino pgrep -a python3
 
 ---
 
-### Fase 2: Estabilidad y auto-recovery
+### Fase 2: Estabilidad y auto-recovery ✅ (2026-03-20)
 
-**Acciones:**
-- Script watchdog que reinicia ffmpeg si muere
-- Logging del stream a `/var/log/stream.log`
-- Health check: verificar que ffmpeg sigue empujando frames
-
-**Archivos a modificar:**
-- `docker/stream.sh` — agregar loop de restart
-- `docker/entrypoint.sh` — integrar watchdog
-
-**Criterio de éxito:**
-- Si ffmpeg crashea, se reinicia automáticamente en <30s
-- Logs del stream accesibles para diagnóstico
-- El stream sobrevive 24+ horas sin intervención
+- [x] Watchdog loop en `stream.sh`: si ffmpeg muere, revisa Xvfb/xterm y reinicia en 10s
+- [x] Logging a `/var/log/stream.log` con timestamps
+- [x] Funciones separadas `start_xvfb`, `start_xterm`, `run_ffmpeg` para recovery granular
 
 **Test:**
 ```bash
