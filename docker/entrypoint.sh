@@ -48,4 +48,11 @@ if [ "${AGENT_AUTOSTART:-0}" = "1" ]; then
   echo "Agente PID: $!"
 fi
 
+# Lanzar stream si STREAM_ENABLED=1.
+if [ "${STREAM_ENABLED:-0}" = "1" ]; then
+  echo "Lanzando stream en background..."
+  /usr/local/bin/stream.sh &
+  echo "Stream PID: $!"
+fi
+
 exec bash

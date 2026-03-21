@@ -18,6 +18,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libopenal1 \
     libgtk2.0-0 \
     libglu1-mesa \
+    xvfb \
+    xterm \
+    ffmpeg \
+    fonts-firacode \
     && rm -rf /var/lib/apt/lists/* \
     && ln -sf /usr/lib/x86_64-linux-gnu/libncursesw.so.6 /usr/lib/x86_64-linux-gnu/libncursesw.so.5
 
@@ -37,6 +41,9 @@ RUN chmod +x /usr/local/bin/launch_df.sh
 
 COPY docker/cron_narrador /etc/cron.d/cron_narrador
 RUN chmod 0644 /etc/cron.d/cron_narrador && crontab /etc/cron.d/cron_narrador
+
+COPY docker/stream.sh /usr/local/bin/stream.sh
+RUN chmod +x /usr/local/bin/stream.sh
 
 COPY scripts /gonzalo/scripts
 
