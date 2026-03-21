@@ -70,16 +70,17 @@ DF 0.47.05 es la última versión con `PRINT_MODE:TEXT` (ncurses puro en termina
 - [x] NPCs cercanos detectados con distancias variables
 - [x] Sin errores en stderr
 
-### Fase 6: Deploy VPS (Hetzner)
+### Fase 6: Deploy VPS (Hetzner) ✅ (2026-03-20)
 
-- [ ] Provisionar VPS en Hetzner (Ubuntu 24.04, 2+ vCPU, 4+ GB RAM)
-- [ ] Instalar Docker + Docker Compose en el VPS
-- [ ] Clonar repo + descargar DF 0.47.05 + DFHack 0.47.05-r8 en el VPS
-- [ ] Configurar `.env` con API keys
-- [ ] `docker compose up --build -d`
-- [ ] Crear mundo y aventurero via tmux (o copiar save desde local)
-- [ ] Verificar pipeline completo: DFHack responde, agente escribe turnos
-- [ ] No hay procesos Xvfb/x11vnc/openbox
+- [x] VPS Hetzner CX23: 2 vCPU, 4GB RAM, 40GB SSD, Helsinki (hel1-dc2), $3.49/mes
+- [x] Docker instalado, repo clonado, DF 0.47.05 + DFHack descargados y configurados
+- [x] Save copiado desde Mac via scp (Gonzalo Usuknol, region1)
+- [x] DFHack responde: `UNIT: Gonzalo Usuknol (HUMAN), POS, HP: 7910/7910`
+- [x] Agente escribe turnos con posiciones cambiantes (x=80→84, y=92→90)
+- [x] `AGENT_AUTOSTART=1` — agente arranca automáticamente con el container
+- [x] No hay procesos Xvfb/x11vnc/openbox
+
+**IP:** `135.181.148.23`
 
 ### Archivos modificados (resumen)
 

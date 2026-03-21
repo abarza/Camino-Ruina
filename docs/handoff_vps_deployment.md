@@ -8,7 +8,8 @@ Repo: https://github.com/abarza/Camino-Ruina
 
 ## Infraestructura
 
-- VPS Hetzner: Ubuntu 24.04, 2+ vCPU, 4+ GB RAM
+- VPS Hetzner CX23: Ubuntu 24.04, 2 vCPU, 4 GB RAM, 40 GB SSD, Helsinki, $3.49/mes
+- IP: `135.181.148.23`
 - Docker + Docker Compose instalados
 - Repo clonado en `~/camino-a-la-ruina`
 - DF 0.47.05 (text mode) + DFHack 0.47.05-r8 en `~/camino-a-la-ruina/df/`
