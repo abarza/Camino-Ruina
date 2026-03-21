@@ -34,6 +34,10 @@ start_xterm() {
       -fa "${STREAM_FONT}" -fs "${STREAM_FONT_SIZE}" \
       -bg black -fg white \
       -fullscreen \
+      +sb \
+      -xrm "xterm*pointerShape: dot" \
+      -xrm "xterm*pointerColor: black" \
+      -xrm "xterm*pointerColorBackground: black" \
       -e tmux attach -t "${TMUX_SESSION}" \
       >/var/log/xterm_stream.log 2>&1 &
     sleep 2
