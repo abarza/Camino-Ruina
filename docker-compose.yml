@@ -17,4 +17,21 @@ services:
       - apparmor:unconfined
     tty: true
     stdin_open: true
+    depends_on:
+      - ghost
+
+  ghost:
+    image: ghost:5-alpine
+    restart: unless-stopped
+    ports:
+      - "80:2368"
+    environment:
+      url: ${GHOST_URL:-http://localhost}
+      database__client: sqlite3
+      NODE_ENV: production
+    volumes:
+      - ghost_data:/var/lib/ghost/content
+
+volumes:
+  ghost_data:
 

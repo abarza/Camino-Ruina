@@ -1,7 +1,23 @@
 from __future__ import annotations
 
 import os
+import sys
+import time
 from dataclasses import dataclass
+
+_CONTEXT_WINDOWS: dict[str, int] = {
+    "gpt-4o-mini": 128_000,
+    "gpt-4o": 128_000,
+    "gpt-4.1-mini": 1_000_000,
+    "gpt-4.1-nano": 1_000_000,
+    "claude-3-5-sonnet-latest": 200_000,
+    "claude-sonnet-4-5-20250514": 200_000,
+    "claude-3-5-haiku-latest": 200_000,
+}
+
+_DEFAULT_CONTEXT = 100_000
+_RETRY_DELAY = 30
+_MAX_RETRIES = 1
 
 
 @dataclass(frozen=True)
@@ -26,11 +42,34 @@ def load_config() -> LlmConfig:
     )
 
 
+def context_window(model: str) -> int:
+    return _CONTEXT_WINDOWS.get(model, _DEFAULT_CONTEXT)
+
+
 def completar(*, system: str, user: str, max_tokens: int = 900) -> str:
     cfg = load_config()
     if not cfg.api_key:
         raise RuntimeError("No hay API key configurada para el proveedor LLM.")
 
+    last_err: Exception | None = None
+    for attempt in range(_MAX_RETRIES + 1):
+        try:
+            return _llamar_llm(cfg, system=system, user=user, max_tokens=max_tokens)
+        except Exception as e:
+            last_err = e
+            if attempt < _MAX_RETRIES:
+                print(
+                    f"[llm] Intento {attempt + 1} falló ({e}), "
+                    f"reintentando en {_RETRY_DELAY}s...",
+                    file=sys.stderr,
+                )
+                time.sleep(_RETRY_DELAY)
+    raise last_err  # type: ignore[misc]
+
+
+def _llamar_llm(
+    cfg: LlmConfig, *, system: str, user: str, max_tokens: int,
+) -> str:
     if cfg.provider == "openai":
         from openai import OpenAI
 
@@ -55,7 +94,6 @@ def completar(*, system: str, user: str, max_tokens: int = 900) -> str:
             system=system,
             messages=[{"role": "user", "content": user}],
         )
-        # anthropic content es lista de bloques
         parts: list[str] = []
         for b in r.content:
             text = getattr(b, "text", None)

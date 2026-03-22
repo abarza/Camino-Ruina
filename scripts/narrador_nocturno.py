@@ -7,7 +7,7 @@ import re
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from scripts.llm import completar
+from scripts.llm import completar, context_window, load_config
 
 
 def mundo_dir() -> Path:
@@ -129,8 +129,98 @@ MAL: Pensé en la Maleta Negra y en todo lo que el anterior Gonzalo no pudo term
 BIEN: Abrí la maleta. No busqué nada en particular. La cerré."""
 
 
+def estimar_tokens(text: str) -> int:
+    """Estimación conservadora: ~4 chars por token para español/ASCII mixto."""
+    return len(text) // 4
+
+
+def _puntaje_turno(bloque: str) -> int:
+    """Puntúa un turno por relevancia narrativa."""
+    lower = bloque.lower()
+    if any(w in lower for w in ("combate", "atacar", "huir", "herido", "muerto")):
+        return 3
+    if any(w in lower for w in ("hablar", "conversacion", "npc", "hablar_npc")):
+        return 2
+    if any(w in lower for w in ("inventario", "recoger", "comer", "descansar")):
+        return 1
+    return 0
+
+
+def truncar_logs(logs: str, max_tokens: int) -> str:
+    """Reduce logs para caber en la ventana de contexto del LLM.
+
+    Sampling inteligente: mantiene primeros/últimos turnos y prioriza
+    turnos narrativamente ricos (combate, conversación).
+    """
+    if estimar_tokens(logs) <= max_tokens:
+        return logs
+
+    # Separar en bloques por turno.
+    partes = re.split(r"(?=## Turno )", logs)
+    header = partes[0] if partes and not partes[0].startswith("## Turno") else ""
+    turnos = [p for p in partes if p.startswith("## Turno")]
+
+    if not turnos:
+        # Sin estructura de turnos: truncar bruto.
+        max_chars = max_tokens * 4
+        return logs[:max_chars]
+
+    # Siempre mantener primeros 5 y últimos 10.
+    n_first, n_last = min(5, len(turnos)), min(10, len(turnos))
+    keep_first = set(range(n_first))
+    keep_last = set(range(len(turnos) - n_last, len(turnos)))
+    obligatorios = keep_first | keep_last
+
+    # Del medio, priorizar por puntaje.
+    medio = [(i, _puntaje_turno(turnos[i])) for i in range(len(turnos)) if i not in obligatorios]
+    medio.sort(key=lambda x: x[1], reverse=True)
+
+    # Armar resultado respetando budget.
+    seleccionados = set(obligatorios)
+    tokens_usados = estimar_tokens(header) + sum(estimar_tokens(turnos[i]) for i in seleccionados)
+
+    for i, _score in medio:
+        t = estimar_tokens(turnos[i])
+        if tokens_usados + t > max_tokens:
+            break
+        seleccionados.add(i)
+        tokens_usados += t
+
+    # Reconstruir en orden con marcadores de huecos.
+    resultado = [header] if header else []
+    prev_idx = -1
+    for i in sorted(seleccionados):
+        if prev_idx >= 0 and i - prev_idx > 1:
+            omitidos = i - prev_idx - 1
+            resultado.append(f"\n[... {omitidos} turnos de exploración omitidos ...]\n")
+        resultado.append(turnos[i])
+        prev_idx = i
+
+    # Turnos omitidos al final.
+    if prev_idx < len(turnos) - 1 and prev_idx not in keep_last:
+        omitidos = len(turnos) - 1 - prev_idx
+        resultado.append(f"\n[... {omitidos} turnos omitidos ...]\n")
+
+    return "\n".join(resultado)
+
+
 def parsear_estado_diario(diario: str) -> dict[str, str]:
-    """Extrae estado narrativo actual del diario.md."""
+    """Extrae estado narrativo actual del diario.md (JSON o markdown)."""
+    # Intentar JSON primero.
+    stripped = diario.strip()
+    if stripped.startswith("{"):
+        try:
+            data = json.loads(stripped)
+            return {
+                "maleta": str(data.get("maleta", "001")),
+                "dia_mundo": str(data.get("dia_mundo", "1")),
+                "dia_vida": str(data.get("dia_vida", "1")),
+                "ubicacion": str(data.get("ultima_ubicacion", "(sin definir)")),
+            }
+        except (json.JSONDecodeError, AttributeError):
+            pass
+
+    # Fallback: regex para formato markdown.
     def _val(pattern: str, default: str) -> str:
         m = re.search(pattern, diario)
         return m.group(1).strip() if m else default
@@ -280,6 +370,13 @@ def main() -> int:
     diario = leer(diario_path)
 
     estado = parsear_estado_diario(diario)
+
+    # Truncar logs para caber en la ventana de contexto del LLM.
+    cfg = load_config()
+    max_ctx = context_window(cfg.model)
+    # Reservar tokens para: system (~850) + user template (~2000) + response (2000) + buffer (500)
+    log_budget = max_ctx - 5350
+    logs = truncar_logs(logs, log_budget)
 
     try:
         respuesta = completar(
