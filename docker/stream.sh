@@ -29,6 +29,9 @@ start_xvfb() {
 }
 
 start_xterm() {
+  # Ocultar barra de tmux — no aporta al viewer y gana una fila para DF.
+  tmux set -t "${TMUX_SESSION}" status off 2>/dev/null || true
+
   if ! pgrep -f "xterm.*${STREAM_DISPLAY}" >/dev/null 2>&1; then
     DISPLAY="${STREAM_DISPLAY}" xterm \
       -fa "${STREAM_FONT}" -fs "${STREAM_FONT_SIZE}" \
