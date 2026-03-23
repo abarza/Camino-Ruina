@@ -38,6 +38,44 @@ else
     table.insert(lines, 'FOCUS: unknown')
 end
 
+-- Ubicación: sitio (ciudad/fortaleza) y región.
+if adv then
+    local ok_loc, loc_err = pcall(function()
+        local map = df.global.world.map
+        local wd = df.global.world.world_data
+
+        -- Posición global en embark tiles.
+        local gx = math.floor(map.region_x + adv.pos.x / 48)
+        local gy = math.floor(map.region_y + adv.pos.y / 48)
+
+        -- Buscar si está dentro de un sitio.
+        for k, v in pairs(wd.sites) do
+            if gx >= v.pos.x * 16 + v.rgn_min_x and gx <= v.pos.x * 16 + v.rgn_max_x and
+               gy >= v.pos.y * 16 + v.rgn_min_y and gy <= v.pos.y * 16 + v.rgn_max_y then
+                table.insert(lines, 'SITE: ' .. dfhack.TranslateName(v.name, true))
+                break
+            end
+        end
+
+        -- Región desde region_map.
+        local wx = math.floor(gx / 16)
+        local wy = math.floor(gy / 16)
+        if wx >= 0 and wx < wd.world_width and wy >= 0 and wy < wd.world_height then
+            local tile = wd.region_map[wx]:_displace(wy)
+            local region = wd.regions[tile.region_id]
+            if region and region.name then
+                local rname = dfhack.TranslateName(region.name, true)
+                if rname ~= '' then
+                    table.insert(lines, 'REGION: ' .. rname)
+                end
+            end
+        end
+    end)
+    if not ok_loc then
+        table.insert(lines, 'LOCATION: error (' .. tostring(loc_err) .. ')')
+    end
+end
+
 -- Unidades cercanas al aventurero.
 local nearby = {}
 if adv then
