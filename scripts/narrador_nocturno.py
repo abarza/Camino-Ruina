@@ -130,8 +130,56 @@ BIEN: Abrí la maleta. No busqué nada en particular. La cerré."""
 
 
 def estimar_tokens(text: str) -> int:
-    """Estimación conservadora: ~4 chars por token para español/ASCII mixto."""
-    return len(text) // 4
+    """Estimación conservadora: ~3 chars por token para game output mixto."""
+    return len(text) // 3
+
+
+def limpiar_turno(bloque: str) -> str:
+    """Reduce un turno a lo narrativamente útil.
+
+    Elimina: Resultado (duplicado), Teclas (mecánico), wrappers ```text```.
+    Comprime NEARBY quitando distancias.
+    """
+    lineas_out: list[str] = []
+    en_resultado = False
+    en_code_block = False
+
+    for linea in bloque.splitlines():
+        stripped = linea.strip()
+
+        # Saltar bloque Resultado completo.
+        if stripped.startswith("**Resultado:**"):
+            en_resultado = True
+            continue
+        if en_resultado:
+            if stripped.startswith("## Turno") or stripped.startswith("**Pantalla:**"):
+                en_resultado = False
+            else:
+                continue
+
+        # Saltar Teclas.
+        if stripped.startswith("**Teclas:**"):
+            continue
+
+        # Saltar wrappers de code block.
+        if stripped in ("```text", "```"):
+            continue
+
+        # Comprimir NEARBY: quitar distancias (d=N).
+        if stripped.startswith("NEARBY:"):
+            stripped = re.sub(r"\s*\((\w+),\s*d=\d+\)", r" (\1)", stripped)
+            # Quitar comillas de apodos para ahorrar espacio.
+            stripped = re.sub(r'\s*"[^"]*"', "", stripped)
+            lineas_out.append(stripped)
+            continue
+
+        # Quitar comillas de apodos en línea UNIT.
+        if stripped.startswith("UNIT:"):
+            stripped = re.sub(r'\s*"[^"]*"', "", stripped)
+
+        lineas_out.append(stripped)
+
+    return "\n".join(lineas_out)
 
 
 def _puntaje_turno(bloque: str) -> int:
@@ -162,8 +210,18 @@ def truncar_logs(logs: str, max_tokens: int) -> str:
 
     if not turnos:
         # Sin estructura de turnos: truncar bruto.
-        max_chars = max_tokens * 4
+        max_chars = max_tokens * 3
         return logs[:max_chars]
+
+    # Limpiar cada turno: quitar Resultado, Teclas, comprimir NEARBY.
+    turnos = [limpiar_turno(t) for t in turnos]
+
+    # Re-evaluar si ya cabe después de limpiar.
+    total_limpio = estimar_tokens(header + "\n".join(turnos))
+    if total_limpio <= max_tokens:
+        resultado = [header] if header else []
+        resultado.extend(turnos)
+        return "\n".join(resultado)
 
     # Siempre mantener primeros 5 y últimos 10.
     n_first, n_last = min(5, len(turnos)), min(10, len(turnos))
