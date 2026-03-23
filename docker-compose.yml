@@ -30,6 +30,13 @@ services:
       database__client: sqlite3
       database__connection__filename: /var/lib/ghost/content/data/ghost.db
       NODE_ENV: production
+      mail__transport: SMTP
+      mail__options__host: smtp.resend.com
+      mail__options__port: 465
+      mail__options__secure: "true"
+      mail__options__auth__user: resend
+      mail__options__auth__pass: ${RESEND_API_KEY:-}
+      mail__from: ${RESEND_FROM_EMAIL:-noreply@example.com}
     volumes:
       - ghost_data:/var/lib/ghost/content
 

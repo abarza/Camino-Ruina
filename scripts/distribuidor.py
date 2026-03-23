@@ -169,49 +169,6 @@ def publicar_twitter(episodio: str, url_ghost: str | None) -> None:
     print(f"[distribuidor] Twitter: publicado (id={r.data['id']})")
 
 
-# --- Resend (newsletter) ---
-
-
-def enviar_newsletter(episodio: str, titulo: str, url_ghost: str | None) -> None:
-    """Envía newsletter por email via Resend."""
-    api_key = os.getenv("RESEND_API_KEY", "")
-    from_email = os.getenv("RESEND_FROM_EMAIL", "")
-
-    if not api_key or not from_email:
-        print("[distribuidor] RESEND no configurado, saltando.", file=sys.stderr)
-        return
-
-    # Convertir episodio a HTML simple.
-    html_body = ""
-    for linea in episodio.split("\n"):
-        linea = linea.strip()
-        if not linea:
-            html_body += "<br><br>"
-        elif linea.startswith("Maleta ") and "—" in linea:
-            html_body += f"<h2>{linea}</h2>"
-        else:
-            html_body += f"<p>{linea}</p>"
-
-    if url_ghost:
-        html_body += f'<br><p><a href="{url_ghost}">Leer en el blog →</a></p>'
-
-    import resend
-
-    resend.api_key = api_key
-    audience_id = os.getenv("RESEND_AUDIENCE_ID", "")
-
-    if audience_id:
-        # Broadcast a toda la audiencia.
-        resend.Broadcasts.send({
-            "audience_id": audience_id,
-            "from": from_email,
-            "subject": titulo,
-            "html": html_body,
-        })
-        print(f"[distribuidor] Resend: broadcast enviado a audiencia {audience_id}")
-    else:
-        print("[distribuidor] RESEND_AUDIENCE_ID no configurado, saltando newsletter.", file=sys.stderr)
-
 
 # --- Main ---
 
@@ -245,11 +202,8 @@ def main() -> int:
     except Exception as e:
         print(f"[distribuidor] Twitter falló: {e}", file=sys.stderr)
 
-    # 3. Newsletter al final.
-    try:
-        enviar_newsletter(episodio, titulo, url_ghost)
-    except Exception as e:
-        print(f"[distribuidor] Resend falló: {e}", file=sys.stderr)
+    # Newsletter: Ghost lo maneja nativamente via Resend SMTP.
+    # No necesitamos enviar email desde aquí.
 
     return 0
 
