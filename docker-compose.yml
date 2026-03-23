@@ -28,6 +28,7 @@ services:
     environment:
       url: ${GHOST_URL:-http://localhost}
       database__client: sqlite3
+      database__connection__filename: /var/lib/ghost/content/data/ghost.db
       NODE_ENV: production
     volumes:
       - ghost_data:/var/lib/ghost/content
