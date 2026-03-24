@@ -449,30 +449,49 @@ def main() -> int:
     # Truncar logs para caber en la ventana de contexto del LLM.
     cfg = load_config()
     max_ctx = context_window(cfg.model)
-    # Reservar tokens para: system (~850) + user template (~2000) + response (2000) + buffer (500)
-    log_budget = max_ctx - 5350
-    logs = truncar_logs(logs, log_budget)
+    # Reservar tokens para: system + template + response + buffer fijo
+    overhead_fijo = 5350  # system (~850) + template (~2000) + response (2000) + buffer (500)
+    # Restar también el tamaño real de maleta, biblia y diario
+    overhead_contexto = estimar_tokens(maleta) + estimar_tokens(biblia) + estimar_tokens(diario)
+    log_budget = max_ctx - overhead_fijo - overhead_contexto
 
-    try:
-        respuesta = completar(
+    def _intentar_con_budget(budget: int) -> str:
+        logs_t = truncar_logs(logs, budget)
+        return completar(
             system=system_prompt_gonzalo(),
             user=user_prompt_cron(
-                logs=logs, maleta=maleta, biblia=biblia, diario=diario, estado=estado,
+                logs=logs_t, maleta=maleta, biblia=biblia, diario=diario, estado=estado,
             ),
             max_tokens=2000,
         )
+
+    try:
+        respuesta = _intentar_con_budget(log_budget)
         episodio, maleta_u, diario_u, biblia_u = extraer_bloques(respuesta)
     except Exception as e:
-        # Fallback stub: deja evidencia y no toca biblia/diario.
-        stamp = dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        episodio = (
-            "Maleta 001 — Día 1 — (sin lugar)\n\n"
-            f"(Narrador en modo stub: {stamp})\n\n"
-            "Hoy solo tengo el registro crudo. Todavía no tengo voz.\n"
-        )
-        maleta_u = ""
-        diario_u = ""
-        biblia_u = ""
+        if "context_length_exceeded" in str(e) or "context length" in str(e).lower():
+            # Retry con 40% menos de budget.
+            reduced = int(log_budget * 0.6)
+            print(f"[narrador] Contexto excedido, reintentando con budget reducido ({reduced} tokens)...",
+                  file=sys.stderr)
+            try:
+                respuesta = _intentar_con_budget(reduced)
+                episodio, maleta_u, diario_u, biblia_u = extraer_bloques(respuesta)
+            except Exception as e2:
+                e = e2  # caer al stub abajo
+            else:
+                e = None  # éxito en retry
+        if e is not None:
+            # Fallback stub: deja evidencia y no toca biblia/diario.
+            stamp = dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            episodio = (
+                "Maleta 001 — Día 1 — (sin lugar)\n\n"
+                f"(Narrador en modo stub: {stamp})\n\n"
+                "Hoy solo tengo el registro crudo. Todavía no tengo voz.\n"
+            )
+            maleta_u = ""
+            diario_u = ""
+            biblia_u = ""
         append(maleta_path, f"\n---\n\nERROR LLM: {type(e).__name__}: {e}\n")
 
     # Episodio: por ahora lo anexamos al final de la maleta.

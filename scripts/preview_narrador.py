@@ -15,6 +15,7 @@ from pathlib import Path
 
 from scripts.narrador_nocturno import (
     escribir,
+    estimar_tokens,
     extraer_bloques,
     leer,
     load_config,
@@ -62,22 +63,37 @@ def main() -> int:
     # Truncar logs igual que el narrador real.
     cfg = load_config()
     max_ctx = context_window(cfg.model)
-    log_budget = max_ctx - 5350
-    logs = truncar_logs(logs, log_budget)
+    overhead_fijo = 5350
+    overhead_contexto = estimar_tokens(maleta) + estimar_tokens(biblia) + estimar_tokens(diario)
+    log_budget = max_ctx - overhead_fijo - overhead_contexto
 
-    print(f"[preview] Llamando al LLM...")
-    try:
-        respuesta = completar(
+    def _intentar_con_budget(budget: int) -> str:
+        logs_t = truncar_logs(logs, budget)
+        return completar(
             system=system_prompt_gonzalo(),
             user=user_prompt_cron(
-                logs=logs, maleta=maleta, biblia=biblia, diario=diario, estado=estado,
+                logs=logs_t, maleta=maleta, biblia=biblia, diario=diario, estado=estado,
             ),
             max_tokens=2000,
         )
+
+    print("[preview] Llamando al LLM...")
+    try:
+        respuesta = _intentar_con_budget(log_budget)
         episodio, maleta_u, diario_u, biblia_u = extraer_bloques(respuesta)
     except Exception as e:
-        print(f"[preview] Error LLM: {e}", file=sys.stderr)
-        return 1
+        if "context_length_exceeded" in str(e) or "context length" in str(e).lower():
+            reduced = int(log_budget * 0.6)
+            print(f"[preview] Contexto excedido, reintentando con budget reducido ({reduced} tokens)...")
+            try:
+                respuesta = _intentar_con_budget(reduced)
+                episodio, maleta_u, diario_u, biblia_u = extraer_bloques(respuesta)
+            except Exception as e2:
+                print(f"[preview] Error LLM en retry: {e2}", file=sys.stderr)
+                return 1
+        else:
+            print(f"[preview] Error LLM: {e}", file=sys.stderr)
+            return 1
 
     # Escribir preview a archivo (sin tocar nada real).
     stamp = dt.datetime.now().strftime("%Y-%m-%d_%H%M%S")
