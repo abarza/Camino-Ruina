@@ -21,6 +21,7 @@ venv/
 
 # Runtime artifacts
 *.log
+mundo/preview/
 
 # Local heavy/runtime data (do not commit)
 df/

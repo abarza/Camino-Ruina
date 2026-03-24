@@ -56,6 +56,20 @@ def log_mas_reciente(mundo: Path) -> Path | None:
     return candidates[0] if candidates else None
 
 
+def _ultimo_log_procesado(mundo: Path) -> str:
+    """Lee el nombre del último log procesado exitosamente."""
+    marker = mundo / ".ultimo_log_procesado"
+    if marker.exists():
+        return marker.read_text(encoding="utf-8").strip()
+    return ""
+
+
+def _marcar_log_procesado(mundo: Path, log_path: Path) -> None:
+    """Registra que un log fue procesado exitosamente."""
+    marker = mundo / ".ultimo_log_procesado"
+    marker.write_text(log_path.name + "\n", encoding="utf-8")
+
+
 def log_para_procesar(mundo: Path) -> Path:
     # Override útil para pruebas.
     forced = os.getenv("NARRADOR_LOG_DATE", "").strip()
@@ -68,6 +82,9 @@ def log_para_procesar(mundo: Path) -> Path:
 
     latest = log_mas_reciente(mundo)
     if latest is not None:
+        # No reprocesar un log que ya fue narrado.
+        if latest.name == _ultimo_log_procesado(mundo):
+            return today  # no existe → main() saltará con "sin logs"
         return latest
     return today
 
@@ -469,6 +486,9 @@ def main() -> int:
 
     if biblia_u.strip():
         escribir(biblia_path, biblia_u.strip() + "\n")
+
+    # Marcar log como procesado para no repetirlo mañana.
+    _marcar_log_procesado(mundo, logs_path)
 
     return 0
 

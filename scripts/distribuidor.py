@@ -6,6 +6,7 @@ Cada canal es independiente — si uno falla, los demás siguen.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -173,13 +174,46 @@ def publicar_twitter(episodio: str, url_ghost: str | None) -> None:
 # --- Main ---
 
 
-def main() -> int:
+def _episodio_ya_publicado(mundo: Path, episodio: str) -> bool:
+    """Compara hash del episodio con el último publicado."""
+    marker = mundo / ".ultimo_episodio_hash"
+    h = hashlib.sha256(episodio.encode()).hexdigest()
+    if marker.exists() and marker.read_text(encoding="utf-8").strip() == h:
+        return True
+    return False
+
+
+def _marcar_episodio_publicado(mundo: Path, episodio: str) -> None:
+    """Guarda hash del episodio publicado."""
+    marker = mundo / ".ultimo_episodio_hash"
+    h = hashlib.sha256(episodio.encode()).hexdigest()
+    marker.write_text(h + "\n", encoding="utf-8")
+
+
+def main(*, dry_run: bool = False) -> int:
     mundo = mundo_dir()
     maleta_path = mundo / "maletas" / "maleta_001.md"
 
     titulo, episodio = extraer_ultimo_episodio(maleta_path)
     if not episodio:
         print("[distribuidor] No hay episodio nuevo para distribuir.", file=sys.stderr)
+        return 0
+
+    ya_publicado = _episodio_ya_publicado(mundo, episodio)
+
+    if dry_run:
+        h = hashlib.sha256(episodio.encode()).hexdigest()[:12]
+        print(f"[preview] Título: {titulo}")
+        print(f"[preview] Hash:   {h}")
+        print(f"[preview] Ya publicado: {'SÍ' if ya_publicado else 'NO'}")
+        print()
+        print("=" * 60)
+        print(episodio)
+        print("=" * 60)
+        return 0
+
+    if ya_publicado:
+        print("[distribuidor] Episodio ya fue publicado, saltando.", file=sys.stderr)
         return 0
 
     print(f"[distribuidor] Episodio: {titulo[:60]}...")
@@ -205,8 +239,11 @@ def main() -> int:
     # Newsletter: Ghost lo maneja nativamente via Resend SMTP.
     # No necesitamos enviar email desde aquí.
 
+    _marcar_episodio_publicado(mundo, episodio)
+
     return 0
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    dry = "--dry-run" in sys.argv or "--preview" in sys.argv
+    raise SystemExit(main(dry_run=dry))
