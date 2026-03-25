@@ -81,6 +81,8 @@ run_ffmpeg() {
 }
 
 # Watchdog loop: revisa señal antes de cada ciclo.
+# Desactivar set -e dentro del loop — el watchdog debe sobrevivir siempre.
+set +e
 while true; do
   if [ -f "${SIGNAL_FILE}" ]; then
     start_xvfb
