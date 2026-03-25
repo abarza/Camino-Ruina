@@ -43,7 +43,8 @@ COPY docker/cron_narrador /etc/cron.d/cron_narrador
 RUN chmod 0644 /etc/cron.d/cron_narrador && crontab /etc/cron.d/cron_narrador
 
 COPY docker/stream.sh /usr/local/bin/stream.sh
-RUN chmod +x /usr/local/bin/stream.sh
+COPY docker/stream_control.sh /usr/local/bin/stream_control.sh
+RUN chmod +x /usr/local/bin/stream.sh /usr/local/bin/stream_control.sh
 
 COPY scripts /gonzalo/scripts
 

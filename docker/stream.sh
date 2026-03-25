@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Stream de la terminal de DF a YouTube Live via RTMP.
 # Usa Xvfb + xterm + ffmpeg. No interfiere con DF (que corre en tmux text mode).
-# Incluye watchdog: si ffmpeg muere, se reinicia automáticamente.
+# Watchdog con señal: solo streamea si /tmp/stream.enabled existe.
 set -euo pipefail
 
 STREAM_DISPLAY="${STREAM_DISPLAY:-:1}"
@@ -14,6 +14,9 @@ TMUX_SESSION="${TMUX_SESSION:-df}"
 STREAM_FONT="${STREAM_FONT:-Fira Code}"
 STREAM_FONT_SIZE="${STREAM_FONT_SIZE:-18}"
 STREAM_RESTART_DELAY="${STREAM_RESTART_DELAY:-10}"
+
+SIGNAL_FILE="/tmp/stream.enabled"
+OVERLAY_FILE="/tmp/stream_overlay.txt"
 
 if [ -z "${STREAM_KEY}" ]; then
   echo "[stream] STREAM_KEY no configurada. Abortando."
@@ -48,8 +51,21 @@ start_xterm() {
   fi
 }
 
+stop_stream() {
+  pkill -f "ffmpeg.*flv" 2>/dev/null || true
+  pkill -f "xterm.*${STREAM_DISPLAY}" 2>/dev/null || true
+  pkill -f "Xvfb ${STREAM_DISPLAY}" 2>/dev/null || true
+}
+
 run_ffmpeg() {
   echo "[stream] $(date -Iseconds) Iniciando ffmpeg → ${STREAM_URL}"
+
+  # Construir filtro de video: overlay si el archivo existe.
+  VFILTER=""
+  if [ -f "${OVERLAY_FILE}" ]; then
+    VFILTER="-vf drawtext=textfile=${OVERLAY_FILE}:reload=1:fontsize=16:fontcolor=white:borderw=2:bordercolor=black:x=10:y=h-th-10"
+  fi
+
   ffmpeg \
     -f x11grab -video_size "${STREAM_RES}" -framerate "${STREAM_FPS}" \
     -i "${STREAM_DISPLAY}" \
@@ -57,17 +73,25 @@ run_ffmpeg() {
     -c:v libx264 -preset ultrafast -tune zerolatency \
     -b:v "${STREAM_BITRATE}" -maxrate "${STREAM_BITRATE}" -bufsize "$((${STREAM_BITRATE%k} * 2))k" \
     -pix_fmt yuv420p \
+    ${VFILTER} \
     -g $((STREAM_FPS * 2)) \
     -c:a aac -b:a 128k \
     -f flv "${STREAM_URL}/${STREAM_KEY}" \
     >> /var/log/stream.log 2>&1
 }
 
-# Watchdog loop: reiniciar ffmpeg si muere.
+# Watchdog loop: revisa señal antes de cada ciclo.
 while true; do
-  start_xvfb
-  start_xterm
-  run_ffmpeg
-  echo "[stream] $(date -Iseconds) ffmpeg terminó. Reiniciando en ${STREAM_RESTART_DELAY}s..."
-  sleep "${STREAM_RESTART_DELAY}"
+  if [ -f "${SIGNAL_FILE}" ]; then
+    start_xvfb
+    start_xterm
+    run_ffmpeg
+    echo "[stream] $(date -Iseconds) ffmpeg terminó. Reiniciando en ${STREAM_RESTART_DELAY}s..."
+    sleep "${STREAM_RESTART_DELAY}"
+  else
+    # Stream apagado. Limpiar procesos si quedaron.
+    stop_stream
+    # Esperar a que aparezca la señal.
+    sleep 5
+  fi
 done

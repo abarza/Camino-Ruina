@@ -48,11 +48,19 @@ if [ "${AGENT_AUTOSTART:-0}" = "1" ]; then
   echo "Agente PID: $!"
 fi
 
-# Lanzar stream si STREAM_ENABLED=1.
+# Lanzar overlay daemon (siempre, independiente del stream).
+cd /gonzalo
+python3 -m scripts.stream_overlay >> /var/log/stream_overlay.log 2>&1 &
+echo "Stream overlay PID: $!"
+
+# Lanzar stream watchdog (siempre corre, pero solo streamea si señal existe).
+/usr/local/bin/stream.sh &
+echo "Stream watchdog PID: $!"
+
+# Si STREAM_ENABLED=1, crear señal para que arranque inmediatamente.
 if [ "${STREAM_ENABLED:-0}" = "1" ]; then
-  echo "Lanzando stream en background..."
-  /usr/local/bin/stream.sh &
-  echo "Stream PID: $!"
+  touch /tmp/stream.enabled
+  echo "Stream habilitado al inicio."
 fi
 
 exec bash
