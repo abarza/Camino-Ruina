@@ -45,7 +45,10 @@ def load_config() -> LlmConfig:
 
 
 def context_window(model: str) -> int:
-    return _CONTEXT_WINDOWS.get(model, _DEFAULT_CONTEXT)
+    model_ctx = _CONTEXT_WINDOWS.get(model, _DEFAULT_CONTEXT)
+    # Respetar límite de TPM de la cuenta (env override disponible).
+    max_prompt = int(os.getenv("MAX_PROMPT_TOKENS", "120000"))
+    return min(model_ctx, max_prompt)
 
 
 def completar(*, system: str, user: str, max_tokens: int = 900) -> str:
