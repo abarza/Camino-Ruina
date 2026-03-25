@@ -147,8 +147,8 @@ BIEN: Abrí la maleta. No busqué nada en particular. La cerré."""
 
 
 def estimar_tokens(text: str) -> int:
-    """Estimación conservadora: ~3 chars por token para game output mixto."""
-    return len(text) // 3
+    """Estimación conservadora: ~2.5 chars por token para game output mixto."""
+    return int(len(text) / 2.5)
 
 
 def limpiar_turno(bloque: str) -> str:
