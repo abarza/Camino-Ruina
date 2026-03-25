@@ -79,13 +79,16 @@ def _llamar_llm(
         from openai import OpenAI
 
         client = OpenAI(api_key=cfg.api_key)
+        # Modelos nuevos (5.x) usan max_completion_tokens; los viejos usan max_tokens.
+        _new_api = cfg.model.startswith(("gpt-5", "o1", "o3", "o4"))
+        token_kwarg = {"max_completion_tokens": max_tokens} if _new_api else {"max_tokens": max_tokens}
         r = client.chat.completions.create(
             model=cfg.model,
             messages=[
                 {"role": "system", "content": system},
                 {"role": "user", "content": user},
             ],
-            max_tokens=max_tokens,
+            **token_kwarg,
             temperature=0.9,
         )
         return (r.choices[0].message.content or "").strip()
