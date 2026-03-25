@@ -532,8 +532,32 @@ def main() -> int:
     if maleta_u.strip():
         append(maleta_path, "\n\n" + maleta_u.strip() + "\n")
 
+    # Forzar incremento de día en código (el LLM no es confiable para esto).
+    nuevo_dia_vida = int(estado.get("dia_vida", "0")) + 1
+    nuevo_dia_mundo = int(estado.get("dia_mundo", "0")) + 1
+
     if diario_u.strip():
+        # Intentar parsear el JSON del LLM y forzar los campos numéricos.
+        try:
+            d = json.loads(diario_u.strip())
+            d["dia_vida"] = nuevo_dia_vida
+            d["dia_mundo"] = nuevo_dia_mundo
+            # Si el LLM no puso ubicación real, mantener la anterior.
+            if not d.get("ultima_ubicacion") or d["ultima_ubicacion"] == "(sin definir)":
+                d["ultima_ubicacion"] = estado.get("ubicacion", "(sin definir)")
+            diario_u = json.dumps(d, ensure_ascii=False)
+        except (json.JSONDecodeError, TypeError):
+            pass
         escribir(diario_path, diario_u.strip() + "\n")
+    else:
+        # El LLM no devolvió diario_update — actualizar solo los contadores.
+        try:
+            d = json.loads(diario.strip())
+        except (json.JSONDecodeError, TypeError):
+            d = {}
+        d["dia_vida"] = nuevo_dia_vida
+        d["dia_mundo"] = nuevo_dia_mundo
+        escribir(diario_path, json.dumps(d, ensure_ascii=False) + "\n")
 
     if biblia_u.strip():
         escribir(biblia_path, biblia_u.strip() + "\n")
