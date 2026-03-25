@@ -23,6 +23,7 @@ from scripts.narrador_nocturno import (
     log_de_hoy,
     log_mas_reciente,
     mundo_dir,
+    resumir_maleta,
     parsear_estado_diario,
     system_prompt_gonzalo,
     truncar_logs,
@@ -64,7 +65,8 @@ def main() -> int:
     cfg = load_config()
     max_ctx = context_window(cfg.model)
     overhead_fijo = 5350
-    overhead_contexto = estimar_tokens(maleta) + estimar_tokens(biblia) + estimar_tokens(diario)
+    maleta_resumida = resumir_maleta(maleta)
+    overhead_contexto = estimar_tokens(maleta_resumida) + estimar_tokens(biblia) + estimar_tokens(diario)
     log_budget = max_ctx - overhead_fijo - overhead_contexto
 
     def _intentar_con_budget(budget: int) -> str:

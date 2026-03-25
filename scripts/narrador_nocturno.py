@@ -308,6 +308,35 @@ def parsear_estado_diario(diario: str) -> dict[str, str]:
     }
 
 
+def resumir_maleta(maleta: str) -> str:
+    """Devuelve solo el header y el último episodio real de la maleta.
+
+    Evita que el LLM copie episodios anteriores al tenerlos en contexto.
+    """
+    bloques = maleta.split("\n---\n")
+    # Header: todo lo anterior al primer ---
+    header = bloques[0].strip() if bloques else ""
+    # Buscar último episodio real (no error/stub)
+    ultimo = ""
+    for bloque in reversed(bloques):
+        b = bloque.strip()
+        if not b:
+            continue
+        if b.startswith("ERROR LLM:"):
+            continue
+        if "(Narrador en modo stub:" in b:
+            continue
+        if "(El narrador corrió sin logs:" in b:
+            continue
+        if b.startswith("# Maleta"):
+            continue
+        ultimo = b
+        break
+    if ultimo:
+        return f"{header}\n\n---\n\n[Último episodio escrito — NO repetir:]\n\n{ultimo}"
+    return header
+
+
 def user_prompt_cron(
     *, logs: str, maleta: str, biblia: str, diario: str, estado: dict[str, str],
 ) -> str:
@@ -331,7 +360,7 @@ def user_prompt_cron(
         "IMPORTANTE: responde SOLO con JSON válido (sin markdown, sin ```), con esta forma exacta:\n"
         '{"episodio":"...","maleta_update":"...","diario_update":"...","biblia_update":"..."}\n\n'
         f"---\nLOGS DEL DÍA:\n{logs}\n\n"
-        f"---\nMALETA ACTIVA:\n{maleta}\n\n"
+        f"---\nMALETA ACTIVA (resumen):\n{resumir_maleta(maleta)}\n\n"
         f"---\nBIBLIA DE PERSONAJES:\n{biblia}\n\n"
         f"---\nDIARIO DE GONZALO:\n{diario}\n"
     )
@@ -453,8 +482,9 @@ def main() -> int:
     max_ctx = context_window(cfg.model)
     # Reservar tokens para: system + template + response + buffer fijo
     overhead_fijo = 5350  # system (~850) + template (~2000) + response (2000) + buffer (500)
-    # Restar también el tamaño real de maleta, biblia y diario
-    overhead_contexto = estimar_tokens(maleta) + estimar_tokens(biblia) + estimar_tokens(diario)
+    # Restar también el tamaño real de maleta resumida, biblia y diario
+    maleta_resumida = resumir_maleta(maleta)
+    overhead_contexto = estimar_tokens(maleta_resumida) + estimar_tokens(biblia) + estimar_tokens(diario)
     log_budget = max_ctx - overhead_fijo - overhead_contexto
 
     def _intentar_con_budget(budget: int) -> str:

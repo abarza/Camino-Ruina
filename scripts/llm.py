@@ -81,6 +81,7 @@ def _llamar_llm(
                 {"role": "user", "content": user},
             ],
             max_tokens=max_tokens,
+            temperature=0.9,
         )
         return (r.choices[0].message.content or "").strip()
 
