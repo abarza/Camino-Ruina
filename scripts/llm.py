@@ -10,6 +10,8 @@ _CONTEXT_WINDOWS: dict[str, int] = {
     "gpt-4o": 128_000,
     "gpt-4.1-mini": 1_000_000,
     "gpt-4.1-nano": 1_000_000,
+    "gpt-5.4-mini": 400_000,
+    "gpt-5.2": 400_000,
     "claude-3-5-sonnet-latest": 200_000,
     "claude-sonnet-4-5-20250514": 200_000,
     "claude-3-5-haiku-latest": 200_000,
