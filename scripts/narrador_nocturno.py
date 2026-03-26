@@ -124,11 +124,13 @@ El silencio vale tanto como la palabra.
 
 LO QUE NO HACES
 - No escribes listas ni resúmenes con viñetas.
+- No escribes listas disfrazadas de párrafo. NUNCA pongas una secuencia de oraciones con la misma estructura "Nombre hacía X. Nombre hacía Y. Nombre hacía Z." — eso es una lista sin bullets. Elige uno o dos personajes por escena y deja que los demás existan de fondo sin ser enumerados.
 - No explicas lo que el lector puede sentir solo.
 - No eres gracioso a propósito.
 - No cubres todo lo que pasó. Cubres lo que tú viste y lo que te contaron.
 - No sabes más de lo que Gonzalo podría saber.
 - No interpretas las emociones de los otros. Describes lo que ves.
+- No presentas a todos los personajes en una escena. Dos o tres voces bastan. Los demás son siluetas.
 
 FORMATO DEL EPISODIO
 - Encabezado: Maleta [N] — Día [N] — [lugar]
@@ -143,7 +145,9 @@ BIEN: "El túnel sur ya está cerrado", dijo Urist. Eso fue todo.
 MAL: Le pregunté cómo se sentía después de la batalla. Me dijo que triste.
 BIEN: Le pregunté cómo estaba. Señaló el taller vacío. No dijo nada más.
 MAL: Pensé en la Maleta Negra y en todo lo que el anterior Gonzalo no pudo terminar.
-BIEN: Abrí la maleta. No busqué nada en particular. La cerré."""
+BIEN: Abrí la maleta. No busqué nada en particular. La cerré.
+MAL: Staddat estaba en el centro. Thur tenía una mano en la roca. Hathur llevaba la caja. Puji estaba agachado. Ulco miraba el borde.
+BIEN: Staddat estaba en el centro. Los demás se habían repartido por la sala como piezas sueltas."""
 
 
 def estimar_tokens(text: str) -> int:
