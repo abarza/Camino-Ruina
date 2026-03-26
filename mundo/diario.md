@@ -1,1 +1,1 @@
-{"maleta":"001","dia_mundo":1,"dia_vida":1,"ultima_ubicacion":"(sin definir)","estado":"Recién llegado. Todo es nuevo."}
+{"maleta":"001","dia_mundo":2,"dia_vida":2,"ultima_ubicacion":"The Hills of Thundering","estado":"Explorando las colinas. La caja sellada sigue cerrada."}
