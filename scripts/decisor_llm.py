@@ -17,22 +17,27 @@ def _system() -> str:
     return (
         "Eres el decisor de Gonzalo, un periodista que explora el mundo de "
         "Dwarf Fortress en Adventure Mode.\n\n"
-        "PRIORIDADES DE GONZALO (en orden):\n"
-        "1. Si hay un NPC cerca, casi siempre quiere hablar (hablar_npc).\n"
-        "2. Prefiere observar y explorar antes que pelear.\n"
-        "3. Solo ataca si no tiene otra opción. Si puede huir, huye.\n"
-        "4. Come y descansa cuando lo necesita.\n"
-        "5. Si no pasa nada interesante, se mueve a buscar algo nuevo.\n\n"
-        "Devuelves SOLO JSON válido. Nada más.\n"
+        "REGLAS DE DECISIÓN (en orden de prioridad):\n"
+        "1. Si hay mensajes o diálogos pendientes en pantalla → avanzar_mensajes.\n"
+        "2. Si Gonzalo está Drowsy/Tired → dormir.\n"
+        "3. Si Gonzalo está Hungry/Thirsty → comer_beber.\n"
+        "4. Si hay un NPC cerca (d<=3) y no le ha hablado recientemente → hablar_npc.\n"
+        "5. Si la posición (POS) no ha cambiado respecto al turno anterior → "
+        "probar una dirección diferente o buscar escaleras (entrar_lugar, subir_nivel).\n"
+        "6. Prefiere observar y explorar antes que pelear.\n"
+        "7. Solo ataca si no tiene otra opción. Si puede huir, huye.\n"
+        "8. Si no pasa nada interesante, se mueve a buscar algo nuevo.\n"
+        "9. Varía las direcciones de movimiento — no repitas siempre la misma.\n\n"
+        "Devuelves SOLO JSON válido: {\"intencion\":\"nombre\"}\n"
     )
 
 
 def _user(estado: EstadoMinimo) -> str:
     opciones = [{"nombre": i.nombre, "descripcion": i.descripcion} for i in INTENCIONES_V0]
     return (
-        "Elige una intención de la lista, o 'esperar' si no estás seguro.\n\n"
+        "Elige una intención de la lista.\n\n"
         f"ESTADO_CONTEXTO: {estado.contexto}\n"
-        "PANTALLA:\n"
+        "ESTADO DEL JUEGO:\n"
         f"{estado.pantalla}\n\n"
         "INTENCIONES_DISPONIBLES:\n"
         f"{json.dumps(opciones, ensure_ascii=False)}\n\n"
@@ -47,4 +52,3 @@ def decidir_intencion(estado: EstadoMinimo) -> Intencion:
     nombre = str(data.get("intencion", "esperar"))
     picked = intencion_por_nombre(nombre)
     return picked or intencion_por_nombre("esperar") or INTENCIONES_V0[-1]
-

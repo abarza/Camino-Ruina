@@ -47,14 +47,32 @@ INTENCIONES_V0: list[Intencion] = [
     ),
     Intencion(
         nombre="mirar_alrededor",
-        descripcion="Observar el entorno, examinar objetos o señales cercanas.",
+        descripcion="Observar el entorno inmediato.",
         teclas=["l"],
+        contexto_sugerido="exploración",
+    ),
+    Intencion(
+        nombre="buscar_area",
+        descripcion="Buscar el área cercana cuidadosamente (rastros, objetos ocultos).",
+        teclas=["L"],
         contexto_sugerido="exploración",
     ),
     Intencion(
         nombre="recoger_objeto",
         descripcion="Recoger un objeto del suelo.",
         teclas=["g"],
+        contexto_sugerido="exploración",
+    ),
+    Intencion(
+        nombre="ver_companeros",
+        descripcion="Ver el estado del grupo de compañeros.",
+        teclas=["c"],
+        contexto_sugerido="exploración",
+    ),
+    Intencion(
+        nombre="ver_rastros",
+        descripcion="Mostrar rastros cercanos en el suelo.",
+        teclas=["K"],
         contexto_sugerido="exploración",
     ),
     # --- Navegación ---
@@ -72,20 +90,20 @@ INTENCIONES_V0: list[Intencion] = [
     ),
     Intencion(
         nombre="viajar",
-        descripcion="Viaje rápido para moverse a otra zona del mapa.",
+        descripcion="Viaje rápido para moverse a otra zona del mapa mundial.",
         teclas=["T"],
         contexto_sugerido="exploración",
     ),
     # --- Supervivencia ---
     Intencion(
-        nombre="comer",
-        descripcion="Comer algo del inventario para recuperar energía.",
+        nombre="comer_beber",
+        descripcion="Comer o beber algo del inventario.",
         teclas=["e"],
         contexto_sugerido="inventario",
     ),
     Intencion(
-        nombre="descansar",
-        descripcion="Dormir o acampar.",
+        nombre="dormir",
+        descripcion="Dormir para recuperar energía (necesario cuando aparece Drowsy).",
         teclas=["Z"],
         contexto_sugerido="idle",
     ),
@@ -95,10 +113,16 @@ INTENCIONES_V0: list[Intencion] = [
         teclas=["i"],
         contexto_sugerido="inventario",
     ),
+    Intencion(
+        nombre="ver_estado",
+        descripcion="Ver estado físico y heridas del aventurero.",
+        teclas=["z"],
+        contexto_sugerido="inventario",
+    ),
     # --- Combate ---
     Intencion(
         nombre="atacar",
-        descripcion="Atacar a un enemigo cercano.",
+        descripcion="Atacar a un enemigo adyacente.",
         teclas=["A"],
         contexto_sugerido="combate",
     ),
@@ -108,7 +132,13 @@ INTENCIONES_V0: list[Intencion] = [
         teclas=["KP_2", "KP_2", "KP_2", "KP_2", "KP_2"],
         contexto_sugerido="combate",
     ),
-    # --- Pasivo ---
+    # --- Utilidad ---
+    Intencion(
+        nombre="avanzar_mensajes",
+        descripcion="Cerrar mensajes o diálogos pendientes en pantalla.",
+        teclas=["Return"],
+        contexto_sugerido="conversación",
+    ),
     Intencion(
         nombre="esperar",
         descripcion="Quedarse quieto y observar un rato.",
@@ -123,4 +153,3 @@ def intencion_por_nombre(nombre: str) -> Intencion | None:
         if i.nombre == nombre:
             return i
     return None
-
