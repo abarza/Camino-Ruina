@@ -534,11 +534,8 @@ def main() -> int:
             biblia_u = ""
         append(maleta_path, f"\n---\n\nERROR LLM: {type(e).__name__}: {e}\n")
 
-    # Episodio: por ahora lo anexamos al final de la maleta.
+    # Episodio: lo anexamos al final de la maleta (solo la crónica, sin metadata).
     append(maleta_path, "\n---\n\n" + episodio.strip() + "\n")
-
-    if maleta_u.strip():
-        append(maleta_path, "\n\n" + maleta_u.strip() + "\n")
 
     # Forzar incremento de día en código (el LLM no es confiable para esto).
     nuevo_dia_vida = int(estado.get("dia_vida", "0")) + 1
