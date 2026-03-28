@@ -99,7 +99,11 @@ def main() -> int:
         decision = "Ejecutar secuencia mecánica v0"
         teclas_a_enviar = teclas
 
-        if USE_LLM_INTENTIONS:
+        # Si hay un menú/diálogo abierto, cerrarlo antes de decidir.
+        if "FOCUS:" in antes and "dungeonmode/Default" not in antes:
+            decision = "Auto: cerrar menú/diálogo (Escape)"
+            teclas_a_enviar = ["Escape"]
+        elif USE_LLM_INTENTIONS:
             try:
                 from scripts.decisor_llm import EstadoMinimo, decidir_intencion
 
