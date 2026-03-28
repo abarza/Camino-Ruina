@@ -141,13 +141,24 @@ def main() -> int:
             ticks_atascado = 0
         pos_anterior = pos_actual
 
-        # Si hay un menú abierto (no Default, no conversación), cerrarlo via DFHack.
+        # Si hay un menú abierto (no conversación), cerrar via DFHack.
         if contexto == "menú":
             _cerrar_menu()
             decision = "Auto: cerrar menú (LEAVESCREEN)"
             teclas_a_enviar = []
-        elif contexto == "conversación" and not USE_LLM_INTENTIONS:
-            # Sin LLM, cerrar conversación automáticamente.
+        elif contexto == "conversación":
+            # Capturar pantalla visual para ver opciones de conversación.
+            pantalla_visual = ""
+            try:
+                from scripts.tmux_io import TmuxTarget, capture_pane
+                pantalla_visual = capture_pane(TmuxTarget.from_env(), lines=30)
+            except Exception:
+                pass
+
+            if pantalla_visual:
+                antes += "\n\nSCREEN:\n" + pantalla_visual
+
+            # Por ahora cerrar — TODO: LLM elige opción del menú.
             _cerrar_menu()
             decision = "Auto: cerrar conversación (LEAVESCREEN)"
             teclas_a_enviar = []
