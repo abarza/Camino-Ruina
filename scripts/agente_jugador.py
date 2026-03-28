@@ -7,7 +7,7 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
-from scripts.tmux_io import TmuxTarget, send_raw_keys
+from scripts.tmux_io import TmuxTarget, capture_pane, send_raw_keys
 
 USE_LLM_INTENTIONS = os.getenv("USE_LLM_INTENTIONS", "0") == "1"
 
@@ -150,7 +150,6 @@ def main() -> int:
             # Capturar pantalla visual para ver opciones de conversación.
             pantalla_visual = ""
             try:
-                from scripts.tmux_io import TmuxTarget, capture_pane
                 pantalla_visual = capture_pane(TmuxTarget.from_env(), lines=30)
             except Exception:
                 pass
