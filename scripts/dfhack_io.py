@@ -39,3 +39,11 @@ def get_game_state() -> str:
     """Obtiene un resumen textual del estado actual del juego para el agente."""
     lua_path = Path(__file__).parent / "dfhack_state.lua"
     return lua(f"dofile('{lua_path}')")
+
+
+def simulate_input(key: str) -> str:
+    """Envía una interface key a DF via DFHack (más confiable que tmux para menús)."""
+    return lua(
+        f"local gui = require('gui'); "
+        f"gui.simulateInput(dfhack.gui.getCurViewscreen(), '{key}')"
+    )

@@ -25,10 +25,31 @@ if adv then
     table.insert(lines, 'UNIT: ' .. get_unit_name(adv) .. ' (' .. get_race_id(adv) .. ')')
     table.insert(lines, 'POS: x=' .. adv.pos.x .. ' y=' .. adv.pos.y .. ' z=' .. adv.pos.z)
     table.insert(lines, 'HP: ' .. adv.body.blood_count .. '/' .. adv.body.blood_max)
+
+    -- Necesidades vitales.
+    local ok_needs, _ = pcall(function()
+        table.insert(lines, 'HUNGER: ' .. adv.counters2.hunger_timer)
+        table.insert(lines, 'THIRST: ' .. adv.counters2.thirst_timer)
+        table.insert(lines, 'SLEEP: ' .. adv.counters2.sleepiness_timer)
+    end)
+
+    -- Heridas.
+    table.insert(lines, 'WOUNDS: ' .. #adv.body.wounds)
 else
     table.insert(lines, 'UNIT: (aventurero no encontrado)')
 end
 
+-- Fecha in-game.
+local ok_date, _ = pcall(function()
+    local year = df.global.cur_year
+    local tick = df.global.cur_year_tick
+    -- 1 mes = 33600 ticks, 1 día = 1200 ticks
+    local month = math.floor(tick / 33600) + 1
+    local day = math.floor((tick % 33600) / 1200) + 1
+    table.insert(lines, string.format('DATE: %d-%02d-%02d', year, month, day))
+end)
+
+-- Focus (pantalla/menú actual).
 local ok_focus, focus = pcall(dfhack.gui.getCurFocus)
 if ok_focus and type(focus) == 'string' then
     table.insert(lines, 'FOCUS: ' .. focus)
@@ -37,6 +58,30 @@ elseif ok_focus and type(focus) == 'table' then
 else
     table.insert(lines, 'FOCUS: unknown')
 end
+
+-- Si hay conversación abierta, listar opciones.
+local ok_conv, _ = pcall(function()
+    local focus_str = ''
+    if ok_focus then
+        focus_str = type(focus) == 'string' and focus or table.concat(focus, ',')
+    end
+    if string.find(focus_str, 'Conversation') then
+        local choices = df.global.ui_advmode.conversation.choices
+        if choices and #choices > 0 then
+            local opts = {}
+            for i = 0, #choices - 1 do
+                local c = choices[i]
+                local title = tostring(c.title)
+                if title and title ~= '' then
+                    table.insert(opts, i .. ':' .. title)
+                end
+            end
+            if #opts > 0 then
+                table.insert(lines, 'CONV_CHOICES: ' .. table.concat(opts, '; '))
+            end
+        end
+    end
+end)
 
 -- Ubicación: sitio (ciudad/fortaleza) y región.
 if adv then
