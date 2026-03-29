@@ -131,6 +131,48 @@ def _get_game_state() -> str:
         return ""
 
 
+def _encontrar_npc_en_menu(screen: str) -> dict | None:
+    """Busca un NPC real en el menú 'Who will you talk to?'.
+
+    Retorna {"name": "...", "index": N} o None si no hay nadie.
+    Las opciones no-NPC son: Begin a performance, Shout out,
+    Assume an identity, y Deity.
+    """
+    if "who will you talk to" not in screen.lower():
+        return None
+
+    no_npc = ("begin a performance", "shout out", "assume an identity", "deity")
+
+    # Extraer líneas después de "Who will you talk to?"
+    in_options = False
+    index = 0
+    for line in screen.splitlines():
+        stripped = line.strip()
+        if not stripped:
+            continue
+        if "who will you talk to" in stripped.lower():
+            in_options = True
+            continue
+        if not in_options:
+            continue
+        # Línea de status bar = fin de opciones.
+        if stripped.startswith("Gonzalo") or stripped.startswith("The Hills"):
+            break
+        # Saltar líneas que no son opciones.
+        if stripped.startswith("Date:") or stripped.startswith("ENE") or stripped.startswith("*"):
+            break
+
+        lower = stripped.lower()
+        if any(n in lower for n in no_npc):
+            index += 1
+            continue
+
+        # Es un NPC real (ej: "The craftsman Thur Stoltaduthros")
+        return {"name": stripped, "index": index}
+
+    return None
+
+
 def _elegir_opcion_menu(screen: str, focus: str) -> str:
     """Elige una letra de opción del menú de Eat/Drink/Sleep.
 
@@ -262,18 +304,34 @@ def main() -> int:
             # Capturar pantalla visual para ver opciones de conversación.
             pantalla_visual = ""
             try:
-                pantalla_visual = capture_pane(TmuxTarget.from_env(), lines=30)
+                pantalla_visual = capture_pane(TmuxTarget.from_env(), lines=40)
             except Exception:
                 pass
 
             if pantalla_visual:
                 antes += "\n\nSCREEN:\n" + pantalla_visual
 
-            # Cerrar conversación y poner cooldown para no reabrir.
-            _cerrar_menu()
-            decision = "Auto: cerrar conversación (LEAVESCREEN)"
-            teclas_a_enviar = []
-            cooldown_hablar = 10  # no hablar por 10 ticks (~100s)
+            npc = _encontrar_npc_en_menu(pantalla_visual)
+            if npc:
+                # Hay un NPC real — seleccionarlo con SELECT (primera opción).
+                # Si el NPC no es la primera opción, navegar con CURSOR_DOWN.
+                try:
+                    from scripts.dfhack_io import simulate_input
+                    for _ in range(npc["index"]):
+                        simulate_input("STANDARDSCROLL_DOWN")
+                        time.sleep(0.1)
+                    simulate_input("SELECT")
+                except Exception:
+                    pass
+                decision = f"Auto: hablar con {npc['name']}"
+                teclas_a_enviar = []
+                cooldown_hablar = 15  # cooldown más largo después de conversar
+            else:
+                # No hay NPC real — cerrar menú.
+                _cerrar_menu()
+                decision = "Auto: cerrar conversación (nadie con quien hablar)"
+                teclas_a_enviar = []
+                cooldown_hablar = 10
         else:
             # Pantalla normal (Default): capturar barra de estado visual.
             try:

@@ -2,7 +2,7 @@
 
 Uso: python3 -m scripts.test_agente
 """
-from scripts.agente_jugador import detectar_contexto, detectar_necesidad, _elegir_opcion_menu
+from scripts.agente_jugador import detectar_contexto, detectar_necesidad, _elegir_opcion_menu, _encontrar_npc_en_menu
 
 # --- Test detectar_contexto ---
 
@@ -240,6 +240,67 @@ The Hills of Thundering          HungThir"""
     print(f"  Menú Eat normal → seleccionar '{opcion}' (tripe) ✓")
 
 
+def test_encontrar_npc():
+    print("\n=== _encontrar_npc_en_menu ===")
+
+    # Con compañeros cerca
+    screen_con_npc = """Who will you talk to?
+
+The craftsman Thur Stoltaduthros
+Begin a performance
+Shout out to everybody
+Sushsath Brideembraced the Lovely Spring, Deity
+Assume an identity
+
+Gonzalo Usuknol                                      Speed 1.000
+The Hills of Thundering"""
+
+    r = _encontrar_npc_en_menu(screen_con_npc)
+    assert r is not None, "Should find Thur"
+    assert r["name"] == "The craftsman Thur Stoltaduthros"
+    assert r["index"] == 0
+    print(f"  Con NPC → '{r['name']}' index={r['index']} ✓")
+
+    # Con múltiples NPCs
+    screen_multi = """Who will you talk to?
+
+The bowyer Staddat Lesnoamec
+The craftsman Thur Stoltaduthros
+Begin a performance
+Shout out to everybody
+Sushsath Brideembraced the Lovely Spring, Deity
+Assume an identity
+
+Gonzalo Usuknol                                      Speed 1.000"""
+
+    r2 = _encontrar_npc_en_menu(screen_multi)
+    assert r2 is not None
+    assert r2["name"] == "The bowyer Staddat Lesnoamec"
+    assert r2["index"] == 0
+    print(f"  Múltiples NPCs → primer NPC '{r2['name']}' index={r2['index']} ✓")
+
+    # Sin NPCs reales
+    screen_sin_npc = """Who will you talk to?
+
+Begin a performance
+Shout out to everybody
+Sushsath Brideembraced the Lovely Spring, Deity
+Assume an identity
+
+Gonzalo Usuknol                                      Speed 1.000"""
+
+    r3 = _encontrar_npc_en_menu(screen_sin_npc)
+    assert r3 is None, f"Should find no NPC, got {r3}"
+    print("  Sin NPC → None ✓")
+
+    # Sin menú de conversación
+    screen_otro = """Some other screen content
+Gonzalo Usuknol"""
+    r4 = _encontrar_npc_en_menu(screen_otro)
+    assert r4 is None
+    print("  No es menú de conversación → None ✓")
+
+
 if __name__ == "__main__":
     test_contexto()
     test_necesidad()
@@ -247,4 +308,5 @@ if __name__ == "__main__":
     test_full_screen_detection()
     test_llm_input_con_status_bar()
     test_eat_menu_with_full()
+    test_encontrar_npc()
     print("\n✓ Todos los tests pasaron.")
