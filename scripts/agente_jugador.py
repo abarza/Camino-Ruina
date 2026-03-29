@@ -225,17 +225,21 @@ def main() -> int:
                 decision = "Auto: confirmar dormir (SELECT)"
                 teclas_a_enviar = []
             elif any(k in focus_line for k in ("Eat", "Drink")):
-                # Menú de Eat/Drink: capturar pantalla y elegir opción.
+                # Menú de Eat/Drink: capturar pantalla COMPLETA para ver barra de estado.
                 screen = ""
                 try:
-                    screen = capture_pane(TmuxTarget.from_env(), lines=30)
+                    screen = capture_pane(TmuxTarget.from_env(), lines=80)
                 except Exception:
                     pass
 
                 screen_lower = screen.lower()
-                if "really full" in screen_lower or "nausea" in screen_lower:
+                # Bloquear si hay CUALQUIER señal de exceso.
+                if any(w in screen_lower for w in (
+                    "really full", "nausea", "nauseous", "stunned",
+                    "vomit", "too much", "keep it down",
+                )):
                     _cerrar_menu()
-                    decision = "Auto: lleno/nausea, cerrar menú"
+                    decision = "Auto: lleno/nausea/stunned, cerrar menú"
                     teclas_a_enviar = []
                 else:
                     opcion = _elegir_opcion_menu(screen, focus_line)
