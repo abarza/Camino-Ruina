@@ -317,8 +317,16 @@ def main() -> int:
                         decision = f"Auto: cerrar {focus_line} (sin opciones)"
                         teclas_a_enviar = []
             else:
+                # Capturar pantalla antes de cerrar (útil para Look, Search, etc.)
+                if "Look" in focus_line or "Search" in focus_line:
+                    try:
+                        look_screen = capture_pane(TmuxTarget.from_env(), lines=30)
+                        if look_screen.strip():
+                            antes += f"\n\nLOOK:\n{look_screen}"
+                    except Exception:
+                        pass
                 _cerrar_menu()
-                decision = "Auto: cerrar menú (LEAVESCREEN)"
+                decision = f"Auto: cerrar menú {focus_line} (LEAVESCREEN)"
                 teclas_a_enviar = []
         elif contexto == "conversación":
             # Capturar pantalla visual y determinar sub-tipo de conversación.
