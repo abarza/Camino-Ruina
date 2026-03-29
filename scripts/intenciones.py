@@ -91,18 +91,8 @@ INTENCIONES_V0: list[Intencion] = [
     # viajar (T) desactivado — fast travel cuelga DF cuando hay deshidratación
     # y el agente no sabe navegar el mapa de viaje.
     # --- Supervivencia ---
-    Intencion(
-        nombre="comer_beber",
-        descripcion="Comer o beber algo del inventario.",
-        teclas=["e"],
-        contexto_sugerido="inventario",
-    ),
-    Intencion(
-        nombre="dormir",
-        descripcion="Dormir para recuperar energía (necesario cuando aparece Drowsy).",
-        teclas=["Z"],
-        contexto_sugerido="idle",
-    ),
+    # comer_beber y dormir están desactivados del LLM — el agente los maneja
+    # en código con cooldowns estrictos para evitar loops de nausea.
     Intencion(
         nombre="inventario",
         descripcion="Revisar qué llevas encima.",

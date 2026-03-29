@@ -351,13 +351,39 @@ def main() -> int:
             if cooldown_mirar > 0:
                 cooldown_mirar -= 1
 
-            # Detectar si hay estados que bloquean comer/beber.
+            # Detectar necesidades y estados negativos de la pantalla.
+            _status_lower = antes.lower()
             _bloqueado_comer = cooldown_comer > 0 or any(
-                w in antes.lower()
-                for w in ("nauseous", "stunned", "really full", "starting to feel full", "vomit", "too much", "keep it down")
+                w in _status_lower
+                for w in ("nauseous", "stunned", "really full", "starting to feel full",
+                          "vomit", "too much", "keep it down")
             )
 
-            if USE_LLM_INTENTIONS:
+            # Comer/dormir manejados en código, NO por el LLM.
+            necesidad_handled = False
+            if not _bloqueado_comer and cooldown_comer <= 0:
+                if "hungdhyd" in _status_lower or "hungthir" in _status_lower:
+                    decision = "Auto: necesidad comer (código)"
+                    teclas_a_enviar = ["e"]
+                    cooldown_comer = 30  # ~5 minutos antes de intentar otra vez
+                    necesidad_handled = True
+                elif "hung" in _status_lower and "thir" not in _status_lower:
+                    decision = "Auto: necesidad comer (código)"
+                    teclas_a_enviar = ["e"]
+                    cooldown_comer = 30
+                    necesidad_handled = True
+                elif "thir" in _status_lower or "dhyd" in _status_lower:
+                    decision = "Auto: necesidad beber (código)"
+                    teclas_a_enviar = ["e"]
+                    cooldown_comer = 30
+                    necesidad_handled = True
+
+            if not necesidad_handled and ("drowsy" in _status_lower or "tired" in _status_lower):
+                decision = "Auto: necesidad dormir (código)"
+                teclas_a_enviar = ["Z"]
+                necesidad_handled = True
+
+            if not necesidad_handled and USE_LLM_INTENTIONS:
                 try:
                     from scripts.decisor_llm import EstadoMinimo, decidir_intencion
 
@@ -370,10 +396,7 @@ def main() -> int:
                     )
 
                     # Override: bloquear acciones que causan loops.
-                    if intencion.nombre == "comer_beber" and _bloqueado_comer:
-                        decision = "Auto: bloqueado comer (nausea/stunned/cooldown), esperando"
-                        teclas_a_enviar = ["."]
-                    elif intencion.nombre == "hablar_npc" and cooldown_hablar > 0:
+                    if intencion.nombre == "hablar_npc" and cooldown_hablar > 0:
                         decision = f"Auto: bloqueado hablar (cooldown {cooldown_hablar}), explorando"
                         teclas_a_enviar = ["KP_6", "KP_6", "KP_6"]
                     elif intencion.nombre in ("mirar_alrededor", "buscar_area") and cooldown_mirar > 0:
@@ -383,9 +406,7 @@ def main() -> int:
                         decision = f"Intención LLM: {intencion.nombre}"
                         teclas_a_enviar = intencion.teclas
                         # Poner cooldowns después de acciones que abren menús.
-                        if intencion.nombre == "comer_beber":
-                            cooldown_comer = 10
-                        elif intencion.nombre == "hablar_npc":
+                        if intencion.nombre == "hablar_npc":
                             cooldown_hablar = 10
                         elif intencion.nombre in ("mirar_alrededor", "buscar_area"):
                             cooldown_mirar = 8
