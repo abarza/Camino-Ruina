@@ -247,8 +247,14 @@ def main() -> int:
         decision = "Ejecutar secuencia mecánica v0"
         teclas_a_enviar = teclas
 
+        # Capturar pantalla visual para detectar "On Ground" (no está en DFHack state).
+        try:
+            _screen_check = capture_pane(TmuxTarget.from_env(), lines=5)
+        except Exception:
+            _screen_check = ""
+
         # Si está en el suelo (prone), pararse primero.
-        if "on ground" in antes.lower():
+        if "on ground" in _screen_check.lower():
             target = TmuxTarget.from_env()
             send_raw_keys(target, ["s"])
             decision = "Auto: pararse (On Ground → s)"
