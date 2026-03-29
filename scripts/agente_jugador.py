@@ -84,7 +84,7 @@ def detectar_necesidad(screen: str) -> str:
 
     # Estados que BLOQUEAN comer/beber — esperar a que pasen.
     if any(w in s for w in (
-        "really full", "nausea", "nauseous", "stunned",
+        "really full", "starting to feel full", "nausea", "nauseous", "stunned",
         "vomit", "too much", "keep it down",
     )):
         return ""
@@ -281,7 +281,8 @@ def main() -> int:
                 screen_lower = screen.lower()
                 # Bloquear si hay CUALQUIER señal de exceso.
                 if any(w in screen_lower for w in (
-                    "really full", "nausea", "nauseous", "stunned",
+                    "really full", "starting to feel full",
+                    "nausea", "nauseous", "stunned",
                     "vomit", "too much", "keep it down",
                 )):
                     _cerrar_menu()
@@ -350,7 +351,7 @@ def main() -> int:
             # Detectar si hay estados que bloquean comer/beber.
             _bloqueado_comer = cooldown_comer > 0 or any(
                 w in antes.lower()
-                for w in ("nauseous", "stunned", "really full", "vomit", "too much", "keep it down")
+                for w in ("nauseous", "stunned", "really full", "starting to feel full", "vomit", "too much", "keep it down")
             )
 
             if USE_LLM_INTENTIONS:
