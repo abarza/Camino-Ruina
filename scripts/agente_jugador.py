@@ -211,8 +211,12 @@ def main() -> int:
                     focus_line = line[7:].strip()
                     break
 
-            if any(k in focus_line for k in ("Eat", "Drink", "Sleep")):
-                # Menú de acción: capturar pantalla y verificar si ya está lleno.
+            if "Sleep" in focus_line:
+                # Menú de Sleep: confirmar con Enter (duerme 8 horas por defecto).
+                decision = "Auto: confirmar dormir (Enter)"
+                teclas_a_enviar = ["Return"]
+            elif any(k in focus_line for k in ("Eat", "Drink")):
+                # Menú de Eat/Drink: capturar pantalla y elegir opción.
                 screen = ""
                 try:
                     screen = capture_pane(TmuxTarget.from_env(), lines=30)
@@ -221,7 +225,6 @@ def main() -> int:
 
                 screen_lower = screen.lower()
                 if "really full" in screen_lower or "nausea" in screen_lower:
-                    # Ya está lleno — cerrar menú, no comer más.
                     _cerrar_menu()
                     decision = "Auto: lleno/nausea, cerrar menú"
                     teclas_a_enviar = []
