@@ -88,12 +88,8 @@ INTENCIONES_V0: list[Intencion] = [
         teclas=["<"],
         contexto_sugerido="exploración",
     ),
-    Intencion(
-        nombre="viajar",
-        descripcion="Viaje rápido para moverse a otra zona del mapa mundial.",
-        teclas=["T"],
-        contexto_sugerido="exploración",
-    ),
+    # viajar (T) desactivado — fast travel cuelga DF cuando hay deshidratación
+    # y el agente no sabe navegar el mapa de viaje.
     # --- Supervivencia ---
     Intencion(
         nombre="comer_beber",
