@@ -312,6 +312,7 @@ def main() -> int:
     cooldown_hablar = 0  # ticks antes de poder hablar otra vez
     cooldown_comer = 0   # ticks antes de poder comer otra vez
     cooldown_mirar = 0   # ticks antes de poder mirar/buscar otra vez
+    cooldown_dormir = 0  # ticks antes de poder intentar dormir otra vez
     conv_exchanges = 0   # intercambios en la conversación actual (max 3)
 
     while True:
@@ -365,6 +366,7 @@ def main() -> int:
                     pass
                 decision = "Auto: confirmar dormir (SELECT)"
                 teclas_a_enviar = []
+                cooldown_dormir = 0  # dormir funcionó, resetear cooldown
             elif any(k in focus_line for k in ("Eat", "Drink")):
                 # Menú de Eat/Drink: capturar pantalla COMPLETA para ver barra de estado.
                 screen = ""
@@ -502,6 +504,8 @@ def main() -> int:
                 cooldown_comer -= 1
             if cooldown_mirar > 0:
                 cooldown_mirar -= 1
+            if cooldown_dormir > 0:
+                cooldown_dormir -= 1
 
             # Detectar necesidades y estados negativos de la pantalla.
             _status_lower = antes.lower()
@@ -531,9 +535,16 @@ def main() -> int:
                     necesidad_handled = True
 
             if not necesidad_handled and ("drowsy" in _status_lower or "tired" in _status_lower):
-                decision = "Auto: necesidad dormir (código)"
-                teclas_a_enviar = ["Z"]
-                necesidad_handled = True
+                if cooldown_dormir <= 0:
+                    decision = "Auto: necesidad dormir (código)"
+                    teclas_a_enviar = ["Z"]
+                    cooldown_dormir = 20  # si no puede dormir (hostiles), no intentar por 20 ticks
+                    necesidad_handled = True
+                else:
+                    # No puede dormir aquí — moverse para alejarse de hostiles.
+                    decision = f"Auto: no puede dormir (hostiles?), moviéndose (cooldown {cooldown_dormir})"
+                    teclas_a_enviar = ["KP_4", "KP_4", "KP_4", "KP_4", "KP_4"]
+                    necesidad_handled = True
 
             if not necesidad_handled and USE_LLM_INTENTIONS:
                 try:
