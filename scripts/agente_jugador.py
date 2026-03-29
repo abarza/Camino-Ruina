@@ -107,6 +107,50 @@ def _get_game_state() -> str:
         return ""
 
 
+def _elegir_opcion_menu(screen: str, focus: str) -> str:
+    """Elige una letra de opción del menú de Eat/Drink/Sleep.
+
+    Busca líneas tipo 'c - . echidna tripe [5]' y elige la más apropiada.
+    Para Eat: preferir comida (tripe, meat, fish, plump, bread), evitar
+    armas, monedas, waterskin.
+    Para Drink/waterskin: elegir líquidos (ice, water, ale, wine).
+    Para Sleep: elegir la primera opción disponible.
+    """
+    opciones: list[tuple[str, str]] = []
+    for line in screen.splitlines():
+        line = line.strip()
+        # Formato: "c - . echidna tripe [5]" o "a - copper whip"
+        m = re.match(r"^([a-z])\s*[-–]\s*\.?\s*(.+)$", line)
+        if m:
+            opciones.append((m.group(1), m.group(2).strip().lower()))
+
+    if not opciones:
+        return ""
+
+    if "Sleep" in focus:
+        return opciones[0][0]
+
+    # Para Eat/Drink: filtrar por tipo.
+    # Evitar armas, monedas, herramientas.
+    evitar = ("whip", "knife", "coin", "sword", "axe", "shield", "helm", "boot", "gauntlet")
+    # Preferir comida/bebida.
+    preferir = ("tripe", "meat", "fish", "plump", "bread", "biscuit", "stew",
+                "ice", "water", "ale", "wine", "beer", "mead", "waterskin", "milk")
+
+    # Primero buscar algo preferido.
+    for letra, desc in opciones:
+        if any(p in desc for p in preferir):
+            return letra
+
+    # Si no, cualquiera que no sea de evitar.
+    for letra, desc in opciones:
+        if not any(e in desc for e in evitar):
+            return letra
+
+    # Último recurso: primera opción.
+    return opciones[0][0]
+
+
 def _cerrar_menu() -> None:
     """Cierra menú/diálogo via DFHack LEAVESCREEN (más confiable que tmux Escape)."""
     try:
@@ -141,11 +185,35 @@ def main() -> int:
             ticks_atascado = 0
         pos_anterior = pos_actual
 
-        # Si hay un menú abierto (no conversación), cerrar via DFHack.
+        # Si hay un menú abierto (no conversación), actuar según tipo.
         if contexto == "menú":
-            _cerrar_menu()
-            decision = "Auto: cerrar menú (LEAVESCREEN)"
-            teclas_a_enviar = []
+            focus_line = ""
+            for line in antes.splitlines():
+                if line.startswith("FOCUS: "):
+                    focus_line = line[7:].strip()
+                    break
+
+            if any(k in focus_line for k in ("Eat", "Drink", "Sleep")):
+                # Menú de acción: capturar pantalla y elegir una opción.
+                screen = ""
+                try:
+                    screen = capture_pane(TmuxTarget.from_env(), lines=30)
+                except Exception:
+                    pass
+
+                # Buscar las letras de opción disponibles (a - z).
+                opcion = _elegir_opcion_menu(screen, focus_line)
+                if opcion:
+                    decision = f"Auto: seleccionar '{opcion}' en {focus_line}"
+                    teclas_a_enviar = [opcion]
+                else:
+                    _cerrar_menu()
+                    decision = f"Auto: cerrar {focus_line} (sin opciones)"
+                    teclas_a_enviar = []
+            else:
+                _cerrar_menu()
+                decision = "Auto: cerrar menú (LEAVESCREEN)"
+                teclas_a_enviar = []
         elif contexto == "conversación":
             # Capturar pantalla visual para ver opciones de conversación.
             pantalla_visual = ""
