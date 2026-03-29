@@ -188,7 +188,6 @@ def main() -> int:
     teclas = parse_teclas_env()
     pos_anterior = ""
     ticks_atascado = 0
-    cooldown_comer = 0  # ticks restantes antes de poder comer/beber otra vez
 
     while True:
         log_path = log_path_for_today(mundo)
@@ -270,25 +269,10 @@ def main() -> int:
             decision = "Auto: cerrar conversación (LEAVESCREEN)"
             teclas_a_enviar = []
         else:
-            # Pantalla normal (Default): revisar necesidad visual antes de LLM.
-            if cooldown_comer > 0:
-                cooldown_comer -= 1
-
-            necesidad = ""
-            try:
-                screen = capture_pane(TmuxTarget.from_env(), lines=40)
-                necesidad = detectar_necesidad(screen)
-            except Exception:
-                pass
-
-            if necesidad == "dormir":
-                decision = "Auto: necesidad dormir"
-                teclas_a_enviar = ["Z"]  # Shift+Z = Sleep
-            elif necesidad in ("comer", "comer_beber", "beber") and cooldown_comer <= 0:
-                decision = f"Auto: necesidad {necesidad}"
-                teclas_a_enviar = ["e"]
-                cooldown_comer = 5  # esperar 5 ticks antes de comer otra vez
-            elif USE_LLM_INTENTIONS:
+            # Pantalla normal (Default): dejar que el LLM decida todo.
+            # El LLM ya tiene reglas para comer/dormir según el estado.
+            # No forzamos comer/dormir automáticamente — eso causaba loops.
+            if USE_LLM_INTENTIONS:
                 try:
                     from scripts.decisor_llm import EstadoMinimo, decidir_intencion
 
