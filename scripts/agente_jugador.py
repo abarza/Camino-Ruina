@@ -83,7 +83,10 @@ def detectar_necesidad(screen: str) -> str:
     s = screen.lower()
 
     # Estados que BLOQUEAN comer/beber — esperar a que pasen.
-    if any(w in s for w in ("really full", "nausea", "nauseous", "stunned", "vomit")):
+    if any(w in s for w in (
+        "really full", "nausea", "nauseous", "stunned",
+        "vomit", "too much", "keep it down",
+    )):
         return ""
 
     if "drowsy" in s or "tired" in s:
@@ -269,9 +272,15 @@ def main() -> int:
             decision = "Auto: cerrar conversación (LEAVESCREEN)"
             teclas_a_enviar = []
         else:
-            # Pantalla normal (Default): dejar que el LLM decida todo.
-            # El LLM ya tiene reglas para comer/dormir según el estado.
-            # No forzamos comer/dormir automáticamente — eso causaba loops.
+            # Pantalla normal (Default): capturar barra de estado visual
+            # para que el LLM vea Nauseous/Stunned/Drowsy/HungThir.
+            try:
+                status_bar = capture_pane(TmuxTarget.from_env(), lines=5)
+                if status_bar.strip():
+                    antes += "\n\nSTATUS_BAR:\n" + status_bar
+            except Exception:
+                pass
+
             if USE_LLM_INTENTIONS:
                 try:
                     from scripts.decisor_llm import EstadoMinimo, decidir_intencion
