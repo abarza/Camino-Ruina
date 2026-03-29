@@ -212,9 +212,14 @@ def main() -> int:
                     break
 
             if "Sleep" in focus_line:
-                # Menú de Sleep: confirmar con Enter (duerme 8 horas por defecto).
-                decision = "Auto: confirmar dormir (Enter)"
-                teclas_a_enviar = ["Return"]
+                # Menú de Sleep: confirmar via DFHack SELECT.
+                try:
+                    from scripts.dfhack_io import simulate_input
+                    simulate_input("SELECT")
+                except Exception:
+                    pass
+                decision = "Auto: confirmar dormir (SELECT)"
+                teclas_a_enviar = []
             elif any(k in focus_line for k in ("Eat", "Drink")):
                 # Menú de Eat/Drink: capturar pantalla y elegir opción.
                 screen = ""
