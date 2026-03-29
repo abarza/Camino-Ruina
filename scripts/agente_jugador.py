@@ -197,11 +197,12 @@ def _elegir_opcion_menu(screen: str, focus: str) -> str:
         return opciones[0][0]
 
     # Para Eat/Drink: filtrar por tipo.
-    # Evitar armas, monedas, herramientas.
-    evitar = ("whip", "knife", "coin", "sword", "axe", "shield", "helm", "boot", "gauntlet")
-    # Preferir comida/bebida.
+    # Evitar armas, monedas, herramientas, waterskin (puede estar vacío → "lick").
+    evitar = ("whip", "knife", "coin", "sword", "axe", "shield", "helm", "boot",
+              "gauntlet", "waterskin")
+    # Preferir comida/bebida real.
     preferir = ("tripe", "meat", "fish", "plump", "bread", "biscuit", "stew",
-                "ice", "water", "ale", "wine", "beer", "mead", "waterskin", "milk")
+                "ice", "water", "ale", "wine", "beer", "mead", "milk")
 
     # Primero buscar algo preferido.
     for letra, desc in opciones:
@@ -245,6 +246,17 @@ def main() -> int:
         contexto = detectar_contexto(antes)
         decision = "Ejecutar secuencia mecánica v0"
         teclas_a_enviar = teclas
+
+        # Si está en el suelo (prone), pararse primero.
+        if "on ground" in antes.lower():
+            target = TmuxTarget.from_env()
+            send_raw_keys(target, ["s"])
+            decision = "Auto: pararse (On Ground → s)"
+            teclas_a_enviar = []
+            time.sleep(1)
+            # Re-capturar estado después de pararse.
+            antes = _get_game_state()
+            contexto = detectar_contexto(antes)
 
         # Detectar si está atascado (misma posición varios ticks).
         pos_actual = _extraer_pos(antes)
@@ -303,7 +315,7 @@ def main() -> int:
                 decision = "Auto: cerrar menú (LEAVESCREEN)"
                 teclas_a_enviar = []
         elif contexto == "conversación":
-            # Capturar pantalla visual para ver opciones de conversación.
+            # Capturar pantalla visual y determinar sub-tipo de conversación.
             pantalla_visual = ""
             try:
                 pantalla_visual = capture_pane(TmuxTarget.from_env(), lines=40)
@@ -313,25 +325,48 @@ def main() -> int:
             if pantalla_visual:
                 antes += "\n\nSCREEN:\n" + pantalla_visual
 
-            npc = _encontrar_npc_en_menu(pantalla_visual)
-            if npc:
-                # Hay un NPC real — seleccionarlo con SELECT (primera opción).
-                # Si el NPC no es la primera opción, navegar con CURSOR_DOWN.
+            # Extraer FOCUS para distinguir ConversationAddress vs ConversationSpeak.
+            conv_focus = ""
+            for line in antes.splitlines():
+                if line.startswith("FOCUS: "):
+                    conv_focus = line[7:].strip()
+                    break
+
+            if "ConversationAddress" in conv_focus:
+                # Menú "Who will you talk to?" — buscar NPC real.
+                npc = _encontrar_npc_en_menu(pantalla_visual)
+                if npc:
+                    try:
+                        from scripts.dfhack_io import simulate_input
+                        for _ in range(npc["index"]):
+                            simulate_input("STANDARDSCROLL_DOWN")
+                            time.sleep(0.1)
+                        simulate_input("SELECT")
+                    except Exception:
+                        pass
+                    decision = f"Auto: hablar con {npc['name']}"
+                    teclas_a_enviar = []
+                    cooldown_hablar = 15
+                else:
+                    _cerrar_menu()
+                    decision = "Auto: cerrar conversación (nadie con quien hablar)"
+                    teclas_a_enviar = []
+                    cooldown_hablar = 10
+
+            elif "ConversationSpeak" in conv_focus:
+                # Menú de temas — seleccionar primera opción (greeting/ask).
                 try:
                     from scripts.dfhack_io import simulate_input
-                    for _ in range(npc["index"]):
-                        simulate_input("STANDARDSCROLL_DOWN")
-                        time.sleep(0.1)
                     simulate_input("SELECT")
                 except Exception:
                     pass
-                decision = f"Auto: hablar con {npc['name']}"
+                decision = "Auto: seleccionar tema de conversación (SELECT)"
                 teclas_a_enviar = []
-                cooldown_hablar = 15  # cooldown más largo después de conversar
+
             else:
-                # No hay NPC real — cerrar menú.
+                # Otro sub-menú de conversación — cerrar.
                 _cerrar_menu()
-                decision = "Auto: cerrar conversación (nadie con quien hablar)"
+                decision = f"Auto: cerrar conversación ({conv_focus})"
                 teclas_a_enviar = []
                 cooldown_hablar = 10
         else:
