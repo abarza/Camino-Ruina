@@ -78,21 +78,24 @@ def detectar_necesidad(screen: str) -> str:
 
     Retorna: 'dormir', 'comer', 'beber', 'comer_beber', o '' si no hay necesidad.
     Solo actúa si DF lo muestra en pantalla — no adivinamos con contadores.
-    Nunca come si dice 'full' o 'Nausea'.
+    Nunca come/bebe si hay estados negativos por exceso.
     """
     s = screen.lower()
 
-    # Si está lleno o con nausea, NO comer más.
-    if "really full" in s or "nausea" in s:
+    # Estados que BLOQUEAN comer/beber — esperar a que pasen.
+    if any(w in s for w in ("really full", "nausea", "nauseous", "stunned", "vomit")):
         return ""
 
     if "drowsy" in s or "tired" in s:
         return "dormir"
-    if "hungthir" in s or ("hung" in s and "thir" in s):
+    # "Dhyd" = Dehydrated, "Thir" = Thirsty
+    if "hungthir" in s or "hungdhyd" in s:
+        return "comer_beber"
+    if ("hung" in s and "thir" in s) or ("hung" in s and "dhyd" in s):
         return "comer_beber"
     if "hung" in s:
         return "comer"
-    if "thir" in s:
+    if "thir" in s or "dhyd" in s:
         return "beber"
 
     return ""
@@ -185,6 +188,7 @@ def main() -> int:
     teclas = parse_teclas_env()
     pos_anterior = ""
     ticks_atascado = 0
+    cooldown_comer = 0  # ticks restantes antes de poder comer/beber otra vez
 
     while True:
         log_path = log_path_for_today(mundo)
@@ -263,9 +267,12 @@ def main() -> int:
             teclas_a_enviar = []
         else:
             # Pantalla normal (Default): revisar necesidad visual antes de LLM.
+            if cooldown_comer > 0:
+                cooldown_comer -= 1
+
             necesidad = ""
             try:
-                screen = capture_pane(TmuxTarget.from_env(), lines=5)
+                screen = capture_pane(TmuxTarget.from_env(), lines=40)
                 necesidad = detectar_necesidad(screen)
             except Exception:
                 pass
@@ -273,9 +280,10 @@ def main() -> int:
             if necesidad == "dormir":
                 decision = "Auto: necesidad dormir"
                 teclas_a_enviar = ["Z"]  # Shift+Z = Sleep
-            elif necesidad in ("comer", "comer_beber", "beber"):
+            elif necesidad in ("comer", "comer_beber", "beber") and cooldown_comer <= 0:
                 decision = f"Auto: necesidad {necesidad}"
                 teclas_a_enviar = ["e"]
+                cooldown_comer = 5  # esperar 5 ticks antes de comer otra vez
             elif USE_LLM_INTENTIONS:
                 try:
                     from scripts.decisor_llm import EstadoMinimo, decidir_intencion
