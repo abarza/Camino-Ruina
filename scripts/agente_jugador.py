@@ -366,7 +366,10 @@ def main() -> int:
                     pass
                 decision = "Auto: confirmar dormir (SELECT)"
                 teclas_a_enviar = []
-                cooldown_dormir = 0  # dormir funcionó, resetear cooldown
+                # NO resetear cooldown aquí — esperar a ver si Drowsy desaparece.
+                # Si el sleep falló (hostiles), el cooldown sigue activo y
+                # el agente se moverá en vez de intentar dormir otra vez.
+                cooldown_dormir = 15
             elif any(k in focus_line for k in ("Eat", "Drink")):
                 # Menú de Eat/Drink: capturar pantalla COMPLETA para ver barra de estado.
                 screen = ""
