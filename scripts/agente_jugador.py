@@ -191,6 +191,8 @@ def main() -> int:
     teclas = parse_teclas_env()
     pos_anterior = ""
     ticks_atascado = 0
+    cooldown_hablar = 0  # ticks antes de poder hablar otra vez
+    cooldown_comer = 0   # ticks antes de poder comer otra vez
 
     while True:
         log_path = log_path_for_today(mundo)
@@ -267,19 +269,31 @@ def main() -> int:
             if pantalla_visual:
                 antes += "\n\nSCREEN:\n" + pantalla_visual
 
-            # Por ahora cerrar — TODO: LLM elige opción del menú.
+            # Cerrar conversación y poner cooldown para no reabrir.
             _cerrar_menu()
             decision = "Auto: cerrar conversación (LEAVESCREEN)"
             teclas_a_enviar = []
+            cooldown_hablar = 10  # no hablar por 10 ticks (~100s)
         else:
-            # Pantalla normal (Default): capturar barra de estado visual
-            # para que el LLM vea Nauseous/Stunned/Drowsy/HungThir.
+            # Pantalla normal (Default): capturar barra de estado visual.
             try:
                 status_bar = capture_pane(TmuxTarget.from_env(), lines=5)
                 if status_bar.strip():
                     antes += "\n\nSTATUS_BAR:\n" + status_bar
             except Exception:
                 pass
+
+            # Decrementar cooldowns.
+            if cooldown_hablar > 0:
+                cooldown_hablar -= 1
+            if cooldown_comer > 0:
+                cooldown_comer -= 1
+
+            # Detectar si hay estados que bloquean comer/beber.
+            _bloqueado_comer = cooldown_comer > 0 or any(
+                w in antes.lower()
+                for w in ("nauseous", "stunned", "really full", "vomit", "too much", "keep it down")
+            )
 
             if USE_LLM_INTENTIONS:
                 try:
@@ -292,8 +306,22 @@ def main() -> int:
                             ticks_atascado=ticks_atascado,
                         )
                     )
-                    decision = f"Intención LLM: {intencion.nombre}"
-                    teclas_a_enviar = intencion.teclas
+
+                    # Override: bloquear acciones que causan loops.
+                    if intencion.nombre == "comer_beber" and _bloqueado_comer:
+                        decision = "Auto: bloqueado comer (nausea/stunned/cooldown), esperando"
+                        teclas_a_enviar = ["."]
+                    elif intencion.nombre == "hablar_npc" and cooldown_hablar > 0:
+                        decision = f"Auto: bloqueado hablar (cooldown {cooldown_hablar}), explorando"
+                        teclas_a_enviar = ["KP_6", "KP_6", "KP_6"]
+                    else:
+                        decision = f"Intención LLM: {intencion.nombre}"
+                        teclas_a_enviar = intencion.teclas
+                        # Poner cooldowns después de acciones que abren menús.
+                        if intencion.nombre == "comer_beber":
+                            cooldown_comer = 10
+                        elif intencion.nombre == "hablar_npc":
+                            cooldown_hablar = 10
                 except Exception as exc:
                     import sys
                     print(f"[agente] decisor LLM falló: {exc}", file=sys.stderr)
