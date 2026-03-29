@@ -70,14 +70,32 @@ def detectar_contexto(state: str) -> str:
     if focus != "dungeonmode/Default" and focus != "unknown":
         return "menú"
 
-    # Pantalla normal: revisar necesidades urgentes.
-    hunger = _parsear_int(state, "HUNGER:")
-    thirst = _parsear_int(state, "THIRST:")
-    sleep = _parsear_int(state, "SLEEP:")
-    if sleep > 40000 or hunger > 50000 or thirst > 40000:
-        return "necesidad"
-
     return "exploración"
+
+
+def detectar_necesidad(screen: str) -> str:
+    """Lee la barra de estado visual de DF para detectar necesidades.
+
+    Retorna: 'dormir', 'comer', 'beber', 'comer_beber', o '' si no hay necesidad.
+    Solo actúa si DF lo muestra en pantalla — no adivinamos con contadores.
+    Nunca come si dice 'full' o 'Nausea'.
+    """
+    s = screen.lower()
+
+    # Si está lleno o con nausea, NO comer más.
+    if "really full" in s or "nausea" in s:
+        return ""
+
+    if "drowsy" in s or "tired" in s:
+        return "dormir"
+    if "hungthir" in s or ("hung" in s and "thir" in s):
+        return "comer_beber"
+    if "hung" in s:
+        return "comer"
+    if "thir" in s:
+        return "beber"
+
+    return ""
 
 
 def delay_por_contexto(contexto: str) -> float:
@@ -194,22 +212,28 @@ def main() -> int:
                     break
 
             if any(k in focus_line for k in ("Eat", "Drink", "Sleep")):
-                # Menú de acción: capturar pantalla y elegir una opción.
+                # Menú de acción: capturar pantalla y verificar si ya está lleno.
                 screen = ""
                 try:
                     screen = capture_pane(TmuxTarget.from_env(), lines=30)
                 except Exception:
                     pass
 
-                # Buscar las letras de opción disponibles (a - z).
-                opcion = _elegir_opcion_menu(screen, focus_line)
-                if opcion:
-                    decision = f"Auto: seleccionar '{opcion}' en {focus_line}"
-                    teclas_a_enviar = [opcion]
-                else:
+                screen_lower = screen.lower()
+                if "really full" in screen_lower or "nausea" in screen_lower:
+                    # Ya está lleno — cerrar menú, no comer más.
                     _cerrar_menu()
-                    decision = f"Auto: cerrar {focus_line} (sin opciones)"
+                    decision = "Auto: lleno/nausea, cerrar menú"
                     teclas_a_enviar = []
+                else:
+                    opcion = _elegir_opcion_menu(screen, focus_line)
+                    if opcion:
+                        decision = f"Auto: seleccionar '{opcion}' en {focus_line}"
+                        teclas_a_enviar = [opcion]
+                    else:
+                        _cerrar_menu()
+                        decision = f"Auto: cerrar {focus_line} (sin opciones)"
+                        teclas_a_enviar = []
             else:
                 _cerrar_menu()
                 decision = "Auto: cerrar menú (LEAVESCREEN)"
@@ -229,23 +253,38 @@ def main() -> int:
             _cerrar_menu()
             decision = "Auto: cerrar conversación (LEAVESCREEN)"
             teclas_a_enviar = []
-        elif USE_LLM_INTENTIONS:
+        else:
+            # Pantalla normal (Default): revisar necesidad visual antes de LLM.
+            necesidad = ""
             try:
-                from scripts.decisor_llm import EstadoMinimo, decidir_intencion
+                screen = capture_pane(TmuxTarget.from_env(), lines=5)
+                necesidad = detectar_necesidad(screen)
+            except Exception:
+                pass
 
-                intencion = decidir_intencion(
-                    EstadoMinimo(
-                        pantalla=antes,
-                        contexto=contexto,
-                        ticks_atascado=ticks_atascado,
+            if necesidad == "dormir":
+                decision = "Auto: necesidad dormir"
+                teclas_a_enviar = ["Z"]  # Shift+Z = Sleep
+            elif necesidad in ("comer", "comer_beber", "beber"):
+                decision = f"Auto: necesidad {necesidad}"
+                teclas_a_enviar = ["e"]
+            elif USE_LLM_INTENTIONS:
+                try:
+                    from scripts.decisor_llm import EstadoMinimo, decidir_intencion
+
+                    intencion = decidir_intencion(
+                        EstadoMinimo(
+                            pantalla=antes,
+                            contexto=contexto,
+                            ticks_atascado=ticks_atascado,
+                        )
                     )
-                )
-                decision = f"Intención LLM: {intencion.nombre}"
-                teclas_a_enviar = intencion.teclas
-            except Exception as exc:
-                import sys
-                print(f"[agente] decisor LLM falló: {exc}", file=sys.stderr)
-                teclas_a_enviar = teclas
+                    decision = f"Intención LLM: {intencion.nombre}"
+                    teclas_a_enviar = intencion.teclas
+                except Exception as exc:
+                    import sys
+                    print(f"[agente] decisor LLM falló: {exc}", file=sys.stderr)
+                    teclas_a_enviar = teclas
 
         target = TmuxTarget.from_env()
         if teclas_a_enviar:
