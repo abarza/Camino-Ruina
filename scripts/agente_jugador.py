@@ -235,6 +235,7 @@ def main() -> int:
     ticks_atascado = 0
     cooldown_hablar = 0  # ticks antes de poder hablar otra vez
     cooldown_comer = 0   # ticks antes de poder comer otra vez
+    cooldown_mirar = 0   # ticks antes de poder mirar/buscar otra vez
 
     while True:
         log_path = log_path_for_today(mundo)
@@ -347,6 +348,8 @@ def main() -> int:
                 cooldown_hablar -= 1
             if cooldown_comer > 0:
                 cooldown_comer -= 1
+            if cooldown_mirar > 0:
+                cooldown_mirar -= 1
 
             # Detectar si hay estados que bloquean comer/beber.
             _bloqueado_comer = cooldown_comer > 0 or any(
@@ -373,6 +376,9 @@ def main() -> int:
                     elif intencion.nombre == "hablar_npc" and cooldown_hablar > 0:
                         decision = f"Auto: bloqueado hablar (cooldown {cooldown_hablar}), explorando"
                         teclas_a_enviar = ["KP_6", "KP_6", "KP_6"]
+                    elif intencion.nombre in ("mirar_alrededor", "buscar_area") and cooldown_mirar > 0:
+                        decision = f"Auto: bloqueado mirar (cooldown {cooldown_mirar}), explorando"
+                        teclas_a_enviar = ["KP_8", "KP_8", "KP_8"]
                     else:
                         decision = f"Intención LLM: {intencion.nombre}"
                         teclas_a_enviar = intencion.teclas
@@ -381,6 +387,8 @@ def main() -> int:
                             cooldown_comer = 10
                         elif intencion.nombre == "hablar_npc":
                             cooldown_hablar = 10
+                        elif intencion.nombre in ("mirar_alrededor", "buscar_area"):
+                            cooldown_mirar = 8
                 except Exception as exc:
                     import sys
                     print(f"[agente] decisor LLM falló: {exc}", file=sys.stderr)
