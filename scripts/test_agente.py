@@ -2,7 +2,7 @@
 
 Uso: python3 -m scripts.test_agente
 """
-from scripts.agente_jugador import detectar_contexto, detectar_necesidad, _elegir_opcion_menu, _encontrar_npc_en_menu
+from scripts.agente_jugador import detectar_contexto, detectar_necesidad, _elegir_opcion_menu, _encontrar_npc_en_menu, _elegir_tema_conversacion
 
 # --- Test detectar_contexto ---
 
@@ -301,6 +301,48 @@ Gonzalo Usuknol"""
     print("  No es menú de conversación → None ✓")
 
 
+def test_elegir_tema():
+    print("\n=== _elegir_tema_conversacion ===")
+
+    # Menú típico de ConversationSpeak
+    screen_speak = """Greetings.
+Ask about somebody's surroundings.
+Bring up specific incident or rumor.
+Tell me about yourself.
+Ask for directions.
+Goodbye.
+
+Gonzalo Usuknol                Speed 1.000
+The Hills of Thundering"""
+
+    r = _elegir_tema_conversacion(screen_speak)
+    assert r is not None
+    assert "surroundings" in r["topic"].lower() or "ask about" in r["topic"].lower()
+    print(f"  Menú con temas → '{r['topic']}' index={r['index']} ✓")
+
+    # Menú solo con goodbye
+    screen_bye = """Goodbye.
+
+Gonzalo Usuknol                Speed 1.000"""
+
+    r2 = _elegir_tema_conversacion(screen_bye)
+    assert r2 is not None  # debería elegir Goodbye como último recurso
+    print(f"  Solo Goodbye → '{r2['topic']}' ✓")
+
+    # Menú con respuesta del NPC + nuevas opciones
+    screen_response = """The craftsman Thur Stoltaduthros: I don't have much to say.
+Ask about somebody's surroundings.
+Bring up specific incident or rumor.
+Goodbye.
+
+Gonzalo Usuknol                Speed 1.000"""
+
+    r3 = _elegir_tema_conversacion(screen_response)
+    assert r3 is not None
+    assert "goodbye" not in r3["topic"].lower()
+    print(f"  Con respuesta NPC → '{r3['topic']}' (no goodbye) ✓")
+
+
 if __name__ == "__main__":
     test_contexto()
     test_necesidad()
@@ -309,4 +351,5 @@ if __name__ == "__main__":
     test_llm_input_con_status_bar()
     test_eat_menu_with_full()
     test_encontrar_npc()
+    test_elegir_tema()
     print("\n✓ Todos los tests pasaron.")

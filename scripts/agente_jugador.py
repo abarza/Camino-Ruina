@@ -173,6 +173,70 @@ def _encontrar_npc_en_menu(screen: str) -> dict | None:
     return None
 
 
+def _elegir_tema_conversacion(screen: str) -> dict | None:
+    """Analiza el menú de ConversationSpeak y elige un tema interesante.
+
+    Retorna {"topic": "...", "index": N} o None si no encuentra temas.
+    Prioriza: preguntar sobre el lugar > pedir rumores > saludar > otros.
+    Evita: despedirse, asumir identidad.
+    """
+    # Los temas aparecen como líneas de texto en la pantalla.
+    # Buscar después de algún indicador de menú de conversación.
+    temas: list[tuple[int, str]] = []
+    in_topics = False
+    index = 0
+
+    for line in screen.splitlines():
+        stripped = line.strip()
+        if not stripped:
+            continue
+        # La pantalla de ConversationSpeak tiene opciones listadas.
+        # Detectar inicio del bloque de opciones.
+        if "Gonzalo Usuknol" in stripped or "Speed" in stripped:
+            break  # barra de estado = fin de opciones
+        if "Date:" in stripped:
+            continue
+
+        # Ignorar líneas que son parte del mapa/decoración.
+        if len(stripped) < 4 or stripped.startswith(("ENE", "NE", "NW", "SSE", "*", "+")):
+            continue
+        if all(c in "0;:,.'`!|\" " for c in stripped):
+            continue
+
+        # Posible opción de conversación.
+        temas.append((index, stripped))
+        index += 1
+
+    if not temas:
+        return None
+
+    # Priorizar temas interesantes.
+    preferir = (
+        "ask about", "tell me", "surroundings", "rumor", "incident",
+        "what happened", "heard anything", "who are you", "your name",
+        "where", "troubles", "problems", "news",
+    )
+    evitar = (
+        "goodbye", "farewell", "nevermind", "nothing", "assume an identity",
+        "begin a performance", "shout out",
+    )
+
+    # Buscar tema preferido.
+    for idx, topic in temas:
+        lower = topic.lower()
+        if any(p in lower for p in preferir):
+            return {"topic": topic, "index": idx}
+
+    # Evitar temas malos, elegir el primero que no sea malo.
+    for idx, topic in temas:
+        lower = topic.lower()
+        if not any(e in lower for e in evitar):
+            return {"topic": topic, "index": idx}
+
+    # Último recurso: primer tema.
+    return {"topic": temas[0][1], "index": temas[0][0]}
+
+
 def _elegir_opcion_menu(screen: str, focus: str) -> str:
     """Elige una letra de opción del menú de Eat/Drink/Sleep.
 
@@ -237,6 +301,7 @@ def main() -> int:
     cooldown_hablar = 0  # ticks antes de poder hablar otra vez
     cooldown_comer = 0   # ticks antes de poder comer otra vez
     cooldown_mirar = 0   # ticks antes de poder mirar/buscar otra vez
+    conv_exchanges = 0   # intercambios en la conversación actual (max 3)
 
     while True:
         log_path = log_path_for_today(mundo)
@@ -347,6 +412,8 @@ def main() -> int:
                     break
 
             if "ConversationAddress" in conv_focus:
+                # Nueva conversación — resetear contador.
+                conv_exchanges = 0
                 # Menú "Who will you talk to?" — buscar NPC real.
                 npc = _encontrar_npc_en_menu(pantalla_visual)
                 if npc:
@@ -368,14 +435,39 @@ def main() -> int:
                     cooldown_hablar = 10
 
             elif "ConversationSpeak" in conv_focus:
-                # Menú de temas — seleccionar primera opción (greeting/ask).
-                try:
-                    from scripts.dfhack_io import simulate_input
-                    simulate_input("SELECT")
-                except Exception:
-                    pass
-                decision = "Auto: seleccionar tema de conversación (SELECT)"
-                teclas_a_enviar = []
+                # Menú de temas/respuestas de conversación.
+                if conv_exchanges >= 3:
+                    # Suficientes intercambios — cerrar conversación.
+                    _cerrar_menu()
+                    decision = f"Auto: fin conversación ({conv_exchanges} intercambios)"
+                    teclas_a_enviar = []
+                    conv_exchanges = 0
+                    cooldown_hablar = 15
+                else:
+                    # Elegir un tema interesante.
+                    tema = _elegir_tema_conversacion(pantalla_visual)
+                    if tema:
+                        try:
+                            from scripts.dfhack_io import simulate_input
+                            for _ in range(tema["index"]):
+                                simulate_input("STANDARDSCROLL_DOWN")
+                                time.sleep(0.1)
+                            simulate_input("SELECT")
+                        except Exception:
+                            pass
+                        conv_exchanges += 1
+                        decision = f"Auto: tema '{tema['topic'][:50]}' (intercambio {conv_exchanges})"
+                        teclas_a_enviar = []
+                    else:
+                        # No se pudo parsear temas — seleccionar primero y avanzar.
+                        try:
+                            from scripts.dfhack_io import simulate_input
+                            simulate_input("SELECT")
+                        except Exception:
+                            pass
+                        conv_exchanges += 1
+                        decision = f"Auto: seleccionar primer tema (intercambio {conv_exchanges})"
+                        teclas_a_enviar = []
 
             else:
                 # Otro sub-menú de conversación — cerrar.
