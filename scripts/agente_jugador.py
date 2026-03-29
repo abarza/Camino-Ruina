@@ -264,14 +264,25 @@ def _elegir_opcion_menu(screen: str, focus: str) -> str:
     # Evitar armas, monedas, herramientas, waterskin (puede estar vacío → "lick").
     evitar = ("whip", "knife", "coin", "sword", "axe", "shield", "helm", "boot",
               "gauntlet", "waterskin")
-    # Preferir comida/bebida real.
-    preferir = ("tripe", "meat", "fish", "plump", "bread", "biscuit", "stew",
-                "ice", "water", "ale", "wine", "beer", "mead", "milk")
+    # Bebidas (priorizar si hay sed).
+    bebidas = ("ice", "water", "ale", "wine", "beer", "mead", "milk")
+    # Comida.
+    comida = ("tripe", "meat", "fish", "plump", "bread", "biscuit", "stew")
 
-    # Primero buscar algo preferido.
-    for letra, desc in opciones:
-        if any(p in desc for p in preferir):
-            return letra
+    # Si la pantalla indica sed (Dhyd/Thir sin Hung), priorizar bebidas.
+    screen_lower = screen.lower()
+    solo_sed = ("dhyd" in screen_lower or "thir" in screen_lower) and "hung" not in screen_lower
+
+    if solo_sed:
+        preferir = bebidas + comida
+    else:
+        preferir = comida + bebidas
+
+    # Buscar por prioridad: recorrer preferencias primero, no opciones.
+    for p in preferir:
+        for letra, desc in opciones:
+            if p in desc:
+                return letra
 
     # Si no, cualquiera que no sea de evitar.
     for letra, desc in opciones:
