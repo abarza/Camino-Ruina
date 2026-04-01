@@ -12,6 +12,7 @@ class EstadoMinimo:
     pantalla: str
     contexto: str
     ticks_atascado: int = 0
+    ultimas_decisiones: tuple[str, ...] = ()
 
 
 def _system() -> str:
@@ -23,15 +24,18 @@ def _system() -> str:
         "NUNCA comer ni beber. Solo esperar o explorar. Sin excepción.\n"
         "1. Si STATUS_BAR contiene Drowsy o Tired → dormir.\n"
         "2. Si STATUS_BAR contiene Hung o Thir o Dhyd (y NO Nauseous/Stunned) → comer_beber.\n"
-        "3. Si el contexto es 'conversación' y hay CONV_CHOICES → "
+        "3. Si NEARBY tiene un NPC 'hostile' a d<5 → huir en dirección opuesta.\n"
+        "4. Si el contexto es 'conversación' y hay CONV_CHOICES → "
         "elegir hablar con alguien interesante (hablar_npc) o avanzar_mensajes para salir.\n"
-        "4. Si TICKS_ATASCADO >= 3 → la dirección actual no funciona. "
+        "5. Si TICKS_ATASCADO >= 3 → la dirección actual no funciona. "
         "Probar: otra dirección, entrar_lugar, subir_nivel, o viajar.\n"
-        "5. Si hay un NPC cerca (d<=3) y no estás en necesidad → hablar_npc.\n"
-        "6. Prefiere observar (mirar_alrededor, buscar_area) antes que pelear.\n"
-        "7. Solo ataca si no tiene otra opción. Si puede huir, huye.\n"
-        "8. Varía las direcciones: no repitas siempre el mismo explorar_X.\n"
-        "9. Si no pasa nada interesante, muévete a buscar algo nuevo.\n\n"
+        "6. Si hay un NPC con nombre a d<=3 → hablar_npc.\n"
+        "7. Si hay un NPC con nombre a d>3 pero d<10 → acercarse (explorar hacia él).\n"
+        "8. Si hay items útiles en GROUND (comida, armas, armadura) → recoger_objeto.\n"
+        "9. Prefiere observar (mirar_alrededor, buscar_area) antes que pelear.\n"
+        "10. Solo ataca si no tiene otra opción. Si puede huir, huye.\n"
+        "11. Varía las direcciones: no repitas siempre el mismo explorar_X.\n"
+        "12. Si no pasa nada interesante, muévete a buscar algo nuevo.\n\n"
         "Devuelves SOLO JSON válido: {\"intencion\":\"nombre\"}\n"
     )
 
@@ -44,9 +48,14 @@ def _user(estado: EstadoMinimo) -> str:
             f"\n⚠️ ATASCADO: la posición no ha cambiado en {estado.ticks_atascado} turnos. "
             "Cambia de dirección o busca escaleras/salidas.\n"
         )
+    historial_msg = ""
+    if estado.ultimas_decisiones:
+        historial_msg = f"\nÚLTIMAS DECISIONES: {', '.join(estado.ultimas_decisiones)}\n"
+
     return (
         f"CONTEXTO: {estado.contexto}\n"
         f"{atascado_msg}"
+        f"{historial_msg}"
         "ESTADO DEL JUEGO:\n"
         f"{estado.pantalla}\n\n"
         "INTENCIONES:\n"

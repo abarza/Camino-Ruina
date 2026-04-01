@@ -121,16 +121,58 @@ if adv then
     end
 end
 
--- Unidades cercanas al aventurero.
+-- Inventario del aventurero.
+if adv then
+    local ok_inv, _ = pcall(function()
+        local inv_items = {}
+        for i, inv_entry in ipairs(adv.inventory) do
+            local item = inv_entry.item
+            if item then
+                local desc = dfhack.items.getDescription(item, 0, true)
+                if desc and desc ~= '' then
+                    -- Marcar contenedores vacíos (waterskin, flask, etc.)
+                    if item:getType() == df.item_type.DRINK_CON then
+                        local contents = dfhack.items.getContainedItems(item)
+                        if not contents or #contents == 0 then
+                            desc = desc .. ' (empty)'
+                        end
+                    end
+                    table.insert(inv_items, desc)
+                end
+            end
+            if #inv_items >= 15 then break end
+        end
+        if #inv_items > 0 then
+            table.insert(lines, 'INVENTORY: ' .. table.concat(inv_items, '; '))
+        else
+            table.insert(lines, 'INVENTORY: (nada)')
+        end
+    end)
+end
+
+-- Unidades cercanas al aventurero (con hostilidad).
 local nearby = {}
 if adv then
     for i, u in ipairs(df.global.world.units.active) do
-        if u ~= adv then
+        if u ~= adv and not u.flags1.dead then
             local dist = math.abs(u.pos.x - adv.pos.x) + math.abs(u.pos.y - adv.pos.y)
             if dist < 15 and dist > 0 then
                 local n = get_unit_name(u)
                 local r = get_race_id(u)
-                table.insert(nearby, n .. ' (' .. r .. ', d=' .. dist .. ')')
+                -- Detectar hostilidad: diferente civilización y no es animal doméstico.
+                local hostile = ''
+                local ok_h, _ = pcall(function()
+                    if u.civ_id ~= adv.civ_id and u.civ_id ~= -1 then
+                        hostile = ', hostile'
+                    elseif u.civ_id == adv.civ_id or u.civ_id == -1 then
+                        -- Animales salvajes (civ_id == -1) son potencialmente hostiles
+                        -- si no son de la misma especie y no están domesticados.
+                        if u.civ_id == -1 and u.race ~= adv.race and not u.flags1.tame then
+                            hostile = ', wild'
+                        end
+                    end
+                end)
+                table.insert(nearby, n .. ' (' .. r .. ', d=' .. dist .. hostile .. ')')
                 if #nearby >= 8 then break end
             end
         end
@@ -140,6 +182,26 @@ if #nearby > 0 then
     table.insert(lines, 'NEARBY: ' .. table.concat(nearby, '; '))
 else
     table.insert(lines, 'NEARBY: (nadie cerca)')
+end
+
+-- Items en el suelo (posición del aventurero).
+if adv then
+    local ok_ground, _ = pcall(function()
+        local ground_items = {}
+        for i, item in ipairs(df.global.world.items.all) do
+            if item.flags.on_ground and not item.flags.garbage_collect
+               and item.pos.x == adv.pos.x and item.pos.y == adv.pos.y and item.pos.z == adv.pos.z then
+                local desc = dfhack.items.getDescription(item, 0, true)
+                if desc and desc ~= '' then
+                    table.insert(ground_items, desc)
+                end
+                if #ground_items >= 8 then break end
+            end
+        end
+        if #ground_items > 0 then
+            table.insert(lines, 'GROUND: ' .. table.concat(ground_items, '; '))
+        end
+    end)
 end
 
 print(table.concat(lines, '\n'))

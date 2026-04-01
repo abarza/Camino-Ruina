@@ -314,6 +314,7 @@ def main() -> int:
     cooldown_mirar = 0   # ticks antes de poder mirar/buscar otra vez
     cooldown_dormir = 0  # ticks antes de poder intentar dormir otra vez
     conv_exchanges = 0   # intercambios en la conversación actual (max 3)
+    ultimas_decisiones: list[str] = []  # últimas 5 decisiones para el LLM
 
     while True:
         log_path = log_path_for_today(mundo)
@@ -558,6 +559,7 @@ def main() -> int:
                             pantalla=antes,
                             contexto=contexto,
                             ticks_atascado=ticks_atascado,
+                            ultimas_decisiones=tuple(ultimas_decisiones[-5:]),
                         )
                     )
 
@@ -585,6 +587,11 @@ def main() -> int:
         if teclas_a_enviar:
             send_raw_keys(target, teclas_a_enviar)
         time.sleep(delay_por_contexto(contexto))
+
+        # Trackear decisiones para el historial del LLM.
+        ultimas_decisiones.append(decision.split(": ", 1)[-1] if ": " in decision else decision)
+        if len(ultimas_decisiones) > 10:
+            ultimas_decisiones[:] = ultimas_decisiones[-10:]
 
         # Capturar estado después de actuar.
         despues = _get_game_state()
