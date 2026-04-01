@@ -131,11 +131,14 @@ if adv then
                 local desc = dfhack.items.getDescription(item, 0, true)
                 if desc and desc ~= '' then
                     -- Marcar contenedores vacíos (waterskin, flask, etc.)
-                    if item:getType() == df.item_type.DRINK_CON then
-                        local contents = dfhack.items.getContainedItems(item)
-                        if not contents or #contents == 0 then
-                            desc = desc .. ' (empty)'
-                        end
+                    local ldesc = desc:lower()
+                    if ldesc:find('waterskin') or ldesc:find('flask') or ldesc:find('vial') then
+                        local ok_cont, _ = pcall(function()
+                            local contents = dfhack.items.getContainedItems(item)
+                            if not contents or #contents == 0 then
+                                desc = desc .. ' (empty)'
+                            end
+                        end)
                     end
                     table.insert(inv_items, desc)
                 end
@@ -150,25 +153,24 @@ if adv then
     end)
 end
 
--- Unidades cercanas al aventurero (con hostilidad).
+-- Unidades cercanas al aventurero (con hostilidad via API oficial).
 local nearby = {}
 if adv then
     for i, u in ipairs(df.global.world.units.active) do
-        if u ~= adv then
+        if u ~= adv and not dfhack.units.isDead(u) then
             local dist = math.abs(u.pos.x - adv.pos.x) + math.abs(u.pos.y - adv.pos.y)
             if dist < 15 and dist > 0 then
                 local n = get_unit_name(u)
                 local r = get_race_id(u)
-                -- Detectar hostilidad: diferente civilización y no es animal doméstico.
-                local hostile = ''
+                local threat = ''
                 local ok_h, _ = pcall(function()
-                    if u.civ_id ~= adv.civ_id and u.civ_id ~= -1 then
-                        hostile = ', hostile'
-                    elseif u.civ_id == -1 and u.race ~= adv.race then
-                        hostile = ', wild'
+                    if dfhack.units.isDanger(u) then
+                        threat = ', hostile'
+                    elseif dfhack.units.isAnimal(u) and not dfhack.units.isTame(u) then
+                        threat = ', wild'
                     end
                 end)
-                table.insert(nearby, n .. ' (' .. r .. ', d=' .. dist .. hostile .. ')')
+                table.insert(nearby, n .. ' (' .. r .. ', d=' .. dist .. threat .. ')')
                 if #nearby >= 8 then break end
             end
         end
