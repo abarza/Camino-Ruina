@@ -18,8 +18,6 @@ from scripts.narrador_nocturno import (
     estimar_tokens,
     extraer_bloques,
     leer,
-    load_config,
-    context_window,
     log_de_hoy,
     log_mas_reciente,
     mundo_dir,
@@ -29,7 +27,7 @@ from scripts.narrador_nocturno import (
     truncar_logs,
     user_prompt_cron,
 )
-from scripts.llm import completar
+from scripts.llm import completar_narrador, context_window, load_config_narrador
 
 
 def main() -> int:
@@ -55,14 +53,15 @@ def main() -> int:
 
     print(f"[preview] Log: {logs_path.name}")
 
-    logs = leer(logs_path)
+    compressed = logs_path.with_suffix(".comprimido.md")
+    logs = leer(compressed) if compressed.exists() else leer(logs_path)
     maleta = leer(mundo / "maletas" / "maleta_001.md")
     biblia = leer(mundo / "biblia" / "personajes.md")
     diario = leer(mundo / "diario.md")
     estado = parsear_estado_diario(diario)
 
     # Truncar logs igual que el narrador real.
-    cfg = load_config()
+    cfg = load_config_narrador()
     max_ctx = context_window(cfg.model)
     overhead_fijo = 5350
     maleta_resumida = resumir_maleta(maleta)
@@ -71,7 +70,7 @@ def main() -> int:
 
     def _intentar_con_budget(budget: int) -> str:
         logs_t = truncar_logs(logs, budget)
-        return completar(
+        return completar_narrador(
             system=system_prompt_gonzalo(),
             user=user_prompt_cron(
                 logs=logs_t, maleta=maleta, biblia=biblia, diario=diario, estado=estado,

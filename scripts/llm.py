@@ -52,6 +52,31 @@ def load_config() -> LlmConfig:
     )
 
 
+def load_config_narrador() -> LlmConfig:
+    """Config LLM específica para el narrador. Fallback a config general."""
+    provider = os.getenv("NARRADOR_LLM_PROVIDER", "").strip().lower()
+    if not provider:
+        return load_config()
+
+    if provider == "anthropic":
+        return LlmConfig(
+            provider="anthropic",
+            model=os.getenv("NARRADOR_MODEL", "claude-haiku-4-5-20251001"),
+            api_key=os.getenv("NARRADOR_API_KEY") or os.getenv("ANTHROPIC_API_KEY") or None,
+        )
+    if provider == "deepseek":
+        return LlmConfig(
+            provider="deepseek",
+            model=os.getenv("NARRADOR_MODEL", "deepseek-chat"),
+            api_key=os.getenv("NARRADOR_API_KEY") or os.getenv("DEEPSEEK_API_KEY") or None,
+        )
+    return LlmConfig(
+        provider="openai",
+        model=os.getenv("NARRADOR_MODEL", "gpt-4o-mini"),
+        api_key=os.getenv("NARRADOR_API_KEY") or os.getenv("OPENAI_API_KEY") or None,
+    )
+
+
 def context_window(model: str) -> int:
     model_ctx = _CONTEXT_WINDOWS.get(model, _DEFAULT_CONTEXT)
     # Respetar límite de TPM de la cuenta (env override disponible).
@@ -120,4 +145,26 @@ def _llamar_llm(
         return "\n".join(parts).strip()
 
     raise RuntimeError(f"Proveedor LLM no soportado: {cfg.provider}")
+
+
+def completar_narrador(*, system: str, user: str, max_tokens: int = 900) -> str:
+    """Igual que completar() pero usa la config del narrador."""
+    cfg = load_config_narrador()
+    if not cfg.api_key:
+        raise RuntimeError("No hay API key configurada para el narrador.")
+
+    last_err: Exception | None = None
+    for attempt in range(_MAX_RETRIES + 1):
+        try:
+            return _llamar_llm(cfg, system=system, user=user, max_tokens=max_tokens)
+        except Exception as e:
+            last_err = e
+            if attempt < _MAX_RETRIES:
+                print(
+                    f"[llm-narrador] Intento {attempt + 1} falló ({e}), "
+                    f"reintentando en {_RETRY_DELAY}s...",
+                    file=sys.stderr,
+                )
+                time.sleep(_RETRY_DELAY)
+    raise last_err  # type: ignore[misc]
 

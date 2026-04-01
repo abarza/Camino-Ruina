@@ -7,7 +7,7 @@ import re
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from scripts.llm import completar, context_window, load_config
+from scripts.llm import completar_narrador, context_window, load_config_narrador
 
 
 def mundo_dir() -> Path:
@@ -472,7 +472,8 @@ def main() -> int:
     biblia_path = mundo / "biblia" / "personajes.md"
     diario_path = mundo / "diario.md"
 
-    logs = leer(logs_path)
+    compressed = logs_path.with_suffix(".comprimido.md")
+    logs = leer(compressed) if compressed.exists() else leer(logs_path)
     if not logs.strip():
         # No hay logs: no hacemos nada destructivo; dejamos una marca.
         stamp = dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -486,7 +487,7 @@ def main() -> int:
     estado = parsear_estado_diario(diario)
 
     # Truncar logs para caber en la ventana de contexto del LLM.
-    cfg = load_config()
+    cfg = load_config_narrador()
     max_ctx = context_window(cfg.model)
     # Reservar tokens para: system + template + response + buffer fijo
     overhead_fijo = 5350  # system (~850) + template (~2000) + response (2000) + buffer (500)
@@ -497,7 +498,7 @@ def main() -> int:
 
     def _intentar_con_budget(budget: int) -> str:
         logs_t = truncar_logs(logs, budget)
-        return completar(
+        return completar_narrador(
             system=system_prompt_gonzalo(),
             user=user_prompt_cron(
                 logs=logs_t, maleta=maleta, biblia=biblia, diario=diario, estado=estado,
