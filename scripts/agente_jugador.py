@@ -141,7 +141,7 @@ def _encontrar_npc_en_menu(screen: str) -> dict | None:
     if "who will you talk to" not in screen.lower():
         return None
 
-    no_npc = ("begin a performance", "shout out", "assume an identity", "deity")
+    no_npc = ("begin a performance", "shout out", "assume an identity")
 
     # Extraer líneas después de "Who will you talk to?"
     in_options = False
