@@ -15,6 +15,8 @@ _CONTEXT_WINDOWS: dict[str, int] = {
     "claude-3-5-sonnet-latest": 200_000,
     "claude-sonnet-4-5-20250514": 200_000,
     "claude-3-5-haiku-latest": 200_000,
+    "deepseek-chat": 64_000,
+    "deepseek-reasoner": 64_000,
 }
 
 _DEFAULT_CONTEXT = 100_000
@@ -36,6 +38,12 @@ def load_config() -> LlmConfig:
             provider="anthropic",
             model=os.getenv("ANTHROPIC_MODEL", "claude-3-5-sonnet-latest"),
             api_key=os.getenv("ANTHROPIC_API_KEY") or None,
+        )
+    if provider == "deepseek":
+        return LlmConfig(
+            provider="deepseek",
+            model=os.getenv("DEEPSEEK_MODEL", "deepseek-chat"),
+            api_key=os.getenv("DEEPSEEK_API_KEY") or None,
         )
     return LlmConfig(
         provider="openai",
@@ -75,10 +83,11 @@ def completar(*, system: str, user: str, max_tokens: int = 900) -> str:
 def _llamar_llm(
     cfg: LlmConfig, *, system: str, user: str, max_tokens: int,
 ) -> str:
-    if cfg.provider == "openai":
+    if cfg.provider in ("openai", "deepseek"):
         from openai import OpenAI
 
-        client = OpenAI(api_key=cfg.api_key)
+        base_url = "https://api.deepseek.com" if cfg.provider == "deepseek" else None
+        client = OpenAI(api_key=cfg.api_key, base_url=base_url)
         # Modelos nuevos (5.x) usan max_completion_tokens; los viejos usan max_tokens.
         _new_api = cfg.model.startswith(("gpt-5", "o1", "o3", "o4"))
         token_kwarg = {"max_completion_tokens": max_tokens} if _new_api else {"max_tokens": max_tokens}
