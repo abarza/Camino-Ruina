@@ -22,13 +22,13 @@ def mundo_dir() -> Path:
     return Path(os.getenv("MUNDO_DIR", "mundo")).resolve()
 
 
-def extraer_ultimo_episodio(maleta_path: Path) -> tuple[str, str]:
+def extraer_ultimo_episodio(maleta_path: Path) -> tuple[str, str, str]:
     """Extrae el último episodio de la maleta (entre los dos últimos '---').
 
-    Retorna (titulo, episodio). Ignora bloques de error/stub.
+    Retorna (titulo, cuerpo, tag_maleta). Ignora bloques de error/stub.
     """
     if not maleta_path.exists():
-        return "", ""
+        return "", "", ""
     texto = maleta_path.read_text(encoding="utf-8")
     bloques = texto.split("\n---\n")
 
@@ -46,12 +46,24 @@ def extraer_ultimo_episodio(maleta_path: Path) -> tuple[str, str]:
         if bloque.startswith("# Maleta"):
             continue
 
-        # Extraer título del encabezado (primera línea).
+        # Extraer título y limpiar encabezado del cuerpo.
         lineas = bloque.splitlines()
-        titulo = lineas[0].strip() if lineas else "Crónica de Gonzalo"
-        return titulo, bloque
+        titulo_raw = lineas[0].strip() if lineas else "Crónica de Gonzalo"
 
-    return "", ""
+        # Título para Ghost: quitar "Maleta NNN — " del inicio.
+        # "Maleta 001 — Día 5 — The Hills" → "Día 5 — The Hills"
+        titulo = re.sub(r"^Maleta\s+\d+\s*—\s*", "", titulo_raw).strip()
+
+        # Extraer tag de maleta: "Maleta 001 — ..." → "Maleta 001"
+        m_maleta = re.match(r"(Maleta\s+\d+)", titulo_raw)
+        tag_maleta = m_maleta.group(1) if m_maleta else ""
+
+        # Quitar la primera línea (encabezado) del cuerpo para no duplicar el título.
+        cuerpo = "\n".join(lineas[1:]).strip()
+
+        return titulo, cuerpo, tag_maleta
+
+    return "", "", ""
 
 
 # --- Ghost ---
@@ -66,7 +78,7 @@ def _ghost_jwt(api_key: str) -> str:
     return jwt.encode(payload, secret, algorithm="HS256", headers={"kid": kid})
 
 
-def publicar_ghost(episodio: str, titulo: str) -> str | None:
+def publicar_ghost(episodio: str, titulo: str, tag_maleta: str = "") -> str | None:
     """Publica el episodio en Ghost. Retorna la URL del post o None."""
     ghost_url = os.getenv("GHOST_URL", "").rstrip("/")
     api_key = os.getenv("GHOST_ADMIN_API_KEY", "")
@@ -85,13 +97,17 @@ def publicar_ghost(episodio: str, titulo: str) -> str | None:
         "sections": [[10, 0]],
     })
 
+    post_data: dict = {"title": titulo, "mobiledoc": mobiledoc, "status": "published"}
+    if tag_maleta:
+        post_data["tags"] = [{"name": tag_maleta}]
+
     r = requests.post(
         f"{ghost_url}/ghost/api/admin/posts/",
         headers={
             "Authorization": f"Ghost {token}",
             "Content-Type": "application/json",
         },
-        json={"posts": [{"title": titulo, "mobiledoc": mobiledoc, "status": "published"}]},
+        json={"posts": [post_data]},
         timeout=30,
     )
     r.raise_for_status()
@@ -194,7 +210,7 @@ def main(*, dry_run: bool = False) -> int:
     mundo = mundo_dir()
     maleta_path = mundo / "maletas" / "maleta_001.md"
 
-    titulo, episodio = extraer_ultimo_episodio(maleta_path)
+    titulo, episodio, tag_maleta = extraer_ultimo_episodio(maleta_path)
     if not episodio:
         print("[distribuidor] No hay episodio nuevo para distribuir.", file=sys.stderr)
         return 0
@@ -204,6 +220,7 @@ def main(*, dry_run: bool = False) -> int:
     if dry_run:
         h = hashlib.sha256(episodio.encode()).hexdigest()[:12]
         print(f"[preview] Título: {titulo}")
+        print(f"[preview] Tag:    {tag_maleta}")
         print(f"[preview] Hash:   {h}")
         print(f"[preview] Ya publicado: {'SÍ' if ya_publicado else 'NO'}")
         print()
@@ -221,7 +238,7 @@ def main(*, dry_run: bool = False) -> int:
     # 1. Ghost primero (para obtener URL).
     url_ghost: str | None = None
     try:
-        url_ghost = publicar_ghost(episodio, titulo)
+        url_ghost = publicar_ghost(episodio, titulo, tag_maleta)
     except Exception as e:
         print(f"[distribuidor] Ghost falló: {e}", file=sys.stderr)
 
