@@ -9,72 +9,76 @@
 
 ### Agente: detectar waterskin vacío
 - El agente elige waterskin para beber pero puede estar vacío ("You lick the porcupine leather waterskin")
-- **Fix**: si la pantalla dice "lick" después de seleccionar → marcar item como vacío y no volver a elegirlo
-
-### Agente: navegación de conversación con NPCs
-- El código para seleccionar NPCs del menú "Who will you talk to?" está implementado (`_encontrar_npc_en_menu`)
-- Pero falta: navegar los temas de conversación después de seleccionar un NPC
-- **Pendiente probar**: que el agente seleccione un NPC real cuando hay compañeros cerca (d<=2)
-
-### Agente: detectar hostiles (`!`) y priorizar alejarse
-- Los `!` en pantalla son criaturas, posiblemente hostiles
-- El agente no los detecta — DFHack muestra NEARBY con CRUNDLEs etc. pero no dice si son hostiles
-- **Fix**: si NEARBY tiene criaturas no-humanas a d<5, priorizar movimiento de escape
+- Ahora INVENTORY muestra `(empty)` en waterskins — falta que el código de comer/beber lo use
 
 ### Agente: fast travel desactivado
 - `viajar` (Shift+T) está desactivado porque DF se cuelga durante fast travel con deshidratación
 - El agente no sabe navegar el mapa de viaje
 - **Para reactivar**: implementar detección de modo travel y navegación del mapa
 
+### Agente: interacción con edificios
+- BUILDINGS ahora se detectan en DFHack (Well, Door, etc.)
+- Falta lógica para acercarse y usar (ej: llenar waterskin en Well)
+
+### Agente: búsqueda de agua inteligente
+- Depende de: inventario (waterskin vacío) + buildings (Well cercano)
+- El agente debería: detectar sed → buscar Well → acercarse → interactuar
+
 ### Autosave: no funciona en Adventure Mode
 - `AUTOSAVE:SEASONAL` en d_init.txt es solo para Fortress Mode
 - No existe quicksave para Adventure Mode en DFHack 0.47
-- El save manual (Retire) cierra la partida
 - **Estado actual**: save manual antes de cada rebuild/cambio mayor
 
-### Rate limits de OpenAI según tier
-- Tier actual limita a 200k TPM para gpt-5.4-mini (y 30k para gpt-4o)
-- Se puso cap de 120k via `MAX_PROMPT_TOKENS` en llm.py
-- **Si se sube de tier**: ajustar `MAX_PROMPT_TOKENS` en .env
+### Ghost: configurar subdominio caminoalaruina.dialogo.studio
+- Requiere: registro A en Netlify DNS + nginx reverse proxy con SSL en VPS
+- Ghost actualmente accesible solo por IP directa
 
-### Twitter/X: crear cuenta y API keys
-- El código del distribuidor ya soporta Twitter (`publicar_twitter`)
-- Falta crear cuenta dedicada (@CaminoALaRuina o similar)
-- Falta generar API keys en developer.x.com
-- Solo necesita agregar 4 variables al .env del VPS
+## Resuelto (2026-04-01)
 
-## Resuelto
+### OpenAI quota agotada → migración a DeepSeek
+- Causa: $10 USD gastados, API key sin créditos
+- Fix: agregar DeepSeek como provider en llm.py, cambiar .env
+
+### Filtro deity bloqueaba conversaciones
+- Causa: `_encontrar_npc_en_menu` filtraba "deity", loop infinito cuando solo había deity
+- Fix: quitar "deity" de la lista de exclusión
+
+### Narrador inventaba personajes
+- Causa: sin NPCs en los logs, el LLM fabricaba diálogos
+- Fix: regla explícita en system prompt — solo usar NPCs de logs o biblia
+
+### Agente no veía inventario ni hostiles
+- Fix: extender dfhack_state.lua con INVENTORY, hostilidad (isDanger), GROUND items, BUILDINGS, dirección relativa
+
+### Agente hablaba con nadie (d>3)
+- Fix: bloquear hablar_npc si no hay NPC con nombre a d<=3, acercarse primero
+
+### Agente no huía de hostiles
+- Fix: escape automático en dirección opuesta cuando hostile a d<5
+
+### Logs enormes para el narrador
+- Fix: comprimir_log.py reduce 53K→1K líneas (98%), narrador usa .comprimido.md
+
+### Modelo separado para narrador
+- Fix: NARRADOR_LLM_PROVIDER/MODEL/API_KEY en .env, completar_narrador() en llm.py
+
+### Cron en timezone incorrecto
+- Fix: usar hora UTC (23:30 = 20:30 Chile) en vez de CRON_TZ
+
+### Twitter/X configurado (2026-04-01)
+- Cuenta creada, API keys generadas, variables en .env del VPS
+
+### Ghost: título limpio + tag de maleta (2026-04-01)
+- Título sin "Maleta 001 —", tag automático para agrupar por maleta
+
+## Resuelto (anterior)
 
 ### Narrador repetía el mismo episodio cada día (2026-03-25)
-- Causa: no había tracking de logs procesados + LLM copiaba de la maleta
-- Fix: `.ultimo_log_procesado`, `.ultimo_episodio_hash`, `resumir_maleta()`, temperature 0.9
-
 ### Context window overflow en logs grandes (2026-03-25)
-- Causa: budget no restaba maleta/biblia/diario + estimación len/3 muy optimista
-- Fix: restar overhead real, estimación len/2.5, auto-retry con budget reducido, cap 120k
-
 ### dia_vida y dia_mundo no se incrementaban (2026-03-26)
-- Causa: el LLM no incrementaba los contadores
-- Fix: incremento forzado en código Python después de cada episodio
-
 ### LLM generaba listas disfrazadas de párrafo (2026-03-26)
-- Causa: "Nombre hacía X. Nombre hacía Y. Nombre hacía Z."
-- Fix: instrucción explícita en prompt + ejemplo MAL/BIEN
-
 ### Gonzalo preguntaba como encuestador (2026-03-26)
-- Causa: diálogos tipo "dijo/pregunté/no respondió" en loop
-- Fix: prompt estilo Callahan — observar, no interrogar
-
 ### maleta_update se pegaba al episodio (2026-03-28)
-- Causa: "Se guardó la hoja..." era metadata colada en la crónica
-- Fix: no escribir maleta_update en la maleta, solo el episodio
-
 ### Agente comía en loop hasta nausea (2026-03-28)
-- Causa: LLM elegía comer_beber en cada tick, ignorando "really full"/"Nauseous"
-- Fix: sacar comer/dormir del LLM, manejar en código con cooldown de 30 ticks
-
 ### Stream switch on/off (2026-03-25)
-- Fix: `stream_control.sh start|stop|status` con archivo señal + watchdog
-
 ### Stream overlay con ubicación (2026-03-25)
-- Fix: `stream_overlay.py` daemon + ffmpeg drawtext con reload=1
