@@ -154,7 +154,7 @@ end
 local nearby = {}
 if adv then
     for i, u in ipairs(df.global.world.units.active) do
-        if u ~= adv and not u.flags1.dead then
+        if u ~= adv then
             local dist = math.abs(u.pos.x - adv.pos.x) + math.abs(u.pos.y - adv.pos.y)
             if dist < 15 and dist > 0 then
                 local n = get_unit_name(u)
@@ -164,12 +164,8 @@ if adv then
                 local ok_h, _ = pcall(function()
                     if u.civ_id ~= adv.civ_id and u.civ_id ~= -1 then
                         hostile = ', hostile'
-                    elseif u.civ_id == adv.civ_id or u.civ_id == -1 then
-                        -- Animales salvajes (civ_id == -1) son potencialmente hostiles
-                        -- si no son de la misma especie y no están domesticados.
-                        if u.civ_id == -1 and u.race ~= adv.race and not u.flags1.tame then
-                            hostile = ', wild'
-                        end
+                    elseif u.civ_id == -1 and u.race ~= adv.race then
+                        hostile = ', wild'
                     end
                 end)
                 table.insert(nearby, n .. ' (' .. r .. ', d=' .. dist .. hostile .. ')')
