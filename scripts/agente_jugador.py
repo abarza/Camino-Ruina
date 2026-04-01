@@ -123,7 +123,7 @@ def parse_teclas_env() -> list[str]:
 
 
 def _parsear_nearby(state: str) -> list[dict]:
-    """Extrae NPCs del NEARBY con nombre, distancia y hostilidad."""
+    """Extrae NPCs del NEARBY con nombre, distancia, hostilidad y dirección."""
     m = re.search(r"^NEARBY:\s*(.+)$", state, re.MULTILINE)
     if not m or "(nadie cerca)" in m.group(1):
         return []
@@ -138,8 +138,20 @@ def _parsear_nearby(state: str) -> list[dict]:
         hostile = "hostile" in ent
         wild = "wild" in ent
         named = nombre and "(sin nombre)" not in nombre
-        result.append({"nombre": nombre, "dist": dist, "hostile": hostile, "wild": wild, "named": named})
+        # Dirección: N/S/E/W
+        dir_match = re.search(r", ([NSEW])", ent)
+        direction = dir_match.group(1) if dir_match else ""
+        result.append({"nombre": nombre, "dist": dist, "hostile": hostile, "wild": wild, "named": named, "dir": direction})
     return result
+
+
+# Mapa de dirección opuesta para huir.
+_ESCAPE_KEYS = {
+    "N": ["KP_2", "KP_2", "KP_2", "KP_2", "KP_2"],  # hostil al norte → huir al sur
+    "S": ["KP_8", "KP_8", "KP_8", "KP_8", "KP_8"],  # hostil al sur → huir al norte
+    "E": ["KP_4", "KP_4", "KP_4", "KP_4", "KP_4"],  # hostil al este → huir al oeste
+    "W": ["KP_6", "KP_6", "KP_6", "KP_6", "KP_6"],  # hostil al oeste → huir al este
+}
 
 
 def _get_game_state() -> str:
@@ -583,9 +595,10 @@ def main() -> int:
             nearby = _parsear_nearby(antes)
             hostil_cercano = next((n for n in nearby if n["hostile"] and n["dist"] < 5), None)
             if not necesidad_handled and hostil_cercano:
-                decision = f"Auto: huyendo de {hostil_cercano['nombre']} (hostile, d={hostil_cercano['dist']})"
-                # Huir en dirección opuesta (si no sabemos la dirección, ir al sur).
-                teclas_a_enviar = ["KP_2", "KP_2", "KP_2", "KP_2", "KP_2"]
+                h_dir = hostil_cercano.get("dir", "")
+                escape_keys = _ESCAPE_KEYS.get(h_dir, ["KP_2", "KP_2", "KP_2", "KP_2", "KP_2"])
+                decision = f"Auto: huyendo de {hostil_cercano['nombre']} (hostile, d={hostil_cercano['dist']}, {h_dir}) → escape"
+                teclas_a_enviar = escape_keys
                 necesidad_handled = True
 
             if not necesidad_handled and USE_LLM_INTENTIONS:

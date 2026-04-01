@@ -170,7 +170,16 @@ if adv then
                         threat = ', wild'
                     end
                 end)
-                table.insert(nearby, n .. ' (' .. r .. ', d=' .. dist .. threat .. ')')
+                -- Dirección relativa (N/S/E/W) para escape inteligente.
+                local dir = ''
+                local dx = u.pos.x - adv.pos.x
+                local dy = u.pos.y - adv.pos.y
+                if math.abs(dy) >= math.abs(dx) then
+                    dir = dy < 0 and 'N' or 'S'
+                else
+                    dir = dx < 0 and 'W' or 'E'
+                end
+                table.insert(nearby, n .. ' (' .. r .. ', d=' .. dist .. ', ' .. dir .. threat .. ')')
                 if #nearby >= 8 then break end
             end
         end
@@ -198,6 +207,36 @@ if adv then
         end
         if #ground_items > 0 then
             table.insert(lines, 'GROUND: ' .. table.concat(ground_items, '; '))
+        end
+    end)
+end
+
+-- Edificios cercanos al aventurero.
+if adv then
+    local ok_bld, _ = pcall(function()
+        local blds = {}
+        for i, bld in ipairs(df.global.world.buildings.all) do
+            -- Distancia Manhattan al centro del edificio.
+            local bx = math.floor((bld.x1 + bld.x2) / 2)
+            local by = math.floor((bld.y1 + bld.y2) / 2)
+            local dist = math.abs(bx - adv.pos.x) + math.abs(by - adv.pos.y)
+            if dist < 20 and bld.z == adv.pos.z then
+                local btype = df.building_type[bld:getType()] or 'unknown'
+                -- Dirección relativa.
+                local dx = bx - adv.pos.x
+                local dy = by - adv.pos.y
+                local dir = ''
+                if math.abs(dy) >= math.abs(dx) then
+                    dir = dy < 0 and 'N' or 'S'
+                else
+                    dir = dx < 0 and 'W' or 'E'
+                end
+                table.insert(blds, btype .. ' (d=' .. dist .. ', ' .. dir .. ')')
+                if #blds >= 6 then break end
+            end
+        end
+        if #blds > 0 then
+            table.insert(lines, 'BUILDINGS: ' .. table.concat(blds, '; '))
         end
     end)
 end

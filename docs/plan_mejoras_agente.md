@@ -206,10 +206,11 @@ El system prompt actual tiene 9 reglas. Agregar:
 10. [ ] Búsqueda de agua inteligente (3.3)
 
 ### Etapa D — Exploración (hacer que encuentre cosas)
-11. [ ] Edificios cercanos en Lua (1.4)
+11. [x] Edificios cercanos en Lua (1.4)
 12. [ ] Interacción con edificios (2.2)
-13. [ ] Huir inteligente (2.3)
-14. [ ] Movimiento anti-atascamiento mejorado (3.5)
+13. [x] Huir inteligente — dirección opuesta al hostil (2.3)
+14. [x] Dirección relativa (N/S/E/W) en NEARBY
+15. [ ] Movimiento anti-atascamiento mejorado (3.5)
 
 ---
 
