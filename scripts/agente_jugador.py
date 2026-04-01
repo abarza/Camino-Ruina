@@ -122,6 +122,26 @@ def parse_teclas_env() -> list[str]:
     return [k.strip() for k in raw.split(",") if k.strip()]
 
 
+def _parsear_nearby(state: str) -> list[dict]:
+    """Extrae NPCs del NEARBY con nombre, distancia y hostilidad."""
+    m = re.search(r"^NEARBY:\s*(.+)$", state, re.MULTILINE)
+    if not m or "(nadie cerca)" in m.group(1):
+        return []
+    result = []
+    for ent in m.group(1).split(";"):
+        ent = ent.strip()
+        if not ent:
+            continue
+        nombre = ent.split("(")[0].strip()
+        d_match = re.search(r"d=(\d+)", ent)
+        dist = int(d_match.group(1)) if d_match else 99
+        hostile = "hostile" in ent
+        wild = "wild" in ent
+        named = nombre and "(sin nombre)" not in nombre
+        result.append({"nombre": nombre, "dist": dist, "hostile": hostile, "wild": wild, "named": named})
+    return result
+
+
 def _get_game_state() -> str:
     """Intenta obtener estado via DFHack; si falla, retorna string vacío."""
     try:
@@ -398,6 +418,15 @@ def main() -> int:
                         _cerrar_menu()
                         decision = f"Auto: cerrar {focus_line} (sin opciones)"
                         teclas_a_enviar = []
+            elif "GetItems" in focus_line:
+                # Menú de pickup (g): seleccionar primer item.
+                try:
+                    from scripts.dfhack_io import simulate_input
+                    simulate_input("SELECT")
+                except Exception:
+                    pass
+                decision = "Auto: recoger item (SELECT)"
+                teclas_a_enviar = []
             else:
                 # Capturar pantalla antes de cerrar (útil para Look, Search, etc.)
                 if "Look" in focus_line or "Search" in focus_line:
@@ -550,6 +579,15 @@ def main() -> int:
                     teclas_a_enviar = ["KP_4", "KP_4", "KP_4", "KP_4", "KP_4"]
                     necesidad_handled = True
 
+            # Escape automático de hostiles cercanos (antes del LLM).
+            nearby = _parsear_nearby(antes)
+            hostil_cercano = next((n for n in nearby if n["hostile"] and n["dist"] < 5), None)
+            if not necesidad_handled and hostil_cercano:
+                decision = f"Auto: huyendo de {hostil_cercano['nombre']} (hostile, d={hostil_cercano['dist']})"
+                # Huir en dirección opuesta (si no sabemos la dirección, ir al sur).
+                teclas_a_enviar = ["KP_2", "KP_2", "KP_2", "KP_2", "KP_2"]
+                necesidad_handled = True
+
             if not necesidad_handled and USE_LLM_INTENTIONS:
                 try:
                     from scripts.decisor_llm import EstadoMinimo, decidir_intencion
@@ -567,6 +605,20 @@ def main() -> int:
                     if intencion.nombre == "hablar_npc" and cooldown_hablar > 0:
                         decision = f"Auto: bloqueado hablar (cooldown {cooldown_hablar}), explorando"
                         teclas_a_enviar = ["KP_6", "KP_6", "KP_6"]
+                    elif intencion.nombre == "hablar_npc":
+                        # Verificar si hay alguien con nombre a d<=3.
+                        npc_cercano = next((n for n in nearby if n["named"] and n["dist"] <= 3), None)
+                        if not npc_cercano:
+                            # Nadie cerca para hablar — acercarse al NPC con nombre más cercano.
+                            npc_lejos = next((n for n in sorted(nearby, key=lambda x: x["dist"]) if n["named"]), None)
+                            if npc_lejos:
+                                decision = f"Auto: acercándose a {npc_lejos['nombre']} (d={npc_lejos['dist']})"
+                                # Movimiento genérico hacia NPC (no sabemos dirección exacta, usar norte).
+                                teclas_a_enviar = ["KP_8", "KP_8", "KP_8"]
+                            else:
+                                decision = "Auto: nadie con nombre cerca, explorando"
+                                teclas_a_enviar = ["KP_6", "KP_6", "KP_6"]
+                            cooldown_hablar = 5
                     elif intencion.nombre in ("mirar_alrededor", "buscar_area") and cooldown_mirar > 0:
                         decision = f"Auto: bloqueado mirar (cooldown {cooldown_mirar}), explorando"
                         teclas_a_enviar = ["KP_8", "KP_8", "KP_8"]

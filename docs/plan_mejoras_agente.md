@@ -195,14 +195,14 @@ El system prompt actual tiene 9 reglas. Agregar:
 6. [x] Reglas de hostilidad y pickup en decisor (4.3)
 
 ### Etapa B — Interacción (hacer que el agente "haga" más)
-4. [ ] Intención `acercarse_npc` (2.1)
-5. [ ] Bloquear `hablar_npc` si nadie a d<=3 (3.1)
-6. [ ] Mini-historial de turnos en el prompt (4.2)
-7. [ ] Manejo de menú de pickup (3.2)
+4. [x] Acercarse a NPC si d>3 en vez de hablar (2.1 + 3.1)
+5. [x] Bloquear `hablar_npc` si nadie con nombre a d<=3 (3.1)
+6. [x] Mini-historial de turnos en el prompt (4.2)
+7. [x] Manejo de menú de pickup GetItems (3.2)
 
 ### Etapa C — Supervivencia (hacer que no muera)
-8. [ ] Detección de combate y escape automático (3.4)
-9. [ ] Items en el suelo en Lua (1.2)
+8. [x] Detección de combate y escape automático (3.4)
+9. [x] Items en el suelo en Lua (1.2) — adelantado a Etapa A
 10. [ ] Búsqueda de agua inteligente (3.3)
 
 ### Etapa D — Exploración (hacer que encuentre cosas)
